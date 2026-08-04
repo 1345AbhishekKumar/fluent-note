@@ -1,0 +1,225 @@
+{
+  "version": 1,
+  "skills": {
+    "api-and-interface-design": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "3cf54553433e55875c664baf78f9c769820bdfac155f09bf2989d70e20e6e147"
+    },
+    "browser-testing-with-devtools": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "639950ea71851d9c4919608cba8b6276cd1ba30cd82acdc4949c701537eed661"
+    },
+    "ci-cd-and-automation": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "578b098a7d2352ccdac8b8abdc40eb6803538e81cf8382f138da6188a655087c"
+    },
+    "code-review": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "7c3170d8b1b904418358af0474f82e74c89a2dd66c12c956caefdc0aa81ea09f"
+    },
+    "code-simplification": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "7973e746e8e2ea5004d520da970c15a106824b8d6be1bcff48908aec021f3677"
+    },
+    "codebase-design": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "cdc3d683881cbe5ca367c954571e158861176aa9af8adad1b2c5edd9eb72fe05"
+    },
+    "context-engineering": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "bb8864454c5a24636cab86c4b3c4b29e7e7431c80485bfd7c9c0a19a01936510"
+    },
+    "debugging-and-error-recovery": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "4d6dd59d6961005d9d341ca2fc0f9b63342bc644fa54feb25b06ed0f031a2c49"
+    },
+    "deprecation-and-migration": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "55a559781ae92cacd6b75acd509e61b577c2660212d1808da2fbb8dbadc90196"
+    },
+    "design-an-interface": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "f3f225914515407b8224e8ec6187db337c5e65bad0703936a0acb3f802947a7d"
+    },
+    "diagnosing-bugs": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "44417076a76b40331f3816f21e76ea7c9d129e3f73cca2e159b69a56aaa838b2"
+    },
+    "domain-modeling": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "b747e8b4dcd0f367ef940c290b14f858bf9576ad9961fd6684bacff5688f4a2b"
+    },
+    "doubt-driven-development": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "f6094460ebc9512285c85790e49f612081b9dd6a2b77d874fe2d960ef50a9ef1"
+    },
+    "git-workflow-and-versioning": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "8b53153892a21c3a486831bf608970b040ad0e9da698505af58c659242cf835c"
+    },
+    "grill-me": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "7edd436132b43ea2973710f0c28a9879c9b0910651eb89a991a7e98cb6dbbacb"
+    },
+    "grill-with-docs": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "96718e0a89e48c7d76cc9759c7094a82ff34eb89ddc46a30388063fa9812356f"
+    },
+    "grilling": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "ac63b22655a6fa4a59468dda21415b773c0aaf5a7e2e27e2259eaabf02a840bc"
+    },
+    "handoff": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "7b03a812d5ca10fa8fe69d4cf8a34542684db51f5db0271254b96074e9f3a243"
+    },
+    "implement": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "130cac2d72bfde8cd526bf3b754211e2fe00e84bc4d9f9c56f749b9541a3afad"
+    },
+    "improve-codebase-architecture": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "569299a60c8e93880f3b3c1eca55578f58f7e1a4155876edb4cb814da3d6b3ea"
+    },
+    "incremental-implementation": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "7dbcae84e7a212fc32f7f2de2292967388b6cfa0583d202d5dc081cdd6325caa"
+    },
+    "interview-me": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "efded91ac7f7626239b338ce8622afeb557151b86532b632f3c9eb5b2ff9048f"
+    },
+    "loop-me": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "9494fca20a03e23e207ca3c8f13073665371563441f97354fe4a534ab8708ed8"
+    },
+    "observability-and-instrumentation": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "9bfc314353e4a55d691faca5b1a894e38a9897d88aabff34ea2c6a039d86bf8d"
+    },
+    "performance-optimization": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "a59703bda55d80ef8189704ee3dc8c35bf8134582cf0cf0dbf6618b97c961826"
+    },
+    "planning-and-task-breakdown": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "2b47f19bb035cd8bf6816cb3d21c6d9830cb1da52a089e2e2892d1c63521f5d8"
+    },
+    "prototype": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "aa385376b4bf4b5d69378e606f1cce3d98578ecba02c25273cd4a3e4deaceedb"
+    },
+    "request-refactor-plan": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "6811250488d1dafcb111e7ef0dc1124211369c5f6f47ce820b7527c255489178"
+    },
+    "research": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "0ce7d7a48175ab30c80240df350a73c216489f775324c8d27c8a10b1b38a49bf"
+    },
+    "resolving-merge-conflicts": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "6a005119c18c477c2122321a380a43d40242bae3cc7027125f13497d90875be2"
+    },
+    "security-and-hardening": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "a0246e67cf8f8a18687a7736442738318b1997715fbdf53dfcf767082c51cca5"
+    },
+    "setup-matt-pocock-skills": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "509889c1c4970485fdd558df50142d4bf28d6f40866923637c32e64689c9fbda"
+    },
+    "setup-pre-commit": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "68ddf950f4848ae057b33a940533447d3b5ae34f21e09701e263879f973daa38"
+    },
+    "shipping-and-launch": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "6b43ba5b61feb3300833bae1925d234276d38af2035f619cc2f4849a98a1111b"
+    },
+    "source-driven-development": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "235fb43569e9b21ec5d209818ff1ad3da9682be33c4e464ffa89ed348e7094a0"
+    },
+    "spec-driven-development": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "2dee9aa940633b7b5e0f45be34839ab31c0de98d482e16772c5cd350f4b91b4b"
+    },
+    "tdd": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "7ac19bf391ceb23266ed5b4f81068201eaa38dcf76d0b59850d49c2c9e426d63"
+    },
+    "teach": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "0c06821a21052b8a054f04c74223db2f1fb5868bbe0da76674d0892a872b3c56"
+    },
+    "test-driven-development": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "2a541c517efcf3ebc1c0fb8cb644bab1690724fb9d2f67bb6d075d6a73876ba8"
+    },
+    "to-spec": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "4049d9955a79642ca945e844362d889060787167719bcca0b0cd6f53a95dc9e0"
+    },
+    "to-tickets": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "733df2a51c28078b6b3b8b96ee0c0a70e846163444bf202422d5a1f17bfabea6"
+    },
+    "triage": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "8695824ffe756567f6cf3b758853a094a9c974bf96226cde88b0b6c08099dabc"
+    },
+    "wayfinder": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "731db837ef3b7e03d6742b296a58ab48c8a0867320d5af269611e21a80059607"
+    },
+    "writing-great-skills": {
+      "source": "D:\\MyProjects\\Apps-build\\Winodows-app\\simple-chat\\.agents",
+      "sourceType": "local",
+      "computedHash": "141d1a43348257160910bdb5d828ca6f404fb8bb1dff72ec7c619434381fde6d"
+    }
+  }
+}
