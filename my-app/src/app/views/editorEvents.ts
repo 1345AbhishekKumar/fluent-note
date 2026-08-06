@@ -1,8 +1,9 @@
 import type { AppContext } from '../context';
-import type { Block, BlockType, Note } from '../../types';
+import type { Block, BlockType, Note, FlyoutItem } from '../../types';
 import { 
   findBlockById, getBlockLevel, flattenBlocks, flattenVisibleBlocks,
-  isCaretAtStart, moveCaret, resolveNoteId, genId, renderBlockTree
+  isCaretAtStart, moveCaret, resolveNoteId, genId, renderBlockTree, setEdBodyHtml,
+  esc
 } from '../../utils';
 import { saveAndSyncContent, saveAndSync } from '../../store';
 
@@ -19,6 +20,314 @@ function duplicateBlocksWithNewIds(blocks: Block[]): Block[] {
 }
 
 export function initEditorKeyEvents(ctx: AppContext) {
+  const isToggleType = (t: string) => ['toggle', 'toggle_h1', 'toggle_h2', 'toggle_h3'].includes(t);
+  const isNonTextFieldBlock = (t: string) => ['divider', 'image', 'video', 'audio', 'pdf', 'bookmark', 'file', 'toc', 'breadcrumb', 'math', 'equation'].includes(t);
+
+  // Helper to get next Wednesday date
+  function getNextWednesday() {
+    const today = new Date();
+    const day = today.getDay();
+    const daysUntilWednesday = (3 - day + 7) % 7 || 7;
+    const nextWed = new Date(today.getTime() + daysUntilWednesday * 86400000);
+    return nextWed.toISOString().slice(0, 10);
+  }
+
+  // Helper to insert text at caret position in contenteditable
+  function insertTextAtCaret(el: HTMLElement, val: string) {
+    el.focus();
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      const node = document.createTextNode(val);
+      range.insertNode(node);
+      range.setStartAfter(node);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } else {
+      el.textContent = (el.textContent || '') + val;
+    }
+
+    // Synchronize content to memory immediately
+    const blockEl = el.closest('.block-wrapper') as HTMLElement;
+    if (blockEl) {
+      const blockId = blockEl.dataset.id!;
+      const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+      if (n) {
+        const match = findBlockById(n.blocks, blockId);
+        if (match) {
+          match.block.content = el.textContent || '';
+        }
+      }
+    }
+  }
+
+  // Rerender selected block outlines
+  function rerenderSelectionStyles() {
+    const selectedIds = ctx.st.selectedBlockIds || new Set<string>();
+    ctx.elements.edBody.querySelectorAll('.block-wrapper').forEach(el => {
+      const bId = (el as HTMLElement).dataset.id;
+      if (bId) {
+        el.classList.toggle('selected', selectedIds.has(bId));
+      }
+    });
+  }
+
+  let activePickerEl: HTMLElement | null = null;
+  let activePickerBlockId: string | null = null;
+  let activePickerSymbol: string | null = null;
+  let selectedPickerIndex = 0;
+  let visiblePickerItems: any[] = [];
+
+  function showAutocompletePicker(block: Block, textField: HTMLElement, symbol: string, query = '') {
+    closeAutocompletePicker();
+    selectedPickerIndex = 0;
+    activePickerSymbol = symbol;
+    activePickerBlockId = block.id;
+
+    const picker = document.createElement('div');
+    picker.className = 'slash-menu autocomplete-picker';
+
+    let items: { label: string; desc?: string; icon: string; action: () => void }[] = [];
+    
+    if (symbol === '@') {
+      const members = [
+        { name: 'John Doe', role: 'Collaborator' },
+        { name: 'Jane Smith', role: 'Researcher' },
+        { name: 'Alice Johnson', role: 'Writer' }
+      ];
+      members.forEach(m => {
+        if (m.name.toLowerCase().includes(query.toLowerCase())) {
+          items.push({
+            label: m.name,
+            desc: m.role,
+            icon: '👤',
+            action: () => {
+              insertTextAtCaret(textField, `@${m.name}`);
+              saveAndSyncContent();
+            }
+          });
+        }
+      });
+
+      ctx.st.notes.forEach(x => {
+        if (x.id !== ctx.st.sel && (x.title || '').toLowerCase().includes(query.toLowerCase())) {
+          items.push({
+            label: x.title || 'Untitled',
+            desc: 'Link to note',
+            icon: '📄',
+            action: () => {
+              insertTextAtCaret(textField, `[[${x.title || 'Untitled'}]]`);
+              saveAndSyncContent();
+            }
+          });
+        }
+      });
+
+      const dateOptions = [
+        { label: 'Today', val: new Date().toISOString().slice(0, 10) },
+        { label: 'Yesterday', val: new Date(Date.now() - 86400000).toISOString().slice(0, 10) },
+        { label: 'Tomorrow', val: new Date(Date.now() + 86400000).toISOString().slice(0, 10) },
+        { label: 'Next Wednesday', val: getNextWednesday() }
+      ];
+      dateOptions.forEach(d => {
+        if (d.label.toLowerCase().includes(query.toLowerCase())) {
+          items.push({
+            label: d.label,
+            desc: d.val,
+            icon: '📅',
+            action: () => {
+              insertTextAtCaret(textField, `📅 ${d.val}`);
+              saveAndSyncContent();
+            }
+          });
+        }
+      });
+
+      if ('add a reminder'.includes(query.toLowerCase()) || 'remind'.includes(query.toLowerCase())) {
+        items.push({
+          label: 'Add a reminder',
+          desc: 'Get notified at a specific time',
+          icon: '⏰',
+          action: () => {
+            const time = prompt('Enter reminder time (YYYY-MM-DD HH:MM):');
+            if (time) {
+              insertTextAtCaret(textField, `⏰ Reminder: ${time}`);
+              ctx.toast(`Reminder set for ${time}`);
+              saveAndSyncContent();
+            }
+          }
+        });
+      }
+    } else if (symbol === '[[' || symbol === '+') {
+      ctx.st.notes.forEach(x => {
+        if (x.id !== ctx.st.sel && (x.title || '').toLowerCase().includes(query.toLowerCase())) {
+          items.push({
+            label: x.title || 'Untitled',
+            desc: 'Link to note',
+            icon: '📄',
+            action: () => {
+              insertTextAtCaret(textField, `[[${x.title || 'Untitled'}]]`);
+              saveAndSyncContent();
+            }
+          });
+        }
+      });
+
+      if ('add new sub-page'.includes(query.toLowerCase()) || 'subpage'.includes(query.toLowerCase())) {
+        items.push({
+          label: 'Add new sub-page',
+          desc: 'Create and nest a sub-page here',
+          icon: '➕',
+          action: () => {
+            const title = query || 'New Subpage';
+            const parentN = ctx.st.notes.find(x => x.id === ctx.st.sel);
+            if (parentN) {
+              const newN: Note = {
+                id: 'n' + Math.random().toString(36).slice(2, 7),
+                title: title,
+                body: '',
+                blocks: [{ id: genId(), type: 'paragraph', content: '', children: [] }],
+                nb: parentN.nb,
+                tags: [],
+                pinned: false,
+                date: 'Just now',
+                ord: --ctx.st.ordMin,
+                parentId: parentN.id
+              };
+              ctx.st.notes.unshift(newN);
+              saveAndSync();
+              insertTextAtCaret(textField, `[[${title}]]`);
+            }
+          }
+        });
+      }
+
+      if ('add new page in...'.includes(query.toLowerCase()) || 'page elsewhere'.includes(query.toLowerCase())) {
+        items.push({
+          label: 'Add new page in...',
+          desc: 'Create new page in another folder',
+          icon: '↗',
+          action: () => {
+            const title = query || 'New Page';
+            ctx.showPrompt('Enter parent folder/note ID or notebook name:', 'design', 'design', parentId => {
+              if (parentId) {
+                const newN: Note = {
+                  id: 'n' + Math.random().toString(36).slice(2, 7),
+                  title: title,
+                  body: '',
+                  blocks: [{ id: genId(), type: 'paragraph', content: '', children: [] }],
+                  nb: 'design',
+                  tags: [],
+                  pinned: false,
+                  date: 'Just now',
+                  ord: --ctx.st.ordMin,
+                  parentId: parentId
+                };
+                ctx.st.notes.unshift(newN);
+                saveAndSync();
+                insertTextAtCaret(textField, `[[${title}]]`);
+              }
+            });
+          }
+        });
+      }
+    }
+
+    if (items.length === 0) return;
+    visiblePickerItems = items;
+
+    picker.innerHTML = items.map((item, idx) => `
+      <button class="slash-item ${idx === selectedPickerIndex ? 'selected' : ''}" data-index="${idx}">
+        <span class="slash-item-icon">${item.icon}</span>
+        <div class="slash-item-info">
+          <span class="slash-item-label">${item.label}</span>
+          <span class="slash-item-desc">${item.desc || ''}</span>
+        </div>
+      </button>
+    `).join('');
+
+    const rect = textField.getBoundingClientRect();
+    const innerRect = ctx.elements.edInner.getBoundingClientRect();
+    picker.style.left = (rect.left - innerRect.left) + 'px';
+    picker.style.top = (rect.bottom - innerRect.top + 4) + 'px';
+
+    ctx.elements.edInner.appendChild(picker);
+    activePickerEl = picker;
+
+    picker.querySelectorAll('.slash-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const index = parseInt((btn as HTMLElement).dataset.index!);
+        executePickerCommand(index);
+      });
+    });
+  }
+
+  function updatePickerSelection(menu: HTMLElement) {
+    menu.querySelectorAll('.slash-item').forEach((btn, i) => {
+      btn.classList.toggle('selected', i === selectedPickerIndex);
+    });
+    const sel = menu.querySelector('.slash-item.selected') as HTMLElement;
+    if (sel) sel.scrollIntoView({ block: 'nearest' });
+  }
+
+  function executePickerCommand(index: number) {
+    if (index >= 0 && index < visiblePickerItems.length) {
+      const item = visiblePickerItems[index];
+      const activeEl = document.activeElement as HTMLElement;
+      const blockId = activePickerBlockId;
+      
+      if (activeEl && activeEl.classList.contains('block-text-field')) {
+        const text = activeEl.textContent || '';
+        const symbol = activePickerSymbol || '';
+        const lastIdx = text.lastIndexOf(symbol);
+        if (lastIdx !== -1) {
+          activeEl.textContent = text.slice(0, lastIdx);
+          
+          // Sync textContent change to memory!
+          if (blockId) {
+            const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+            if (n) {
+              const match = findBlockById(n.blocks, blockId);
+              if (match) {
+                match.block.content = activeEl.textContent || '';
+              }
+            }
+          }
+        }
+      }
+      
+      item.action();
+      
+      // Sync action's text changes to memory and rerender to display badges immediately!
+      if (blockId) {
+        const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+        if (n) {
+          const match = findBlockById(n.blocks, blockId);
+          if (match && activeEl) {
+            match.block.content = activeEl.textContent || '';
+            rerender(n);
+            const field = ctx.elements.edBody.querySelector(`[data-id="${blockId}"] .block-text-field`) as HTMLElement;
+            if (field) moveCaret(field);
+          }
+        }
+      }
+    }
+    closeAutocompletePicker();
+  }
+
+  function closeAutocompletePicker() {
+    if (activePickerEl) {
+      activePickerEl.remove();
+      activePickerEl = null;
+    }
+    activePickerBlockId = null;
+    activePickerSymbol = null;
+    selectedPickerIndex = 0;
+    visiblePickerItems = [];
+  }
+
   // Inner helpers for block mutations
   function findParentBlockOfList(currentList: Block[], targetList: Block[], parentBlock: Block): { parentList: Block[], block: Block } | null {
     for (const block of currentList) {
@@ -56,7 +365,10 @@ export function initEditorKeyEvents(ctx: AppContext) {
     { type: 'bullet',     label: 'Bullet',     desc: 'Bulleted list item',      icon: '•',   aliases: ['bullet','list'] },
     { type: 'numbered',   label: 'Numbered',   desc: 'Numbered list item',      icon: '1.',  aliases: ['num','numbered','ol'] },
     { type: 'todo',       label: 'To-do',      desc: 'Checkbox task',           icon: '☑',   aliases: ['todo','task','check'] },
-    { type: 'toggle',     label: 'Toggle',     desc: 'Collapsible section',     icon: '▶',   aliases: ['toggle','collapse'] },
+    { type: 'toggle',     label: 'Toggle list',desc: 'Collapsible section',     icon: '▶',   aliases: ['toggle','collapse','>'] },
+    { type: 'toggle_h1',  label: 'Toggle heading 1', desc: 'Large toggle header',  icon: '▶1',  aliases: ['toggle h1','toggle1','h1 toggle'] },
+    { type: 'toggle_h2',  label: 'Toggle heading 2', desc: 'Medium toggle header', icon: '▶2',  aliases: ['toggle h2','toggle2','h2 toggle'] },
+    { type: 'toggle_h3',  label: 'Toggle heading 3', desc: 'Small toggle header',  icon: '▶3',  aliases: ['toggle h3','toggle3','h3 toggle'] },
     { type: 'quote',      label: 'Quote',      desc: 'Block quote',             icon: '❝',   aliases: ['quote','blockquote'] },
     { type: 'divider',    label: 'Divider',    desc: 'Horizontal rule',         icon: '—',   aliases: ['div','divider','hr','separator'] },
     { type: 'subpage',    label: 'Page',       desc: 'Nested sub-page',         icon: '📄',  aliases: ['page','subpage'] },
@@ -85,6 +397,20 @@ export function initEditorKeyEvents(ctx: AppContext) {
     { type: 'template',   label: 'Template',   desc: 'Reusable block button',   icon: '🔁',  aliases: ['button','template'] },
     { type: 'breadcrumb', label: 'Breadcrumb', desc: 'Page location trail',     icon: '›',   aliases: ['bread','breadcrumb','trail'] },
     { type: 'math',       label: 'Math',       desc: 'Block TeX equation',      icon: '∫',   aliases: ['math','latex','tex'] },
+    // ── COLORS ────────────────────────────────────────────────────────────
+    { group: 'Colors' },
+    { type: 'color_blue', label: 'Blue text', icon: '🎨', aliases: ['color blue','blue','text blue'] },
+    { type: 'color_red', label: 'Red text', icon: '🎨', aliases: ['color red','red','text red'] },
+    { type: 'color_green', label: 'Green text', icon: '🎨', aliases: ['color green','green','text green'] },
+    { type: 'color_yellow', label: 'Yellow text', icon: '🎨', aliases: ['color yellow','yellow','text yellow'] },
+    { type: 'color_purple', label: 'Purple text', icon: '🎨', aliases: ['color purple','purple','text purple'] },
+    { type: 'color_default', label: 'Default color', icon: '🎨', aliases: ['color default','default','black'] },
+    { type: 'bg_blue', label: 'Blue background', icon: '🎨', aliases: ['blue background','bg blue'] },
+    { type: 'bg_red', label: 'Red background', icon: '🎨', aliases: ['red background','bg red'] },
+    { type: 'bg_green', label: 'Green background', icon: '🎨', aliases: ['green background','bg green'] },
+    { type: 'bg_yellow', label: 'Yellow background', icon: '🎨', aliases: ['yellow background','bg yellow'] },
+    { type: 'bg_purple', label: 'Purple background', icon: '🎨', aliases: ['purple background','bg purple'] },
+    { type: 'bg_default', label: 'Default background', icon: '🎨', aliases: ['bg default','default background'] }
   ];
 
   // ── Emoji set (simple grid) ───────────────────────────────────────────────
@@ -93,6 +419,24 @@ export function initEditorKeyEvents(ctx: AppContext) {
   function filterSlashItems(query: string): SlashItem[] {
     if (!query) return allSlashItems;
     const q = query.toLowerCase();
+    
+    // /turn support: filters to basic block styles
+    if (q === 'turn') {
+      const basicTypes = ['paragraph', 'heading1', 'heading2', 'heading3', 'bullet', 'numbered', 'todo', 'toggle', 'toggle_h1', 'toggle_h2', 'toggle_h3', 'quote', 'divider'];
+      return [
+        { group: 'Basic Conversions' },
+        ...allSlashItems.filter(item => !item.group && basicTypes.includes(item.type || ''))
+      ];
+    }
+
+    // /color support: filters to color options
+    if (q === 'color') {
+      return [
+        { group: 'Colors' },
+        ...allSlashItems.filter(item => !item.group && (item.type?.startsWith('color_') || item.type?.startsWith('bg_')))
+      ];
+    }
+
     const result: SlashItem[] = [];
     let lastGroup: SlashItem | null = null;
     for (const item of allSlashItems) {
@@ -279,15 +623,53 @@ export function initEditorKeyEvents(ctx: AppContext) {
     }, 0);
   }
 
+  function openCalendarPicker(anchorEl: HTMLElement, currentDate: string, onSelect: (newDate: string) => void) {
+    const input = document.createElement('input');
+    input.type = 'date';
+    const match = currentDate.match(/\d{4}-\d{2}-\d{2}/);
+    input.value = match ? match[0] : new Date().toISOString().slice(0, 10);
+    input.style.position = 'absolute';
+    input.style.opacity = '0';
+    input.style.pointerEvents = 'none';
+    input.style.zIndex = '99999';
+    
+    const rect = anchorEl.getBoundingClientRect();
+    const parentRect = ctx.elements.edInner.getBoundingClientRect();
+    input.style.left = `${rect.left - parentRect.left}px`;
+    input.style.top = `${rect.bottom - parentRect.top}px`;
+    
+    ctx.elements.edInner.appendChild(input);
+    
+    input.addEventListener('change', () => {
+      if (input.value) {
+        onSelect(input.value);
+      }
+      input.remove();
+    });
+    
+    input.addEventListener('blur', () => {
+      setTimeout(() => input.remove(), 100);
+    });
+    
+    try {
+      input.showPicker();
+    } catch (e) {
+      input.click();
+    }
+  }
+
   function openDatePicker(block: Block, n: Note) {
     const today = new Date().toISOString().slice(0, 10);
-    const val = prompt('Enter date (YYYY-MM-DD):', today);
-    if (!val) return;
-    block.content = (block.content || '') + `📅 ${val}`;
-    block.type = 'paragraph';
-    rerender(n);
     const field = ctx.elements.edBody.querySelector(`[data-id="${block.id}"] .block-text-field`) as HTMLElement;
-    if (field) moveCaret(field);
+    if (!field) return;
+    
+    openCalendarPicker(field, today, (newDate) => {
+      block.content = (block.content || '') + `📅 ${newDate}`;
+      block.type = 'paragraph';
+      rerender(n);
+      const newField = ctx.elements.edBody.querySelector(`[data-id="${block.id}"] .block-text-field`) as HTMLElement;
+      if (newField) moveCaret(newField);
+    });
   }
 
   function openMentionPicker(block: Block, n: Note, blockId: string) {
@@ -326,7 +708,7 @@ export function initEditorKeyEvents(ctx: AppContext) {
   }
 
   function rerender(n: Note) {
-    ctx.elements.edBody.innerHTML = renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes });
+    setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes }));
     saveAndSyncContent();
     ctx.markSaving();
   }
@@ -374,7 +756,7 @@ export function initEditorKeyEvents(ctx: AppContext) {
       case 'paragraph':
       case 'heading1': case 'heading2': case 'heading3':
       case 'bullet': case 'numbered':
-      case 'quote': case 'toggle':
+      case 'quote': case 'toggle': case 'toggle_h1': case 'toggle_h2': case 'toggle_h3':
         match.block.type = cmdType as BlockType;
         break;
 
@@ -504,6 +886,20 @@ export function initEditorKeyEvents(ctx: AppContext) {
         match.block.content = 'Template button';
         break;
 
+      // ── Colors ──────────────────────────────────────────────────────────
+      case 'color_blue':    match.block.textColor = '#2b579a'; ctx.st.lastUsedColor = '#2b579a'; break;
+      case 'color_red':     match.block.textColor = '#b91d47'; ctx.st.lastUsedColor = '#b91d47'; break;
+      case 'color_green':   match.block.textColor = '#00a300'; ctx.st.lastUsedColor = '#00a300'; break;
+      case 'color_yellow':  match.block.textColor = '#d8c200'; ctx.st.lastUsedColor = '#d8c200'; break;
+      case 'color_purple':  match.block.textColor = '#7e3878'; ctx.st.lastUsedColor = '#7e3878'; break;
+      case 'color_default': match.block.textColor = ''; ctx.st.lastUsedColor = ''; break;
+      case 'bg_blue':       match.block.bgColor = 'rgba(43,87,154,0.12)'; ctx.st.lastUsedBgColor = 'rgba(43,87,154,0.12)'; break;
+      case 'bg_red':        match.block.bgColor = 'rgba(185,29,71,0.12)'; ctx.st.lastUsedBgColor = 'rgba(185,29,71,0.12)'; break;
+      case 'bg_green':      match.block.bgColor = 'rgba(0,163,0,0.12)'; ctx.st.lastUsedBgColor = 'rgba(0,163,0,0.12)'; break;
+      case 'bg_yellow':     match.block.bgColor = 'rgba(255,233,160,0.35)'; ctx.st.lastUsedBgColor = 'rgba(255,233,160,0.35)'; break;
+      case 'bg_purple':     match.block.bgColor = 'rgba(126,56,120,0.12)'; ctx.st.lastUsedBgColor = 'rgba(126,56,120,0.12)'; break;
+      case 'bg_default':    match.block.bgColor = ''; ctx.st.lastUsedBgColor = ''; break;
+
       default:
         // Unknown type – no-op
         return;
@@ -551,7 +947,12 @@ export function initEditorKeyEvents(ctx: AppContext) {
           { prefix: '- ',   type: 'bullet',    strip: 2 },
           { prefix: '* ',   type: 'bullet',    strip: 2 },
           { prefix: '1. ',  type: 'numbered',  strip: 3 },
-          { prefix: '> ',   type: 'quote',     strip: 2 },
+          { prefix: '> # ', type: 'toggle_h1', strip: 4 },
+          { prefix: '> ## ',type: 'toggle_h2', strip: 5 },
+          { prefix: '> ### ',type: 'toggle_h3',strip: 6 },
+          { prefix: '> ',   type: 'toggle',    strip: 2 },
+          { prefix: '" ',   type: 'quote',     strip: 2 },
+          { prefix: '| ',   type: 'quote',     strip: 2 },
           { prefix: '--- ', type: 'divider',   strip: text.length },
           { prefix: '``` ', type: 'code',      strip: 4, extra: () => { match.block.language = 'plaintext'; } },
         ];
@@ -572,6 +973,15 @@ export function initEditorKeyEvents(ctx: AppContext) {
             return;
           }
         }
+      }
+
+      // ── --- auto-divider conversion ──────────────────────────────────────
+      if (text === '---') {
+        match.block.type = 'divider';
+        match.block.content = '';
+        rerender(n);
+        focusNextBlockOrNew(n, match.index, match.parentList);
+        return;
       }
 
       // ── Slash menu trigger / filter ─────────────────────────────────────
@@ -596,6 +1006,32 @@ export function initEditorKeyEvents(ctx: AppContext) {
         closeSlashMenu();
       }
 
+      // ── Autocomplete popups trigger / filter (@, [[, +) ──────────────────
+      const checkAutocompleteTrigger = (symbol: string) => {
+        const symbolIdx = text.lastIndexOf(symbol);
+        if (symbolIdx !== -1) {
+          const charBefore = symbolIdx > 0 ? text[symbolIdx - 1] : '';
+          const isValidTrigger = symbolIdx === 0 || /\s/.test(charBefore);
+          if (isValidTrigger) {
+            const query = text.slice(symbolIdx + symbol.length);
+            showAutocompletePicker(match.block, target, symbol, query);
+            return true;
+          }
+        }
+        return false;
+      };
+
+      let triggered = false;
+      for (const sym of ['@', '[[', '+']) {
+        if (checkAutocompleteTrigger(sym)) {
+          triggered = true;
+          break;
+        }
+      }
+      if (!triggered && activePickerBlockId === blockId) {
+        closeAutocompletePicker();
+      }
+
       saveAndSyncContent();
       ctx.markSaving();
     }
@@ -612,6 +1048,31 @@ export function initEditorKeyEvents(ctx: AppContext) {
     const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
     if (!n) return;
     
+    if (activePickerEl) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedPickerIndex = (selectedPickerIndex + 1) % visiblePickerItems.length;
+        updatePickerSelection(activePickerEl);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedPickerIndex = (selectedPickerIndex - 1 + visiblePickerItems.length) % visiblePickerItems.length;
+        updatePickerSelection(activePickerEl);
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        executePickerCommand(selectedPickerIndex);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeAutocompletePicker();
+        return;
+      }
+    }
+
     if (activeSlashBlockId) {
       const menu = ctx.root.querySelector('.slash-menu') as HTMLElement;
       if (menu) {
@@ -640,7 +1101,193 @@ export function initEditorKeyEvents(ctx: AppContext) {
         }
       }
     }
-    
+
+    // ── Esc to enter block selection mode ───────────────────────────
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      ctx.st.selectedBlockIds = new Set([blockId]);
+      target.blur();
+      rerenderSelectionStyles();
+      return;
+    }
+
+    // ── Ctrl/Cmd + A once to select block wrapper ────────────────────
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+      e.preventDefault();
+      ctx.st.selectedBlockIds = new Set([blockId]);
+      target.blur();
+      rerenderSelectionStyles();
+      return;
+    }
+
+    // ── Ctrl/Cmd + K for link insertion ──────────────────────────────
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      const selection = window.getSelection();
+      if (selection && !selection.isCollapsed) {
+        e.preventDefault();
+        const url = prompt('Enter link URL:', 'https://');
+        if (url) {
+          const range = selection.getRangeAt(0);
+          const selectedHtml = range.toString();
+          const linkHtml = `<a href="${url.trim()}" target="_blank" style="color: var(--accent); text-decoration: underline;">${esc(selectedHtml)}</a>`;
+          document.execCommand('insertHTML', false, linkHtml);
+          saveAndSyncContent();
+          ctx.markSaving();
+        }
+        return;
+      }
+    }
+
+    // ── Ctrl/Cmd + Shift + H to apply last text/highlight color ───────
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'h') {
+      e.preventDefault();
+      const match = findBlockById(n.blocks, blockId);
+      if (match) {
+        if (ctx.st.lastUsedColor !== undefined) match.block.textColor = ctx.st.lastUsedColor;
+        if (ctx.st.lastUsedBgColor !== undefined) match.block.bgColor = ctx.st.lastUsedBgColor;
+        rerender(n);
+        const newField = ctx.elements.edBody.querySelector(`[data-id="${blockId}"] .block-text-field`) as HTMLElement;
+        if (newField) moveCaret(newField);
+        saveAndSyncContent();
+        ctx.markSaving();
+      }
+      return;
+    }
+
+    // ── Ctrl/Cmd + Shift + M for commenting ──────────────────────────
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'm') {
+      e.preventDefault();
+      const match = findBlockById(n.blocks, blockId);
+      if (match) {
+        const commentVal = prompt('Enter comment for this block:', match.block.comment || '');
+        if (commentVal !== null) {
+          match.block.comment = commentVal.trim() || undefined;
+          rerender(n);
+          const newField = ctx.elements.edBody.querySelector(`[data-id="${blockId}"] .block-text-field`) as HTMLElement;
+          if (newField) moveCaret(newField);
+          saveAndSyncContent();
+          ctx.markSaving();
+        }
+      }
+      return;
+    }
+
+    // ── Ctrl/Cmd + Shift + S for strikethrough ────────────────────────
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      document.execCommand('strikeThrough', false, undefined);
+      saveAndSyncContent();
+      ctx.markSaving();
+      return;
+    }
+
+    // ── Ctrl/Cmd + Shift + E for inline math/equation ──────────────────
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'e') {
+      e.preventDefault();
+      const selection = window.getSelection()?.toString() || '';
+      const val = prompt('Enter TeX / LaTeX formula:', selection);
+      if (val !== null) {
+        document.execCommand('insertHTML', false, `$$${val.trim()}$$`);
+        saveAndSyncContent();
+        ctx.markSaving();
+        
+        const match = findBlockById(n.blocks, blockId);
+        if (match) {
+          match.block.content = target.textContent || '';
+          rerender(n);
+          const newField = ctx.elements.edBody.querySelector(`[data-id="${blockId}"] .block-text-field`) as HTMLElement;
+          if (newField) moveCaret(newField);
+        }
+      }
+      return;
+    }
+
+    // ── Ctrl/Cmd + E for inline code ─────────────────────────────────
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'e') {
+      e.preventDefault();
+      const selection = window.getSelection()?.toString();
+      if (selection) {
+        document.execCommand('insertHTML', false, `<code style="background:var(--bg3); padding: 2px 4px; border-radius: 4px; font-family: monospace;">${esc(selection)}</code>`);
+        saveAndSyncContent();
+        ctx.markSaving();
+      }
+      return;
+    }
+
+    // ── Shift + Enter for inline line break ──────────────────────────
+    if (e.key === 'Enter' && e.shiftKey) {
+      e.preventDefault();
+      document.execCommand('insertLineBreak', false, undefined);
+      return;
+    }
+
+    // ── Ctrl/Cmd + Shift/Alt + Number Style Shortcuts ─────────────────
+    const numKey = parseInt(e.key);
+    const isStyleShortcut = (e.ctrlKey || e.metaKey) && (e.altKey || e.shiftKey) && !isNaN(numKey);
+    if (isStyleShortcut) {
+      e.preventDefault();
+      const match = findBlockById(n.blocks, blockId);
+      if (match) {
+        const typeMap: Record<number, BlockType> = {
+          0: 'paragraph',
+          1: 'heading1',
+          2: 'heading2',
+          3: 'heading3',
+          4: 'todo',
+          5: 'bullet',
+          6: 'numbered',
+          7: 'toggle',
+          8: 'code',
+        };
+        const targetType = typeMap[numKey];
+        if (targetType) {
+          match.block.type = targetType;
+          if (targetType === 'todo') match.block.checked = false;
+          if (targetType === 'code') match.block.language = 'plaintext';
+          rerender(n);
+          const newField = ctx.elements.edBody.querySelector(`[data-id="${blockId}"] .block-text-field`) as HTMLElement;
+          if (newField) moveCaret(newField);
+        } else if (numKey === 9) {
+          // Turn line into page
+          const parentN = ctx.st.notes.find(x => x.id === ctx.st.sel);
+          if (parentN) {
+            const title = match.block.content.trim() || 'Untitled Page';
+            const newN: Note = {
+              id: 'n' + Math.random().toString(36).slice(2, 7),
+              title: title,
+              body: '',
+              blocks: [{ id: genId(), type: 'paragraph', content: '', children: [] }],
+              nb: parentN.nb,
+              tags: [],
+              pinned: false,
+              date: 'Just now',
+              ord: --ctx.st.ordMin,
+              parentId: parentN.id
+            };
+            ctx.st.notes.unshift(newN);
+            match.block.type = 'paragraph';
+            match.block.content = `[[${title}]]`;
+            rerender(n);
+            saveAndSync();
+          }
+        }
+      }
+      return;
+    }
+
+    // ── Ctrl/Cmd + Enter to open/close toggle ───────────────────────
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      const match = findBlockById(n.blocks, blockId);
+      if (match && isToggleType(match.block.type)) {
+        e.preventDefault();
+        match.block.collapsed = !match.block.collapsed;
+        rerender(n);
+        const field = ctx.elements.edBody.querySelector(`[data-id="${blockId}"] .block-text-field`) as HTMLElement;
+        if (field) moveCaret(field);
+        return;
+      }
+    }
+
     if (e.key === 'Enter') {
       e.preventDefault();
       const match = findBlockById(n.blocks, blockId);
@@ -665,8 +1312,20 @@ export function initEditorKeyEvents(ctx: AppContext) {
       const textBefore = fullText.slice(0, caretOffset);
       const textAfter = fullText.slice(caretOffset);
 
+      // ── Shift+Enter: soft line break (inserts newline) ────────────────
+      if (e.shiftKey) {
+        insertTextAtCaret(target, '\n');
+        return;
+      }
+
+      // ── Code block: Enter key should just insert a newline! ─────────
+      if (currentType === 'code') {
+        insertTextAtCaret(target, '\n');
+        return;
+      }
+
       // ── Toggle block: Enter creates a child inside the toggle ─────
-      if (currentType === 'toggle') {
+      if (isToggleType(currentType)) {
         currentBlock.content = textBefore;
         if (currentBlock.collapsed) currentBlock.collapsed = false;
         if (!currentBlock.children) currentBlock.children = [];
@@ -677,6 +1336,35 @@ export function initEditorKeyEvents(ctx: AppContext) {
         const newField = ctx.elements.edBody.querySelector(`[data-id="${newBlockId}"] .block-text-field`) as HTMLElement;
         if (newField) newField.focus();
         return;
+      }
+
+      // ── Empty nested block inside toggle: Enter outdents it ─────
+      if (parentList !== n.blocks && fullText.trim() === '') {
+        let grandparentBlockMatch = null;
+        for (const b of n.blocks) {
+          if (b.children === parentList) {
+            grandparentBlockMatch = { parentList: n.blocks, block: b };
+            break;
+          }
+          const childMatch = findParentBlockOfList(b.children, parentList, b);
+          if (childMatch) {
+            grandparentBlockMatch = childMatch;
+            break;
+          }
+        }
+        if (grandparentBlockMatch) {
+          const { parentList: grandparentList, block: parentBlock } = grandparentBlockMatch;
+          const parentIndexInGrandparent = grandparentList.indexOf(parentBlock);
+          parentList.splice(index, 1);
+          grandparentList.splice(parentIndexInGrandparent + 1, 0, currentBlock);
+          currentBlock.type = 'paragraph';
+          rerender(n);
+          const field = ctx.elements.edBody.querySelector(`[data-id="${currentBlock.id}"] .block-text-field`) as HTMLElement;
+          if (field) field.focus();
+          saveAndSyncContent();
+          ctx.markSaving();
+          return;
+        }
       }
 
       // ── Empty list/quote block: convert back to paragraph ─────────
@@ -721,6 +1409,23 @@ export function initEditorKeyEvents(ctx: AppContext) {
           
           if (flatIndex > 0) {
             const prevBlock = flat[flatIndex - 1];
+            
+            // If the previous block is a non-text block, delete it instead of merging!
+            if (isNonTextFieldBlock(prevBlock.type)) {
+              const prevBlockMatch = findBlockById(n.blocks, prevBlock.id);
+              if (prevBlockMatch) {
+                prevBlockMatch.parentList.splice(prevBlockMatch.index, 1);
+                setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes }));
+                const field = ctx.elements.edBody.querySelector(`[data-id="${blockId}"] .block-text-field`) as HTMLElement;
+                if (field) {
+                  moveCaret(field, true);
+                }
+                saveAndSyncContent();
+                ctx.markSaving();
+              }
+              return;
+            }
+            
             const originalLength = prevBlock.content.length;
             prevBlock.content += match.block.content;
             
@@ -733,7 +1438,7 @@ export function initEditorKeyEvents(ctx: AppContext) {
               match.parentList.splice(parentIndex, 1);
             }
             
-            ctx.elements.edBody.innerHTML = renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes });
+            setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes }));
             const prevField = ctx.elements.edBody.querySelector(`[data-id="${prevBlock.id}"] .block-text-field`) as HTMLElement;
             if (prevField) {
               prevField.focus();
@@ -761,11 +1466,15 @@ export function initEditorKeyEvents(ctx: AppContext) {
     if (e.key === 'ArrowUp') {
       const flat = flattenVisibleBlocks(n.blocks);
       const flatIndex = flat.findIndex(b => b.id === blockId);
-      if (flatIndex > 0) {
-        e.preventDefault();
-        const prevField = ctx.elements.edBody.querySelector(`[data-id="${flat[flatIndex - 1].id}"] .block-text-field`) as HTMLElement;
-        if (prevField) {
-          moveCaret(prevField, false);
+      for (let i = flatIndex - 1; i >= 0; i--) {
+        const prevBlock = flat[i];
+        if (!isNonTextFieldBlock(prevBlock.type)) {
+          e.preventDefault();
+          const prevField = ctx.elements.edBody.querySelector(`[data-id="${prevBlock.id}"] .block-text-field`) as HTMLElement;
+          if (prevField) {
+            moveCaret(prevField, false);
+            break;
+          }
         }
       }
       return;
@@ -774,11 +1483,15 @@ export function initEditorKeyEvents(ctx: AppContext) {
     if (e.key === 'ArrowDown') {
       const flat = flattenVisibleBlocks(n.blocks);
       const flatIndex = flat.findIndex(b => b.id === blockId);
-      if (flatIndex < flat.length - 1) {
-        e.preventDefault();
-        const nextField = ctx.elements.edBody.querySelector(`[data-id="${flat[flatIndex + 1].id}"] .block-text-field`) as HTMLElement;
-        if (nextField) {
-          moveCaret(nextField, true);
+      for (let i = flatIndex + 1; i < flat.length; i++) {
+        const nextBlock = flat[i];
+        if (!isNonTextFieldBlock(nextBlock.type)) {
+          e.preventDefault();
+          const nextField = ctx.elements.edBody.querySelector(`[data-id="${nextBlock.id}"] .block-text-field`) as HTMLElement;
+          if (nextField) {
+            moveCaret(nextField, true);
+            break;
+          }
         }
       }
       return;
@@ -812,7 +1525,7 @@ export function initEditorKeyEvents(ctx: AppContext) {
               parentList.splice(index, 1);
               grandparentList.splice(parentIndexInGrandparent + 1, 0, match.block);
               
-              ctx.elements.edBody.innerHTML = renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes });
+              setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes }));
               const field = ctx.elements.edBody.querySelector(`[data-id="${blockId}"] .block-text-field`) as HTMLElement;
               if (field) field.focus();
               saveAndSyncContent();
@@ -823,7 +1536,7 @@ export function initEditorKeyEvents(ctx: AppContext) {
                 parentList.splice(index, 1);
                 n.blocks.splice(rootParentIndex + 1, 0, match.block);
                 
-                ctx.elements.edBody.innerHTML = renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes });
+                setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes }));
                 const field = ctx.elements.edBody.querySelector(`[data-id="${blockId}"] .block-text-field`) as HTMLElement;
                 if (field) field.focus();
                 saveAndSyncContent();
@@ -832,13 +1545,16 @@ export function initEditorKeyEvents(ctx: AppContext) {
             }
           }
         } else {
-          if (index > 0 && level < 2) {
+          if (index > 0) {
             const precedingSibling = parentList[index - 1];
             parentList.splice(index, 1);
             if (!precedingSibling.children) precedingSibling.children = [];
             precedingSibling.children.push(match.block);
+            if (isToggleType(precedingSibling.type) && precedingSibling.collapsed) {
+              precedingSibling.collapsed = false;
+            }
             
-            ctx.elements.edBody.innerHTML = renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes });
+            setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes }));
             const field = ctx.elements.edBody.querySelector(`[data-id="${blockId}"] .block-text-field`) as HTMLElement;
             if (field) field.focus();
             saveAndSyncContent();
@@ -847,6 +1563,40 @@ export function initEditorKeyEvents(ctx: AppContext) {
         }
       }
       return;
+    }
+  });
+
+  ctx.elements.edBody.addEventListener('paste', e => {
+    const clipboardData = e.clipboardData;
+    if (!clipboardData) return;
+
+    const pastedText = clipboardData.getData('text');
+    const isUrl = /^(https?:\/\/[^\s]+)$/i.test(pastedText.trim());
+    if (isUrl) {
+      const selection = window.getSelection();
+      if (selection && !selection.isCollapsed) {
+        e.preventDefault();
+        const range = selection.getRangeAt(0);
+        const selectedHtml = range.toString();
+        const linkHtml = `<a href="${pastedText.trim()}" target="_blank" style="color: var(--accent); text-decoration: underline;">${esc(selectedHtml)}</a>`;
+        document.execCommand('insertHTML', false, linkHtml);
+        
+        const target = e.target as HTMLElement;
+        const blockEl = target.closest('.block-wrapper') as HTMLElement;
+        if (blockEl) {
+          const blockId = blockEl.dataset.id!;
+          const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+          if (n) {
+            const match = findBlockById(n.blocks, blockId);
+            if (match) {
+              const textEl = blockEl.querySelector('.block-text-field') as HTMLElement;
+              match.block.content = textEl.innerHTML;
+              saveAndSyncContent();
+              ctx.markSaving();
+            }
+          }
+        }
+      }
     }
   });
 
@@ -880,6 +1630,96 @@ export function initEditorKeyEvents(ctx: AppContext) {
 
   ctx.elements.edBody.addEventListener('click', e => {
     const target = e.target as HTMLElement;
+
+    // ── Drag handle click ──────────────────────────────────────────────────
+    const dragHandle = target.closest('.block-drag-handle') as HTMLElement;
+    if (dragHandle) {
+      e.preventDefault();
+      e.stopPropagation();
+      const blockEl = dragHandle.closest('.block-wrapper') as HTMLElement;
+      if (!blockEl) return;
+      const bId = blockEl.dataset.id!;
+      const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+      if (!n) return;
+      const match = findBlockById(n.blocks, bId);
+      if (match) {
+        ctx.st.selectedBlockIds = new Set([bId]);
+        rerenderSelectionStyles();
+        
+        const menuItems: FlyoutItem[] = [
+          { label: 'Duplicate', icon: '⧉', action: () => {
+            const clone = duplicateBlockWithNewIds(match.block);
+            match.parentList.splice(match.index + 1, 0, clone);
+            rerender(n);
+          }},
+          { label: 'Delete', icon: '🗑', danger: true, action: () => {
+            match.parentList.splice(match.index, 1);
+            if (n.blocks.length === 0) n.blocks.push({ id: genId(), type: 'paragraph', content: '', children: [] });
+            rerender(n);
+          }},
+          { sep: true },
+          { head: 'Turn into' },
+          { label: 'Text', icon: '¶', action: () => { match.block.type = 'paragraph'; rerender(n); } },
+          { label: 'Heading 1', icon: 'H1', action: () => { match.block.type = 'heading1'; rerender(n); } },
+          { label: 'Heading 2', icon: 'H2', action: () => { match.block.type = 'heading2'; rerender(n); } },
+          { label: 'Heading 3', icon: 'H3', action: () => { match.block.type = 'heading3'; rerender(n); } },
+          { label: 'Bullet list', icon: '•', action: () => { match.block.type = 'bullet'; rerender(n); } },
+          { label: 'Numbered list', icon: '1.', action: () => { match.block.type = 'numbered'; rerender(n); } },
+          { label: 'To-do list', icon: '☑', action: () => { match.block.type = 'todo'; match.block.checked = false; rerender(n); } },
+          { label: 'Toggle list', icon: '▶', action: () => { match.block.type = 'toggle'; rerender(n); } },
+          { label: 'Quote', icon: '❝', action: () => { match.block.type = 'quote'; rerender(n); } },
+          { label: 'Code', icon: '</>', action: () => { match.block.type = 'code'; match.block.language = 'plaintext'; rerender(n); } },
+          { label: 'Divider', icon: '—', action: () => { match.block.type = 'divider'; match.block.content = ''; rerender(n); } },
+          { label: 'Math Equation', icon: '∫', action: () => { match.block.type = 'math'; rerender(n); } }
+        ];
+        
+        ctx.openFly(dragHandle, menuItems);
+      }
+      return;
+    }
+
+    // ── Date badge click to edit ───────────────────────────────────────────
+    const dateBadge = target.closest('.date-badge') as HTMLElement;
+    if (dateBadge) {
+      e.preventDefault();
+      const blockEl = dateBadge.closest('.block-wrapper') as HTMLElement;
+      if (!blockEl) return;
+      const bId = blockEl.dataset.id!;
+      const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+      if (!n) return;
+      const match = findBlockById(n.blocks, bId);
+      if (match) {
+        const oldDate = dateBadge.dataset.date || '';
+        openCalendarPicker(dateBadge, oldDate, (newDate) => {
+          match.block.content = match.block.content.replace(oldDate, newDate.trim());
+          rerender(n);
+        });
+      }
+      return;
+    }
+
+    // ── Math badge click to edit ───────────────────────────────────────────
+    const mathBadge = target.closest('.math-badge') as HTMLElement;
+    if (mathBadge) {
+      e.preventDefault();
+      const blockEl = mathBadge.closest('.block-wrapper') as HTMLElement;
+      if (!blockEl) return;
+      const bId = blockEl.dataset.id!;
+      const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+      if (!n) return;
+      const match = findBlockById(n.blocks, bId);
+      if (match) {
+        const oldTex = mathBadge.dataset.tex || '';
+        const newTex = prompt('Edit TeX / LaTeX formula:', oldTex);
+        if (newTex !== null) {
+          const oldFull = `$$${oldTex}$$`;
+          const newFull = `$$${newTex.trim()}$$`;
+          match.block.content = match.block.content.replace(oldFull, newFull);
+          rerender(n);
+        }
+      }
+      return;
+    }
 
     // ── Wiki link navigation ───────────────────────────────────────────────
     const link = target.closest('.wiki-link') as HTMLElement;
@@ -918,7 +1758,14 @@ export function initEditorKeyEvents(ctx: AppContext) {
       const match = findBlockById(n.blocks, bId);
       if (match) {
         match.block.collapsed = !match.block.collapsed;
-        ctx.elements.edBody.innerHTML = renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes });
+        const blockEl = toggleBtn.closest('.block-wrapper') as HTMLElement;
+        if (blockEl) {
+          blockEl.classList.toggle('collapsed', !!match.block.collapsed);
+          const childrenContainer = blockEl.querySelector(':scope > .block-children-container') as HTMLElement;
+          if (childrenContainer) {
+            childrenContainer.style.display = match.block.collapsed ? 'none' : '';
+          }
+        }
         saveAndSyncContent();
         ctx.markSaving();
       }
@@ -979,12 +1826,41 @@ export function initEditorKeyEvents(ctx: AppContext) {
     // ── Math block click to edit ───────────────────────────────────────────
     const mathBlock = target.closest('.block-math') as HTMLElement;
     if (mathBlock && !target.closest('.block-media-placeholder')) {
+      if (mathBlock.querySelector('.block-math-editor')) return; // already editing
       const bId = mathBlock.dataset.id!;
       const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
       if (!n) return;
       const match = findBlockById(n.blocks, bId);
       if (match) {
-        openTexPrompt(match.block.type, match.block, n);
+        const originalContent = match.block.content || '';
+        mathBlock.innerHTML = `<textarea class="block-math-editor" style="width: 100%; min-height: 80px; font-family: monospace; font-size: 13.5px; border: 1px solid var(--border); border-radius: 4px; padding: 8px; background: var(--bg2); color: var(--text1); outline: none; resize: vertical;">${esc(originalContent)}</textarea>`;
+        const textarea = mathBlock.querySelector('.block-math-editor') as HTMLTextAreaElement;
+        textarea.focus();
+        textarea.select();
+        
+        let finished = false;
+        const saveAndExit = () => {
+          if (finished) return;
+          finished = true;
+          match.block.content = textarea.value.trim();
+          rerender(n);
+        };
+        
+        textarea.addEventListener('blur', () => {
+          saveAndExit();
+        });
+        
+        textarea.addEventListener('keydown', e => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            textarea.blur();
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            finished = true;
+            match.block.content = originalContent;
+            rerender(n);
+          }
+        });
       }
       return;
     }
@@ -1025,6 +1901,435 @@ export function initEditorKeyEvents(ctx: AppContext) {
       const noteId = bcLink.dataset.noteid!;
       if (noteId) ctx.selectNote(noteId);
       return;
+    }
+  });
+
+  // ── Document keydown handler for block selection mode and autocompletes ───────────────────────
+  document.addEventListener('keydown', e => {
+    const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+    if (!n) return;
+
+    const selectedIds = ctx.st.selectedBlockIds;
+    if (selectedIds && selectedIds.size > 0) {
+      const activeEl = document.activeElement as HTMLElement;
+      if (activeEl && (activeEl.classList.contains('block-text-field') || activeEl.tagName === 'INPUT')) {
+        return;
+      }
+
+      const selected = Array.from(selectedIds);
+      const firstId = selected[0];
+
+      // Escape: Clear selection and focus active block
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        selectedIds.clear();
+        rerenderSelectionStyles();
+        const field = ctx.elements.edBody.querySelector(`[data-id="${firstId}"] .block-text-field`) as HTMLElement;
+        if (field) moveCaret(field);
+        return;
+      }
+
+      // Enter: Edit text inside selected block
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        selectedIds.clear();
+        rerenderSelectionStyles();
+        const field = ctx.elements.edBody.querySelector(`[data-id="${firstId}"] .block-text-field`) as HTMLElement;
+        if (field) moveCaret(field);
+        return;
+      }
+
+      // ArrowUp / ArrowDown selection navigation
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        const flat = flattenVisibleBlocks(n.blocks);
+        const lastId = selected[selected.length - 1];
+        const idx = flat.findIndex(b => b.id === lastId);
+        let nextIdx = idx;
+        if (e.key === 'ArrowUp') {
+          if (idx > 0) nextIdx = idx - 1;
+        } else {
+          if (idx < flat.length - 1) nextIdx = idx + 1;
+        }
+
+        const targetId = flat[nextIdx].id;
+        if (e.shiftKey) {
+          if (selectedIds.has(targetId)) {
+            selectedIds.delete(lastId);
+          } else {
+            selectedIds.add(targetId);
+          }
+        } else {
+          selectedIds.clear();
+          selectedIds.add(targetId);
+        }
+        rerenderSelectionStyles();
+        const blockEl = ctx.elements.edBody.querySelector(`[data-id="${targetId}"]`) as HTMLElement;
+        if (blockEl) blockEl.scrollIntoView({ block: 'nearest' });
+        return;
+      }
+
+      // Backspace / Delete: Delete selected blocks
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        e.preventDefault();
+        for (const bId of selected) {
+          const match = findBlockById(n.blocks, bId);
+          if (match) {
+            const idx = match.parentList.indexOf(match.block);
+            if (idx !== -1) match.parentList.splice(idx, 1);
+          }
+        }
+        selectedIds.clear();
+        rerender(n);
+        saveAndSyncContent();
+        ctx.markSaving();
+        return;
+      }
+
+      // Ctrl+D: Duplicate selected blocks
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        const copies: string[] = [];
+        const flat = flattenVisibleBlocks(n.blocks);
+        selected.sort((a, b) => flat.findIndex(x => x.id === a) - flat.findIndex(x => x.id === b));
+
+        for (const bId of selected) {
+          const match = findBlockById(n.blocks, bId);
+          if (match) {
+            const copy = duplicateBlockWithNewIds(match.block);
+            match.parentList.splice(match.index + 1, 0, copy);
+            copies.push(copy.id);
+          }
+        }
+        ctx.st.selectedBlockIds = new Set(copies);
+        rerender(n);
+        rerenderSelectionStyles();
+        return;
+      }
+
+      // Ctrl+Shift+ArrowUp / Ctrl+Shift+ArrowDown: Move selected block around
+      const isMoveUp = (e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'ArrowUp';
+      const isMoveDown = (e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'ArrowDown';
+      if (isMoveUp || isMoveDown) {
+        e.preventDefault();
+        const flat = flattenVisibleBlocks(n.blocks);
+        selected.sort((a, b) => flat.findIndex(x => x.id === a) - flat.findIndex(x => x.id === b));
+
+        if (isMoveUp) {
+          for (const bId of selected) {
+            const match = findBlockById(n.blocks, bId);
+            if (match && match.index > 0) {
+              match.parentList.splice(match.index, 1);
+              match.parentList.splice(match.index - 1, 0, match.block);
+            }
+          }
+        } else {
+          for (let i = selected.length - 1; i >= 0; i--) {
+            const bId = selected[i];
+            const match = findBlockById(n.blocks, bId);
+            if (match && match.index < match.parentList.length - 1) {
+              match.parentList.splice(match.index, 1);
+              match.parentList.splice(match.index + 1, 0, match.block);
+            }
+          }
+        }
+        rerender(n);
+        rerenderSelectionStyles();
+        return;
+      }
+
+      // Ctrl+Shift+H: Apply last color to selected blocks
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        for (const bId of selected) {
+          const match = findBlockById(n.blocks, bId);
+          if (match) {
+            if (ctx.st.lastUsedColor !== undefined) match.block.textColor = ctx.st.lastUsedColor;
+            if (ctx.st.lastUsedBgColor !== undefined) match.block.bgColor = ctx.st.lastUsedBgColor;
+          }
+        }
+        rerender(n);
+        rerenderSelectionStyles();
+        saveAndSyncContent();
+        ctx.markSaving();
+        return;
+      }
+
+      // Ctrl+Shift+M: Comment on selected blocks
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'm') {
+        e.preventDefault();
+        const firstMatch = findBlockById(n.blocks, firstId);
+        const commentVal = prompt('Enter comment for selected block(s):', firstMatch?.block.comment || '');
+        if (commentVal !== null) {
+          const val = commentVal.trim() || undefined;
+          for (const bId of selected) {
+            const match = findBlockById(n.blocks, bId);
+            if (match) match.block.comment = val;
+          }
+          rerender(n);
+          rerenderSelectionStyles();
+          saveAndSyncContent();
+          ctx.markSaving();
+        }
+        return;
+      }
+
+      // Ctrl+Alt+T: Toggle all toggle lists
+      if ((e.ctrlKey || e.metaKey) && e.altKey && e.key.toLowerCase() === 't') {
+        e.preventDefault();
+        
+        let hasAnyExpanded = false;
+        const findExpanded = (list: Block[]) => {
+          for (const b of list) {
+            if (isToggleType(b.type) && !b.collapsed) {
+              hasAnyExpanded = true;
+              return;
+            }
+            if (b.children) findExpanded(b.children);
+          }
+        };
+        findExpanded(n.blocks);
+
+        const targetCollapse = hasAnyExpanded;
+        const setCollapse = (list: Block[]) => {
+          for (const b of list) {
+            if (isToggleType(b.type)) {
+              b.collapsed = targetCollapse;
+            }
+            if (b.children) setCollapse(b.children);
+          }
+        };
+        setCollapse(n.blocks);
+
+        rerender(n);
+        rerenderSelectionStyles();
+        saveAndSyncContent();
+        ctx.markSaving();
+        return;
+      }
+
+      // Ctrl+/: Open action picker for selected block
+      if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+        e.preventDefault();
+        const blockEl = ctx.elements.edBody.querySelector(`[data-id="${firstId}"]`) as HTMLElement;
+        const textField = blockEl?.querySelector('.block-text-field') as HTMLElement;
+        if (blockEl && textField) {
+          activeSlashBlockId = firstId;
+          showSlashMenu(blockEl, textField);
+        }
+        return;
+      }
+
+      // Space: Fullscreen media lightbox
+      if (e.key === ' ') {
+        e.preventDefault();
+        if (selected.length === 1) {
+          const match = findBlockById(n.blocks, firstId);
+          if (match && (match.block.type === 'image' || match.block.type === 'video')) {
+            let lightbox = ctx.root.querySelector('.fullscreen-media-lightbox') as HTMLElement;
+            if (lightbox) {
+              lightbox.remove();
+            } else {
+              lightbox = document.createElement('div');
+              lightbox.className = 'fullscreen-media-lightbox';
+              lightbox.innerHTML = match.block.type === 'image'
+                ? `<img src="${match.block.url}" />`
+                : `<video src="${match.block.url}" controls autoplay></video>`;
+              lightbox.addEventListener('click', () => lightbox.remove());
+              ctx.root.appendChild(lightbox);
+            }
+          }
+        }
+        return;
+      }
+
+      // Ctrl+Enter: Modify block actions
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        const match = findBlockById(n.blocks, firstId);
+        if (match) {
+          const matchWiki = match.block.content.match(/\[\[(.*?)\]\]/);
+          if (matchWiki) {
+            const ref = matchWiki[1].trim();
+            const noteId = resolveNoteId(ref, ctx.st.notes);
+            if (noteId) {
+              ctx.selectNote(noteId);
+              return;
+            }
+          } else if (match.block.type === 'todo') {
+            match.block.checked = !match.block.checked;
+            rerender(n);
+            rerenderSelectionStyles();
+          } else if (isToggleType(match.block.type)) {
+            match.block.collapsed = !match.block.collapsed;
+            rerender(n);
+            rerenderSelectionStyles();
+          } else if (match.block.type === 'image' || match.block.type === 'video') {
+            let lightbox = ctx.root.querySelector('.fullscreen-media-lightbox') as HTMLElement;
+            if (lightbox) {
+              lightbox.remove();
+            } else {
+              lightbox = document.createElement('div');
+              lightbox.className = 'fullscreen-media-lightbox';
+              lightbox.innerHTML = match.block.type === 'image'
+                ? `<img src="${match.block.url}" />`
+                : `<video src="${match.block.url}" controls autoplay></video>`;
+              lightbox.addEventListener('click', () => lightbox.remove());
+              ctx.root.appendChild(lightbox);
+            }
+          }
+        }
+        return;
+      }
+    }
+  });
+
+  // Alt+Shift+Click (Option+Shift+Click on Mac) to select/de-select entire block
+  ctx.elements.edBody.addEventListener('click', e => {
+    const target = e.target as HTMLElement;
+    const blockEl = target.closest('.block-wrapper') as HTMLElement;
+    if (!blockEl) return;
+    const blockId = blockEl.dataset.id!;
+
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const isToggleSelect = e.shiftKey && (isMac ? e.metaKey : e.altKey);
+
+    if (isToggleSelect) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!ctx.st.selectedBlockIds) ctx.st.selectedBlockIds = new Set<string>();
+      if (ctx.st.selectedBlockIds.has(blockId)) {
+        ctx.st.selectedBlockIds.delete(blockId);
+      } else {
+        ctx.st.selectedBlockIds.add(blockId);
+      }
+      rerenderSelectionStyles();
+      return;
+    }
+
+    // Shift + Click to select range of blocks
+    if (e.shiftKey && !isToggleSelect) {
+      const selected = Array.from(ctx.st.selectedBlockIds || []);
+      if (selected.length > 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+        if (n) {
+          const flat = flattenVisibleBlocks(n.blocks);
+          const firstIdx = flat.findIndex(b => b.id === selected[0]);
+          const thisIdx = flat.findIndex(b => b.id === blockId);
+          if (firstIdx !== -1 && thisIdx !== -1) {
+            const start = Math.min(firstIdx, thisIdx);
+            const end = Math.max(firstIdx, thisIdx);
+            ctx.st.selectedBlockIds = new Set(flat.slice(start, end + 1).map(b => b.id));
+            rerenderSelectionStyles();
+          }
+        }
+      }
+    }
+  });
+
+  // ── Code block controls event listeners ─────────────────────────────────
+  ctx.elements.edBody.addEventListener('change', e => {
+    const target = e.target as HTMLSelectElement;
+    if (target.classList.contains('code-lang-select')) {
+      const blockEl = target.closest('.block-wrapper') as HTMLElement;
+      if (!blockEl) return;
+      const bId = blockEl.dataset.id!;
+      const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+      if (!n) return;
+      const match = findBlockById(n.blocks, bId);
+      if (match) {
+        match.block.language = target.value;
+        rerender(n);
+      }
+    }
+  });
+
+  ctx.elements.edBody.addEventListener('click', e => {
+    const target = e.target as HTMLElement;
+    
+    // Wrap button click
+    const wrapBtn = target.closest('.code-wrap-btn') as HTMLElement;
+    if (wrapBtn) {
+      e.preventDefault();
+      const bId = wrapBtn.dataset.id!;
+      const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+      if (!n) return;
+      const match = findBlockById(n.blocks, bId);
+      if (match) {
+        match.block.codeWrap = !match.block.codeWrap;
+        rerender(n);
+      }
+      return;
+    }
+
+    // Fullwidth button click
+    const fullWidthBtn = target.closest('.code-fullwidth-btn') as HTMLElement;
+    if (fullWidthBtn) {
+      e.preventDefault();
+      const bId = fullWidthBtn.dataset.id!;
+      const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+      if (!n) return;
+      const match = findBlockById(n.blocks, bId);
+      if (match) {
+        match.block.codeFullWidth = !match.block.codeFullWidth;
+        rerender(n);
+      }
+      return;
+    }
+  });
+
+  // Focus transition: strip tags to plaintext
+  ctx.elements.edBody.addEventListener('focusin', e => {
+    const target = e.target as HTMLElement;
+    if (!target.classList.contains('block-code-field')) return;
+    
+    const blockEl = target.closest('.block-wrapper') as HTMLElement;
+    if (!blockEl) return;
+    const bId = blockEl.dataset.id!;
+    const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+    if (!n) return;
+    const match = findBlockById(n.blocks, bId);
+    if (match) {
+      target.textContent = match.block.content || '';
+    }
+  });
+
+  // Blur transition: apply Prism syntax highlighting
+  ctx.elements.edBody.addEventListener('focusout', e => {
+    const target = e.target as HTMLElement;
+    if (!target.classList.contains('block-code-field')) return;
+    
+    const blockEl = target.closest('.block-wrapper') as HTMLElement;
+    if (!blockEl) return;
+    const bId = blockEl.dataset.id!;
+    const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+    if (!n) return;
+    const match = findBlockById(n.blocks, bId);
+    if (match) {
+      const rawText = target.textContent || '';
+      match.block.content = rawText;
+      
+      const lang = match.block.language || 'plaintext';
+      const hasPrism = (window as any).Prism;
+      if (hasPrism && lang !== 'plaintext') {
+        try {
+          const grammar = (window as any).Prism.languages[lang];
+          if (grammar) {
+            target.innerHTML = (window as any).Prism.highlight(rawText, grammar, lang);
+          } else {
+            target.innerHTML = esc(rawText);
+          }
+        } catch (err) {
+          target.innerHTML = esc(rawText);
+        }
+      } else {
+        target.innerHTML = esc(rawText);
+      }
+      
+      saveAndSyncContent();
+      ctx.markSaving();
     }
   });
 }

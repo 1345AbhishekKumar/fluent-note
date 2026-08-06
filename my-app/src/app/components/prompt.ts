@@ -9,7 +9,6 @@ export function showPrompt(
 ) {
   const modal = document.createElement('div');
   modal.className = 'p2p-modal-overlay prompt-modal-container';
-  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:99999;backdrop-filter:blur(4px);';
   
   modal.innerHTML = `
     <style>
@@ -27,7 +26,7 @@ export function showPrompt(
         color: var(--text1);
         outline: none;
         font-size: 13px;
-        transition: border-color 0.15s, box-shadow 0.15s;
+        transition: border-color var(--duration-quick) var(--ease-smooth-out), box-shadow var(--duration-quick) var(--ease-smooth-out);
       }
       .prompt-modal-container .prompt-input:focus {
         border-color: var(--focus);
@@ -40,11 +39,11 @@ export function showPrompt(
         font-size: 12px;
         font-weight: 600;
         cursor: pointer;
-        transition: background-color 0.1s, transform 0.05s;
+        transition: background-color var(--duration-quick) var(--ease-smooth-out), transform var(--duration-micro) var(--ease-smooth-out);
       }
       .prompt-modal-container .btn-cancel:active,
       .prompt-modal-container .btn-ok:active {
-        transform: scale(0.97);
+        transform: scale(var(--scale-medium));
       }
       .prompt-modal-container .btn-cancel {
         background: var(--nav-h);
@@ -74,6 +73,7 @@ export function showPrompt(
   `;
   
   ctx.root.appendChild(modal);
+  requestAnimationFrame(() => modal.classList.add('show'));
   
   const input = modal.querySelector('.prompt-input') as HTMLInputElement;
   const cancelBtn = modal.querySelector('.btn-cancel') as HTMLButtonElement;
@@ -82,9 +82,19 @@ export function showPrompt(
   input.focus();
   input.select();
   
+  let closed = false;
   const close = (result: string | null) => {
-    modal.remove();
-    callback(result);
+    if (closed) return;
+    closed = true;
+    modal.classList.remove('show');
+    const cleanup = () => {
+      modal.remove();
+      callback(result);
+    };
+    modal.addEventListener('transitionend', (e) => {
+      if (e.target === modal) cleanup();
+    }, { once: true });
+    setTimeout(cleanup, 250);
   };
   
   cancelBtn.addEventListener('click', () => close(null));

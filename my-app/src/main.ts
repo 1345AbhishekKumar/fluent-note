@@ -6,7 +6,7 @@ if (started) {
   app.quit();
 }
 
-const createWindow = () => {
+const createWindow = (noteId?: string) => {
   const mainWindow = new BrowserWindow({
     width: 1100,
     height: 750,
@@ -28,32 +28,44 @@ const createWindow = () => {
   });
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    mainWindow.loadURL(noteId ? `${MAIN_WINDOW_VITE_DEV_SERVER_URL}?noteId=${noteId}` : MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
     mainWindow.loadFile(
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+      noteId ? { query: { noteId } } : undefined
     );
   }
-
-  // Handle IPC window controls
-  ipcMain.on('window-close', () => {
-    mainWindow.close();
-  });
-
-  ipcMain.on('window-minimize', () => {
-    mainWindow.minimize();
-  });
-
-  ipcMain.on('window-maximize', () => {
-    if (mainWindow.isMaximized()) {
-      mainWindow.unmaximize();
-    } else {
-      mainWindow.maximize();
-    }
-  });
 };
 
-app.on('ready', createWindow);
+// Handle IPC window controls globally to support multiple windows
+ipcMain.on('window-close', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) win.close();
+});
+
+ipcMain.on('window-minimize', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) win.minimize();
+});
+
+ipcMain.on('window-maximize', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) {
+    if (win.isMaximized()) {
+      win.unmaximize();
+    } else {
+      win.maximize();
+    }
+  }
+});
+
+ipcMain.on('window-new', (event, noteId) => {
+  createWindow(noteId);
+});
+
+app.on('ready', () => {
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

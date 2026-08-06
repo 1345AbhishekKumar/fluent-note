@@ -165,10 +165,9 @@ export function startP2PShare(
 
   const modal = document.createElement('div');
   modal.className = 'p2p-modal-overlay';
-  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(4px);';
   
   modal.innerHTML = `
-    <div class="p2p-card" style="width: 400px; max-width: 90vw; padding: 20px; background:var(--bg); border:1px solid var(--divider); border-radius:8px; box-shadow: 0 8px 32px rgba(0,0,0,0.24); display:flex; flex-direction:column; gap:12px;">
+    <div class="p2p-card" style="width: 400px; max-width: 90vw; padding: 20px;">
       <div class="p2p-title" style="font-weight: 600; font-size: 16px; color:var(--text);">Share Sub-graph Closure</div>
       <div class="p2p-closure-info" style="font-size: 13px; line-height: 1.4; color:var(--text2);">
         <strong>Sharing:</strong> ${esc(sharingName)}<br>
@@ -186,7 +185,7 @@ export function startP2PShare(
       </div>
       
       <div class="p2p-progress-track" style="width:100%; height:4px; background:var(--divider); border-radius:2px; display:none; overflow:hidden;">
-        <div class="p2p-progress-bar" style="width:0%; height:100%; background:var(--accent); transition:width 1.5s ease-in-out;"></div>
+        <div class="p2p-progress-bar" style="width:0%; height:100%; background:var(--accent); transition:width 1.5s var(--ease-linear);"></div>
       </div>
       
       <div style="display: flex; gap: 8px;">
@@ -201,6 +200,7 @@ export function startP2PShare(
   `;
 
   ctx.root.appendChild(modal);
+  requestAnimationFrame(() => modal.classList.add('show'));
 
   const copyBtn = modal.querySelector('.p2p-copy-btn') as HTMLElement;
   const simBtn = modal.querySelector('.p2p-sim-btn') as HTMLElement;
@@ -241,18 +241,26 @@ export function startP2PShare(
     }, 1600);
   });
 
-  closeBtn.addEventListener('click', () => {
-    modal.remove();
-  });
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    modal.classList.remove('show');
+    modal.addEventListener('transitionend', (e) => {
+      if (e.target === modal) modal.remove();
+    }, { once: true });
+    setTimeout(() => modal.remove(), 250);
+  };
+
+  closeBtn.addEventListener('click', close);
 }
 
 export function openImportDialog(ctx: AppContext) {
   const modal = document.createElement('div');
   modal.className = 'p2p-modal-overlay';
-  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(4px);';
 
   modal.innerHTML = `
-    <div class="p2p-card" style="width: 400px; max-width: 90vw; padding: 20px; background:var(--bg); border:1px solid var(--divider); border-radius:8px; box-shadow: 0 8px 32px rgba(0,0,0,0.24); display:flex; flex-direction:column; gap:12px;">
+    <div class="p2p-card" style="width: 400px; max-width: 90vw; padding: 20px;">
       <div class="p2p-title" style="font-weight: 600; font-size: 16px; color:var(--text);">Import Sub-graph Share</div>
       <div>
         <label style="font-size: 11px; font-weight: 600; display: block; margin-bottom: 4px; color: var(--text2);">Paste \`.researcher-share\` Payload:</label>
@@ -269,11 +277,23 @@ export function openImportDialog(ctx: AppContext) {
   `;
 
   ctx.root.appendChild(modal);
+  requestAnimationFrame(() => modal.classList.add('show'));
 
   const importBox = modal.querySelector('.p2p-import-box') as HTMLTextAreaElement;
   const mergeBtn = modal.querySelector('.p2p-merge-btn') as HTMLElement;
   const cancelBtn = modal.querySelector('.p2p-cancel-btn') as HTMLElement;
   const status = modal.querySelector('.p2p-import-status') as HTMLElement;
+
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    modal.classList.remove('show');
+    modal.addEventListener('transitionend', (e) => {
+      if (e.target === modal) modal.remove();
+    }, { once: true });
+    setTimeout(() => modal.remove(), 250);
+  };
 
   mergeBtn.addEventListener('click', () => {
     const val = importBox.value.trim();
@@ -307,7 +327,7 @@ export function openImportDialog(ctx: AppContext) {
 
       saveAndSync();
       ctx.toast(`Successfully imported and merged ${mergeCount} note(s)!`);
-      modal.remove();
+      close();
 
       // Automatically select first imported note
       if (payload.notes.length > 0) {
@@ -319,7 +339,5 @@ export function openImportDialog(ctx: AppContext) {
     }
   });
 
-  cancelBtn.addEventListener('click', () => {
-    modal.remove();
-  });
+  cancelBtn.addEventListener('click', close);
 }

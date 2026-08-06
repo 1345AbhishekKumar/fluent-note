@@ -100,10 +100,32 @@ export function strip(html: string): string {
 export function renderLinksInContent(content: string): string {
   let html = esc(content);
   html = html.replace(/\[\[(.*?)\]\]/g, (match, title) => {
-    return `<span class="wiki-link" data-ref="${title}" contenteditable="false" style="color: var(--accent); text-decoration: underline; cursor: pointer;">[[${title}]]</span>`;
+    return `<span class="wiki-link" data-ref="${title}" contenteditable="false" style="color: var(--accent); text-decoration: underline; cursor: pointer;">[[${title}]]</span>\u200B`;
   });
   html = html.replace(/@([a-zA-Z0-9\s-_]+?)(?=\s+(?:and|or|for|with|is|are|was|were|the|a|an|in|at|on|of|to|from|by|about|as)\s+|[\.,\?!\;:()]|$)/gi, (match, title) => {
-    return `<span class="wiki-link" data-ref="${title}" contenteditable="false" style="color: var(--accent); text-decoration: underline; cursor: pointer;">@${title}</span>`;
+    return `<span class="wiki-link" data-ref="${title}" contenteditable="false" style="color: var(--accent); text-decoration: underline; cursor: pointer;">@${title}</span>\u200B`;
+  });
+  // Render date badges
+  html = html.replace(/📅\s*(\d{4}-\d{2}-\d{2})/g, (match, dateStr) => {
+    return `<span class="date-badge" data-date="${dateStr}" contenteditable="false" style="background: var(--bg3, rgba(0, 120, 212, 0.08)); color: var(--accent); padding: 2px 6px; border-radius: 4px; font-size: 12.5px; border: 1px solid var(--border); display: inline-flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;">📅 ${dateStr}</span>\u200B`;
+  });
+  // Render inline equations: $$...$$
+  html = html.replace(/\$\$(.*?)\$\$/g, (match, texStr) => {
+    let renderedTex = '';
+    const hasKatex = typeof window !== 'undefined' && (window as any).katex;
+    if (hasKatex) {
+      try {
+        renderedTex = (window as any).katex.renderToString(texStr, {
+          throwOnError: false,
+          displayMode: false
+        });
+      } catch (err) {
+        renderedTex = `<span style="color:var(--danger)">\$\${esc(texStr)}\$\$</span>`;
+      }
+    } else {
+      renderedTex = `\$\${esc(texStr)}\$\$`;
+    }
+    return `<span class="math-badge" data-tex="${esc(texStr)}" contenteditable="false" style="background: var(--bg3, rgba(0, 120, 212, 0.08)); color: var(--accent); padding: 2px 6px; border-radius: 4px; font-size: 12.5px; border: 1px solid var(--border); display: inline-flex; align-items: center; cursor: pointer; user-select: none;">${renderedTex}</span>\u200B`;
   });
   return html;
 }
@@ -117,6 +139,16 @@ export function renderBlockTree(
   if (!blocks || blocks.length === 0) return '';
   return blocks.map((block, blockIndex) => {
     const type = block.type;
+    const commentHtml = block.comment 
+      ? `<div class="block-comment-badge" title="${esc(block.comment)}">💬</div>` 
+      : '';
+    let textStyle = '';
+    if (block.textColor) textStyle += `color:${block.textColor};`;
+    const inlineTextStyle = textStyle ? `style="${textStyle}"` : '';
+
+    let bgStyle = '';
+    if (block.bgColor) bgStyle += `background-color:${block.bgColor};`;
+    const inlineBgStyle = bgStyle ? `style="${bgStyle}"` : '';
 
     // ── placeholder text per type ──────────────────────────────────────────
     const placeholderMap: Partial<Record<BlockType, string>> = {
@@ -141,14 +173,52 @@ export function renderBlockTree(
     // ── code block ────────────────────────────────────────────────────────
     if (type === 'code') {
       const lang = block.language || 'plaintext';
-      return `<div class="block-wrapper block-code-wrapper" data-id="${block.id}" data-type="code" ${levelStyle}>
+      const wrapClass = block.codeWrap ? 'wrap-text' : '';
+      const fullWidthClass = block.codeFullWidth ? 'full-width' : '';
+      
+      const hasPrism = typeof window !== 'undefined' && (window as any).Prism;
+      let highlighted = esc(block.content || '');
+      if (hasPrism && block.content && lang !== 'plaintext') {
+        try {
+          const grammar = (window as any).Prism.languages[lang];
+          if (grammar) {
+            highlighted = (window as any).Prism.highlight(block.content, grammar, lang);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      const langOptions = [
+        { val: 'plaintext', label: 'Plain Text' },
+        { val: 'javascript', label: 'JavaScript' },
+        { val: 'typescript', label: 'TypeScript' },
+        { val: 'html', label: 'HTML' },
+        { val: 'css', label: 'CSS' },
+        { val: 'json', label: 'JSON' },
+        { val: 'python', label: 'Python' },
+        { val: 'sql', label: 'SQL' },
+        { val: 'cpp', label: 'C++' },
+        { val: 'java', label: 'Java' },
+        { val: 'rust', label: 'Rust' }
+      ];
+
+      const selectHtml = `<select class="code-lang-select" data-id="${block.id}" style="background: transparent; border: none; font-size: 11px; font-weight: 600; color: var(--text3); cursor: pointer; font-family: monospace; outline: none; text-transform: uppercase; padding-right: 4px;">
+        ${langOptions.map(o => `<option value="${o.val}" ${lang === o.val ? 'selected' : ''}>${o.label}</option>`).join('')}
+      </select>`;
+
+      return `<div class="block-wrapper block-code-wrapper ${fullWidthClass} ${wrapClass}" data-id="${block.id}" data-type="code" ${levelStyle}>
         ${dragHandle}
-        <div class="block-code-wrap">
+        <div class="block-code-wrap" ${inlineBgStyle}>
           <div class="block-code-header">
-            <span class="code-lang-label" title="Click to change language" style="cursor: pointer; text-decoration: underline;">${esc(lang)}</span>
-            <button class="code-copy-btn" data-id="${block.id}" title="Copy code">Copy</button>
+            ${selectHtml}
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button class="code-wrap-btn ${block.codeWrap ? 'active' : ''}" data-id="${block.id}" title="Toggle Wrap text" style="font-size: 11px; font-weight: 500; color: var(--text2); background: none; border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; cursor: pointer;">Wrap</button>
+              <button class="code-fullwidth-btn ${block.codeFullWidth ? 'active' : ''}" data-id="${block.id}" title="Toggle Full width" style="font-size: 11px; font-weight: 500; color: var(--text2); background: none; border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; cursor: pointer;">↔</button>
+              <button class="code-copy-btn" data-id="${block.id}" title="Copy code">Copy</button>
+            </div>
           </div>
-          <div class="block-text-field block-code-field" contenteditable="true" spellcheck="false" data-ph="${placeholder}">${esc(block.content)}</div>
+          <div class="block-text-field block-code-field" ${inlineTextStyle} contenteditable="true" spellcheck="false" data-ph="${placeholder}">${highlighted}</div>
         </div>
       </div>`;
     }
@@ -212,13 +282,32 @@ export function renderBlockTree(
 
     // ── equation / math blocks ────────────────────────────────────────────
     if (type === 'equation' || type === 'math') {
+      let mathHtml = '';
+      const isMath = type === 'math';
+      const rawContent = block.content || '';
+      
+      const hasKatex = typeof window !== 'undefined' && (window as any).katex;
+      if (rawContent) {
+        if (hasKatex) {
+          try {
+            mathHtml = (window as any).katex.renderToString(rawContent, {
+              throwOnError: false,
+              displayMode: isMath
+            });
+          } catch (err) {
+            mathHtml = `<span style="color:var(--danger)">${esc(rawContent)}</span>`;
+          }
+        } else {
+          mathHtml = `<div class="block-math-display" style="background: var(--bg2); padding: 12px; border-radius: 6px; font-family: monospace; font-size: 14px;">${esc(rawContent)}</div>`;
+        }
+      } else {
+        mathHtml = `<div class="block-media-placeholder" data-prompt="math" data-id="${block.id}">∫ Click to add equation (TeX)</div>`;
+      }
+
       return `<div class="block-wrapper" data-id="${block.id}" data-type="${type}" ${levelStyle}>
         ${dragHandle}
         <div class="block-math" data-id="${block.id}" style="cursor: pointer;">
-          ${block.content
-            ? `<div class="block-math-display" style="background: var(--bg2); padding: 12px; border-radius: 6px; font-family: monospace; font-size: 14px;">${esc(block.content)}</div>`
-            : `<div class="block-media-placeholder" data-prompt="math" data-id="${block.id}">∫ Click to add equation (TeX)</div>`
-          }
+          ${mathHtml}
         </div>
       </div>`;
     }
@@ -297,19 +386,21 @@ export function renderBlockTree(
     }
 
     // ── toggle block ──────────────────────────────────────────────────────
-    if (type === 'toggle') {
+    if (type === 'toggle' || type === 'toggle_h1' || type === 'toggle_h2' || type === 'toggle_h3') {
       const isCollapsed = block.collapsed ? 'collapsed' : '';
       const children = (!block.collapsed && block.children && block.children.length > 0)
         ? `<div class="block-children-container block-toggle-children">${renderBlockTree(block.children, level + 1, rootBlocks || blocks, contextInfo)}</div>`
         : (block.children && block.children.length > 0
             ? `<div class="block-children-container block-toggle-children" style="display:none">${renderBlockTree(block.children, level + 1, rootBlocks || blocks, contextInfo)}</div>`
             : `<div class="block-children-container block-toggle-children" style="${block.collapsed ? 'display:none' : ''}"></div>`);
-      return `<div class="block-wrapper ${isCollapsed}" data-id="${block.id}" data-type="toggle" ${levelStyle}>
+      const toggleHeaderClass = (type === 'toggle_h1') ? ' toggle-h1' : (type === 'toggle_h2') ? ' toggle-h2' : (type === 'toggle_h3') ? ' toggle-h3' : '';
+      return `<div class="block-wrapper ${isCollapsed}" data-id="${block.id}" data-type="${type}" ${levelStyle}>
         <div class="block-main-row">
           ${dragHandle}
-          <div class="block-content-container">
+          <div class="block-content-container" ${inlineBgStyle}>
             <button class="toggle-arrow-btn" data-id="${block.id}">▶</button>
-            <div class="block-text-field" contenteditable="true" spellcheck="false" data-ph="${placeholder}">${renderLinksInContent(block.content)}</div>
+            <div class="block-text-field" ${inlineTextStyle} contenteditable="true" spellcheck="false" data-ph="${placeholder}">${renderLinksInContent(block.content)}</div>
+            ${commentHtml}
           </div>
         </div>
         ${children}
@@ -326,9 +417,12 @@ export function renderBlockTree(
       return `<div class="block-wrapper" data-id="${block.id}" data-type="bullet" ${levelStyle}>
         <div class="block-main-row">
           ${dragHandle}
-          <div class="block-content-container">
-            <span class="block-bullet-marker">•</span>
-            <div class="block-text-field" contenteditable="true" spellcheck="false" data-ph="${placeholder}">${renderLinksInContent(block.content)}</div>
+          <div class="block-content-container" ${inlineBgStyle}>
+            <div class="block-list-marker-gutter">
+              <span class="block-bullet-marker">•</span>
+            </div>
+            <div class="block-text-field" ${inlineTextStyle} contenteditable="true" spellcheck="false" data-ph="${placeholder}">${renderLinksInContent(block.content)}</div>
+            ${commentHtml}
           </div>
         </div>
         ${childrenHtml}
@@ -345,9 +439,12 @@ export function renderBlockTree(
       return `<div class="block-wrapper" data-id="${block.id}" data-type="numbered" ${levelStyle}>
         <div class="block-main-row">
           ${dragHandle}
-          <div class="block-content-container">
-            <span class="block-numbered-marker">${num}.</span>
-            <div class="block-text-field" contenteditable="true" spellcheck="false" data-ph="${placeholder}">${renderLinksInContent(block.content)}</div>
+          <div class="block-content-container" ${inlineBgStyle}>
+            <div class="block-list-marker-gutter">
+              <span class="block-numbered-marker">${num}.</span>
+            </div>
+            <div class="block-text-field" ${inlineTextStyle} contenteditable="true" spellcheck="false" data-ph="${placeholder}">${renderLinksInContent(block.content)}</div>
+            ${commentHtml}
           </div>
         </div>
         ${childrenHtml}
@@ -359,9 +456,10 @@ export function renderBlockTree(
       return `<div class="block-wrapper" data-id="${block.id}" data-type="quote" ${levelStyle}>
         <div class="block-main-row">
           ${dragHandle}
-          <div class="block-content-container">
+          <div class="block-content-container" ${inlineBgStyle}>
             <div class="block-quote">
-              <div class="block-text-field" contenteditable="true" spellcheck="false" data-ph="${placeholder}">${renderLinksInContent(block.content)}</div>
+              <div class="block-text-field" ${inlineTextStyle} contenteditable="true" spellcheck="false" data-ph="${placeholder}">${renderLinksInContent(block.content)}</div>
+              ${commentHtml}
             </div>
           </div>
         </div>
@@ -373,9 +471,13 @@ export function renderBlockTree(
     return `<div class="block-wrapper ${checkedClass}" data-id="${block.id}" data-type="${block.type}" ${levelStyle}>
       <div class="block-main-row">
         ${dragHandle}
-        <div class="block-content-container">
-          ${type === 'todo' ? `<input type="checkbox" class="block-todo-checkbox" ${block.checked ? 'checked' : ''}>` : ''}
-          <div class="block-text-field" contenteditable="true" spellcheck="false" data-ph="${placeholder}">${renderLinksInContent(block.content)}</div>
+        <div class="block-content-container" ${inlineBgStyle}>
+          ${type === 'todo' ? `
+          <div class="block-list-marker-gutter">
+            <input type="checkbox" class="block-todo-checkbox" ${block.checked ? 'checked' : ''}>
+          </div>` : ''}
+          <div class="block-text-field" ${inlineTextStyle} contenteditable="true" spellcheck="false" data-ph="${placeholder}">${renderLinksInContent(block.content)}</div>
+          ${commentHtml}
         </div>
       </div>
       ${childrenHtml}
@@ -594,3 +696,94 @@ export function findNotebookForParent(parentId: string, folders: Folder[], notes
   }
   return 'design';
 }
+
+export function setEdBodyHtml(edBody: HTMLElement, newHtml: string) {
+  if (!edBody) return;
+
+  interface PreservedMedia {
+    blockId: string;
+    mediaEl: HTMLElement;
+    currentTime?: number;
+    paused?: boolean;
+    volume?: number;
+    muted?: boolean;
+    src: string;
+    tagName: string;
+  }
+
+  const preserved: PreservedMedia[] = [];
+
+  const wrappers = edBody.querySelectorAll('.block-wrapper');
+  wrappers.forEach(wrapper => {
+    const blockId = (wrapper as HTMLElement).dataset.id;
+    if (!blockId) return;
+
+    const mediaNodes = wrapper.querySelectorAll('video, audio, iframe');
+    mediaNodes.forEach(node => {
+      const mediaEl = node as HTMLElement;
+      const tagName = mediaEl.tagName ? mediaEl.tagName.toLowerCase() : '';
+      const src = (mediaEl as any).src || mediaEl.getAttribute('src') || '';
+
+      if (tagName === 'video' || tagName === 'audio') {
+        const media = mediaEl as HTMLMediaElement;
+        preserved.push({
+          blockId,
+          mediaEl,
+          currentTime: media.currentTime,
+          paused: media.paused,
+          volume: media.volume,
+          muted: media.muted,
+          src,
+          tagName
+        });
+      } else if (tagName === 'iframe') {
+        preserved.push({
+          blockId,
+          mediaEl,
+          src,
+          tagName
+        });
+      }
+    });
+  });
+
+  edBody.innerHTML = newHtml;
+
+  preserved.forEach(item => {
+    const newWrapper = edBody.querySelector(`[data-id="${item.blockId}"]`);
+    if (!newWrapper) return;
+
+    const newMediaNodes = newWrapper.querySelectorAll(item.tagName);
+    let targetNewEl: Element | null = null;
+
+    newMediaNodes.forEach(node => {
+      const nSrc = (node as any).src || node.getAttribute('src') || '';
+      if (nSrc === item.src || newMediaNodes.length === 1) {
+        targetNewEl = node;
+      }
+    });
+
+    if (targetNewEl) {
+      (targetNewEl as Element).replaceWith(item.mediaEl);
+      if (item.tagName === 'video' || item.tagName === 'audio') {
+        const media = item.mediaEl as HTMLMediaElement;
+        if (item.currentTime !== undefined && !isNaN(item.currentTime)) {
+          try { media.currentTime = item.currentTime; } catch (e) {}
+        }
+        if (item.volume !== undefined) {
+          try { media.volume = item.volume; } catch (e) {}
+        }
+        if (item.muted !== undefined) {
+          try { media.muted = item.muted; } catch (e) {}
+        }
+        if (item.paused === false && typeof media.play === 'function') {
+          try {
+            const p = media.play();
+            if (p && typeof p.catch === 'function') p.catch(() => {});
+          } catch (e) {}
+        }
+      }
+    }
+  });
+}
+

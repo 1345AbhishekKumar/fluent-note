@@ -23,6 +23,12 @@ export interface AppContext {
     gridSortAsc: boolean;
     lens: 'notes' | 'academic' | 'review';
     clips: TransientClip[];
+    historyStack?: string[];
+    historyIndex?: number;
+    selectedBlockIds?: Set<string>;
+    lastUsedColor?: string;
+    lastUsedBgColor?: string;
+    zoomFactor?: number;
   };
   elements: {
     searchIn: HTMLInputElement;
@@ -67,7 +73,7 @@ export interface AppContext {
   // Shared actions
   toast: (msg: string, actLabel?: string, fn?: () => void) => void;
   markSaving: () => void;
-  selectNote: (id: string | null, focusTitle?: boolean) => void;
+  selectNote: (id: string | null, focusTitle?: boolean, skipHistory?: boolean) => void;
   renderSidebar: () => void;
   renderList: () => void;
   renderEditor: () => void;

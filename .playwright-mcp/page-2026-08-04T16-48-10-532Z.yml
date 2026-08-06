@@ -1,0 +1,145 @@
+- generic [ref=e6]:
+  - generic [ref=e7]:
+    - button "Toggle navigation" [ref=e8] [cursor=pointer]
+    - generic [ref=e14]: Fluent Notes
+    - generic [ref=e16]:
+      - textbox "Search notes" [ref=e17]
+      - generic: Ctrl K
+    - button "Notes Lens" [ref=e19] [cursor=pointer]
+    - button "Side-by-side themes" [ref=e24] [cursor=pointer]
+    - button "Toggle theme" [ref=e28] [cursor=pointer]
+    - generic [ref=e31]:
+      - button "Minimize" [ref=e32] [cursor=pointer]
+      - button "Maximize" [ref=e35] [cursor=pointer]
+      - button "Close" [ref=e38] [cursor=pointer]
+  - generic [ref=e41]:
+    - complementary [ref=e42]:
+      - generic [ref=e43]:
+        - button [ref=e44] [cursor=pointer]
+        - navigation [ref=e48]:
+          - button [ref=e49] [cursor=pointer]
+          - button [ref=e55] [cursor=pointer]
+        - navigation [ref=e59]:
+          - button [ref=e60] [cursor=pointer]
+          - button [ref=e68] [cursor=pointer]
+          - button [ref=e75] [cursor=pointer]
+        - navigation [ref=e83]:
+          - generic [ref=e84]:
+            - button [ref=e85] [cursor=pointer]
+            - generic [ref=e93]:
+              - button [ref=e95] [cursor=pointer]
+              - button [ref=e103] [cursor=pointer]
+          - button [ref=e113] [cursor=pointer]
+          - button [ref=e122] [cursor=pointer]
+          - button [ref=e131] [cursor=pointer]
+      - generic [ref=e139]:
+        - button [ref=e140] [cursor=pointer]
+        - button [ref=e146] [cursor=pointer]
+    - generic [ref=e151]:
+      - generic [ref=e152]:
+        - generic [ref=e153]:
+          - heading "All notes" [level=2] [ref=e154]
+          - generic [ref=e155]:
+            - button "Filter by tag" [ref=e156] [cursor=pointer]
+            - button "Sort & view" [ref=e160] [cursor=pointer]
+            - button "New note" [ref=e164] [cursor=pointer]
+        - generic [ref=e167]: 8 notes
+      - generic [ref=e168]:
+        - 'button "Fluent design deep-dive Why Fluent feels differentMica and Acrylic move chrome from opaque bars to ambient layers — the desktop becomes part of the app’s palette.Materials at a glanceMica — long-lived, subtly opaque, samples the wallpaper once. Calm and cheap to render.Acrylic — blur + noise for short-lived surfaces. Flyouts only.Reveal — light that follows the pointer across lists.“Material is not decoration. It is hierarchy.”Next: map editor chrome to these layers and audit the corner-radius grid (4 / 8 px). Today · 09:24 Design Team design" [ref=e169] [cursor=pointer]':
+          - generic [ref=e170]: Fluent design deep-dive
+          - generic [ref=e175]: "Why Fluent feels differentMica and Acrylic move chrome from opaque bars to ambient layers — the desktop becomes part of the app’s palette.Materials at a glanceMica — long-lived, subtly opaque, samples the wallpaper once. Calm and cheap to render.Acrylic — blur + noise for short-lived surfaces. Flyouts only.Reveal — light that follows the pointer across lists.“Material is not decoration. It is hierarchy.”Next: map editor chrome to these layers and audit the corner-radius grid (4 / 8 px)."
+          - generic [ref=e176]:
+            - generic [ref=e177]: Today · 09:24
+            - generic [ref=e178]: Design Team
+            - generic [ref=e180]: design
+        - button "Q3 roadmap sync DecisionsShip sidebar collapse-by-default below 1280 pxAdopt 8 px corner radius for every floating cardAction itemsMaya — motion audit · Jonas — dark-mode contrast pass · Priya — resize breakpoint spec. Yesterday Work meeting" [ref=e182] [cursor=pointer]:
+          - generic [ref=e183]: Q3 roadmap sync
+          - generic [ref=e188]: DecisionsShip sidebar collapse-by-default below 1280 pxAdopt 8 px corner radius for every floating cardAction itemsMaya — motion audit · Jonas — dark-mode contrast pass · Priya — resize breakpoint spec.
+          - generic [ref=e189]:
+            - generic [ref=e190]: Yesterday
+            - generic [ref=e191]: Work
+            - generic [ref=e193]: meeting
+        - 'button "Mica material spec notes Sampling strategy: blurred wallpaper at low opacity over a base fill.Light base: #F3F3F3 at ~82%Dark base: #202020 at ~80%Pair with a 1 px inner highlight on the top edge so the surface “catches light”. Today · 08:05 Design Team design" [ref=e195] [cursor=pointer]':
+          - generic [ref=e196]: Mica material spec notes
+          - generic [ref=e198]: "Sampling strategy: blurred wallpaper at low opacity over a base fill.Light base: #F3F3F3 at ~82%Dark base: #202020 at ~80%Pair with a 1 px inner highlight on the top edge so the surface “catches light”."
+          - generic [ref=e199]:
+            - generic [ref=e200]: Today · 08:05
+            - generic [ref=e201]: Design Team
+            - generic [ref=e203]: design
+        - 'button "Reading list — interface physics Queued:Designing Fluid Interfaces — WWDC ’18The Details of UI Typography — WWDC ’20Interruptible-springs cheatsheetKey takeaway so far: never animate from the target value — animate from the presentation value. Tuesday Research reading" [ref=e205] [cursor=pointer]':
+          - generic [ref=e206]: Reading list — interface physics
+          - generic [ref=e208]: "Queued:Designing Fluid Interfaces — WWDC ’18The Details of UI Typography — WWDC ’20Interruptible-springs cheatsheetKey takeaway so far: never animate from the target value — animate from the presentation value."
+          - generic [ref=e209]:
+            - generic [ref=e210]: Tuesday
+            - generic [ref=e211]: Research
+            - generic [ref=e213]: reading
+        - button "Kyoto — five days Must seeFushimi Inari at sunrise (before crowds)Nishiki market lunch crawlKiyomizu-dera at duskRail pass arrives Tuesday. Book the ryokan with the cedar bath. Monday Personal travel" [ref=e215] [cursor=pointer]:
+          - generic [ref=e216]: Kyoto — five days
+          - generic [ref=e218]: Must seeFushimi Inari at sunrise (before crowds)Nishiki market lunch crawlKiyomizu-dera at duskRail pass arrives Tuesday. Book the ryokan with the cedar bath.
+          - generic [ref=e219]:
+            - generic [ref=e220]: Monday
+            - generic [ref=e221]: Personal
+            - generic [ref=e223]: travel
+        - 'button "Idea: gesture-first onboarding First-run that teaches swipes by being swipeable: the onboarding cards themselves use the production spring curve.If the tutorial feels like the app, you don’t need a tutorial. Mar 18 Design Team ideas" [ref=e225] [cursor=pointer]':
+          - generic [ref=e226]: "Idea: gesture-first onboarding"
+          - generic [ref=e228]: "First-run that teaches swipes by being swipeable: the onboarding cards themselves use the production spring curve.If the tutorial feels like the app, you don’t need a tutorial."
+          - generic [ref=e229]:
+            - generic [ref=e230]: Mar 18
+            - generic [ref=e231]: Design Team
+            - generic [ref=e233]: ideas
+        - 'button "Weekly reflection This week moved fast. Wins: prototype approved, zero regressions. Next week: protect two deep-work mornings. Mar 14 Personal" [ref=e235] [cursor=pointer]':
+          - generic [ref=e236]: Weekly reflection
+          - generic [ref=e238]: "This week moved fast. Wins: prototype approved, zero regressions. Next week: protect two deep-work mornings."
+          - generic [ref=e239]:
+            - generic [ref=e240]: Mar 14
+            - generic [ref=e241]: Personal
+        - 'button "Prototype checklist Before review:Mica tint verified in both themesAcrylic flyouts anchored to triggersReduced-motion path testedResize: 1440 → 1024 → 720 → 480 Mar 10 Design Team to-do" [ref=e243] [cursor=pointer]':
+          - generic [ref=e244]: Prototype checklist
+          - generic [ref=e246]: "Before review:Mica tint verified in both themesAcrylic flyouts anchored to triggersReduced-motion path testedResize: 1440 → 1024 → 720 → 480"
+          - generic [ref=e247]:
+            - generic [ref=e248]: Mar 10
+            - generic [ref=e249]: Design Team
+            - generic [ref=e251]: to-do
+    - generic [ref=e253]:
+      - generic [ref=e255]:
+        - button "Undo" [ref=e256] [cursor=pointer]
+        - button "Redo" [ref=e260] [cursor=pointer]
+        - button "Paragraph" [ref=e265] [cursor=pointer]
+        - button "B" [ref=e271] [cursor=pointer]
+        - button "I" [ref=e273] [cursor=pointer]
+        - button "U" [ref=e275] [cursor=pointer]
+        - button "S" [ref=e277] [cursor=pointer]
+        - button "Bulleted list" [ref=e280] [cursor=pointer]
+        - button "Numbered list" [ref=e286] [cursor=pointer]:
+          - img [ref=e287]:
+            - generic [ref=e288]: "1"
+            - generic [ref=e289]: "2"
+            - generic [ref=e290]: "3"
+        - button "Quote" [ref=e292] [cursor=pointer]
+        - button "Highlight" [ref=e295] [cursor=pointer]
+        - button "Insert link" [ref=e299] [cursor=pointer]
+        - button "Pin note" [ref=e305] [cursor=pointer]
+        - button "More" [ref=e308] [cursor=pointer]
+      - generic [ref=e314]:
+        - heading "Fluent design deep-dive" [level=1] [ref=e315]
+        - generic [ref=e316]:
+          - button "Design Team" [ref=e317] [cursor=pointer]
+          - generic [ref=e323]: Updated today · 09:24
+          - button "design, reading" [ref=e329] [cursor=pointer]
+        - generic [ref=e338]:
+          - generic [ref=e339]: Why Fluent feels different
+          - generic [ref=e351]: Mica and Acrylic move chrome from
+          - generic [ref=e363]: opaque bars
+          - generic [ref=e375]: to ambient layers — the desktop becomes part of the app’s palette.
+          - generic [ref=e387]: Materials at a glance
+          - generic [ref=e399]: Mica — long-lived, subtly opaque, samples the wallpaper once. Calm and cheap to render.
+          - generic [ref=e411]: Acrylic — blur + noise for short-lived surfaces. Flyouts only.
+          - generic [ref=e423]: Reveal — light that follows the pointer across lists.
+          - generic [ref=e435]: “Material is not decoration. It is hierarchy.”
+          - generic [ref=e447]: "Next: map editor chrome to these layers and audit the corner-radius grid (4 / 8 px)."
+        - generic [ref=e459]:
+          - heading "Subfolders & Subpages" [level=4] [ref=e460]
+          - button "Sub-research" [ref=e462] [cursor=pointer]
+      - generic [ref=e467]:
+        - generic [ref=e468]: 84 words
+        - generic [ref=e469]: Saved

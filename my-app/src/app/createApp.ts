@@ -98,6 +98,7 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
           <button class="ib ic" data-cmd="quote" title="Quote">${IC.quote}</button>
           <button class="ib ic" data-cmd="hiliteColor" title="Highlight">${IC.hl}</button>
           <button class="ib ic" data-cmd="link" title="Insert link">${IC.link}</button>
+          <button class="ib tb-chr" data-cmd="math" title="Inline Equation (Ctrl+Shift+E)"><span class="chr" style="font-weight: normal; font-family: 'Cambria Math', 'Times New Roman', serif;">√x</span></button>
           <span class="sep"></span>
           <button class="ib ic pin-btn" title="Pin note">${IC.pin}</button>
           <button class="ib ic ed-more" title="More">${IC.dots}</button>
@@ -159,7 +160,13 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
     gridSort: 'title' as 'title' | 'notebook' | 'tags' | 'date',
     gridSortAsc: true,
     lens: 'notes' as 'notes' | 'academic' | 'review',
-    clips: loadClips()
+    clips: loadClips(),
+    historyStack: [] as string[],
+    historyIndex: -1,
+    selectedBlockIds: new Set<string>(),
+    lastUsedColor: '',
+    lastUsedBgColor: '',
+    zoomFactor: 1.0
   };
 
   const elements = {
@@ -267,8 +274,8 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
     syncNotes(newNotes) {
       st.notes = newNotes;
     },
-    selectNote(id, focusTitle) {
-      selectNote(id, focusTitle);
+    selectNote(id, focusTitle, skipHistory) {
+      selectNote(id, focusTitle, skipHistory);
     },
     renderMeta: () => renderMeta(),
     getSelectedNoteId() {
@@ -284,6 +291,10 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
       if (nId) {
         selectNote(nId);
       }
+    },
+    st,
+    navigateNote(direction) {
+      navigateNote(direction);
     }
   };
 
@@ -391,10 +402,20 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
     }
   }
 
-  function selectNote(id: string | null, focusTitle: boolean = false) {
+  function selectNote(id: string | null, focusTitle: boolean = false, skipHistory: boolean = false) {
     st.sel = id;
     if (id) {
       expandAncestors(id);
+      if (!skipHistory) {
+        if (!st.historyStack) st.historyStack = [];
+        if (st.historyIndex >= 0 && st.historyIndex < st.historyStack.length - 1) {
+          st.historyStack = st.historyStack.slice(0, st.historyIndex + 1);
+        }
+        if (st.historyStack.length === 0 || st.historyStack[st.historyStack.length - 1] !== id) {
+          st.historyStack.push(id);
+          st.historyIndex = st.historyStack.length - 1;
+        }
+      }
     }
     renderList(ctx);
     renderSidebar(ctx);
@@ -406,6 +427,22 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
     }, REDUCED ? 0 : 120);
     if (root.classList.contains('s') && id) {
       root.classList.add('show-editor');
+    }
+  }
+
+  function navigateNote(direction: 'prev' | 'next') {
+    const arr = filtered(ctx);
+    if (!arr.length) return;
+    const currentId = st.sel;
+    if (!currentId) {
+      selectNote(arr[0].id);
+      return;
+    }
+    const idx = arr.findIndex(n => n.id === currentId);
+    if (direction === 'prev') {
+      if (idx > 0) selectNote(arr[idx - 1].id);
+    } else {
+      if (idx !== -1 && idx < arr.length - 1) selectNote(arr[idx + 1].id);
     }
   }
 

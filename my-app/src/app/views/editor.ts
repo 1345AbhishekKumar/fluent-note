@@ -1,11 +1,12 @@
 import type { AppContext } from '../context';
 import type { Block, Note } from '../../types';
-import { esc, strip, htmlToBlocks, renderBlockTree } from '../../utils';
+import { esc, strip, htmlToBlocks, renderBlockTree, setEdBodyHtml, findBlockById } from '../../utils';
 import { saveAndSyncContent, saveAndSync } from '../../store';
 import { styleItems, noteItems, nbItems, tagItems } from '../components/flyout';
 import { initEditorDragDrop } from './editorDragDrop';
 import { initEditorKeyEvents } from './editorEvents';
 import { IC } from '../../constants';
+
 
 export function renderSubItems(ctx: AppContext, n: Note) {
   const panel = ctx.root.querySelector('.sub-items-panel') as HTMLElement;
@@ -136,7 +137,7 @@ export function renderEditor(ctx: AppContext) {
   if (!n.blocks || n.blocks.length === 0) {
     n.blocks = htmlToBlocks(n.body || '');
   }
-  ctx.elements.edBody.innerHTML = renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes });
+  setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes }));
   ctx.renderMeta();
   renderSubItems(ctx, n);
   
@@ -219,6 +220,34 @@ export function initEditorEvents(ctx: AppContext) {
             ctx.markSaving();
           }
         });
+      } else if (cmd === 'math') {
+        const sel = window.getSelection();
+        const selectionText = sel?.toString() || '';
+        const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+        const val = prompt('Enter TeX / LaTeX formula:', selectionText);
+        if (val !== null) {
+          ctx.elements.edBody.focus();
+          if (range) {
+            const s = window.getSelection();
+            s?.removeAllRanges();
+            s?.addRange(range);
+          }
+          const texHtml = `$$${val.trim()}$$`;
+          document.execCommand('insertHTML', false, texHtml);
+          saveAndSyncContent();
+          ctx.markSaving();
+          
+          const activeEl = document.activeElement as HTMLElement;
+          const blockEl = activeEl?.closest('.block-wrapper') as HTMLElement;
+          const blockId = blockEl?.dataset.id;
+          if (blockEl && blockId) {
+            const match = findBlockById(n.blocks, blockId);
+            if (match) {
+              match.block.content = activeEl.textContent || '';
+            }
+          }
+          ctx.renderEditor();
+        }
       } else {
         document.execCommand(cmd, false, undefined);
       }

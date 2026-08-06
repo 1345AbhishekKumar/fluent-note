@@ -2,7 +2,7 @@ import type { AppContext } from '../context';
 import type { FlyoutItem, Note, BlockType } from '../../types';
 import { IC, TAGS } from '../../constants';
 import { sharedNotebooks as NBS } from '../../store';
-import { findBlockById, moveCaret, renderBlockTree } from '../../utils';
+import { findBlockById, moveCaret, renderBlockTree, setEdBodyHtml } from '../../utils';
 import { saveAndSyncContent, saveAndSync } from '../../store';
 
 export function initFlyout(ctx: AppContext) {
@@ -29,27 +29,44 @@ export function initFlyout(ctx: AppContext) {
     }).join('');
   }
 
+  let closeTimer: ReturnType<typeof setTimeout> | null = null;
+  const closeMs = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue('--duration-quick')
+  ) || 150;
+
   function placeFly(x: number, y: number, anchor: HTMLElement | null) {
+    if (closeTimer) {
+      clearTimeout(closeTimer);
+      closeTimer = null;
+    }
     flyAnchor = anchor || null;
     const wr = ctx.root.getBoundingClientRect();
     ctx.elements.fly.style.left = '-9999px';
     ctx.elements.fly.style.top = '-9999px';
-    ctx.elements.fly.classList.add('open');
+    ctx.elements.fly.classList.remove('is-closing');
+    ctx.elements.fly.classList.add('open', 'is-open');
     const fw = ctx.elements.fly.offsetWidth;
     const fh = ctx.elements.fly.offsetHeight;
-    let ox = '0%';
-    let oy = '0';
+    let ox = 'top-left';
+    let rx = '0%';
+    let ry = '0';
     if (x + fw > wr.width - 8) {
       x = wr.width - 8 - fw;
-      ox = '100%';
+      rx = '100%';
     }
     if (x < 8) x = 8;
     if (y + fh > wr.height - 8) {
       y = y - fh - (anchor ? anchor.offsetHeight + 12 : 12);
-      oy = '100%';
+      ry = '100%';
     }
     if (y < 8) y = 8;
-    ctx.elements.fly.style.setProperty('--fo', `${ox} ${oy}`);
+
+    if (rx === '100%' && ry === '100%') ox = 'bottom-right';
+    else if (rx === '100%') ox = 'top-right';
+    else if (ry === '100%') ox = 'bottom-left';
+
+    ctx.elements.fly.setAttribute('data-origin', ox);
+    ctx.elements.fly.style.setProperty('--fo', `${rx} ${ry}`);
     ctx.elements.fly.style.left = x + 'px';
     ctx.elements.fly.style.top = y + 'px';
   }
@@ -68,8 +85,15 @@ export function initFlyout(ctx: AppContext) {
   }
 
   function closeFly() {
-    ctx.elements.fly.classList.remove('open');
+    if (!ctx.elements.fly.classList.contains('open') && !ctx.elements.fly.classList.contains('is-open')) return;
+    ctx.elements.fly.classList.remove('open', 'is-open');
+    ctx.elements.fly.classList.add('is-closing');
     flyAnchor = null;
+    if (closeTimer) clearTimeout(closeTimer);
+    closeTimer = setTimeout(() => {
+      ctx.elements.fly.classList.remove('is-closing');
+      closeTimer = null;
+    }, closeMs);
   }
 
   ctx.elements.fly.addEventListener('click', e => {
@@ -157,7 +181,7 @@ export const styleItems = (ctx: AppContext) => {
       if (n && activeMatch) {
         activeMatch.block.type = b as BlockType;
         if (b === 'todo') activeMatch.block.checked = false;
-        ctx.elements.edBody.innerHTML = renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes });
+        setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes }));
         const field = ctx.elements.edBody.querySelector(`[data-id="${activeMatch.block.id}"] .block-text-field`) as HTMLElement;
         if (field) {
           moveCaret(field);

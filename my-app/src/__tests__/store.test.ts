@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { 
   htmlToBlocks, 
   blocksToHtml, 
@@ -481,6 +481,7 @@ describe('Fluent Notes - Store & Parsers', () => {
 
   describe('Nesting actions in AppInstance', () => {
     it('creates sub-notes and sub-folders and updates active filters and expanded folders', () => {
+      vi.useFakeTimers();
       // Mock ResizeObserver for JSDOM
       global.ResizeObserver = class ResizeObserver {
         observe() {}
@@ -516,6 +517,9 @@ describe('Fluent Notes - Store & Parsers', () => {
       expect(okBtn).not.toBeNull();
       okBtn.click();
       
+      // Advance timers to trigger the prompt dialog cleanup & callback
+      vi.advanceTimersByTime(300);
+      
       const newFoldersCount = host.querySelectorAll('.tree-item-group[data-type="folder"]').length;
       expect(newFoldersCount).toBe(initialFoldersCount + 1);
       
@@ -531,9 +535,12 @@ describe('Fluent Notes - Store & Parsers', () => {
       
       const newNotesCount = host.querySelectorAll('.tree-item-group[data-type="note"]').length;
       expect(newNotesCount).toBe(initialNotesCount + 1);
+
+      vi.useRealTimers();
     });
 
     it('creates, renames, and deletes notebooks', () => {
+      vi.useFakeTimers();
       const host = document.createElement('div');
       const app = createApp(host, 'light');
       
@@ -549,6 +556,9 @@ describe('Fluent Notes - Store & Parsers', () => {
       promptInput.value = 'New Custom Notebook';
       const okBtn = host.querySelector('.btn-ok') as HTMLElement;
       okBtn.click();
+      
+      // Advance timers to trigger the prompt dialog cleanup & callback
+      vi.advanceTimersByTime(300);
       
       const postCreateNbsCount = host.querySelectorAll('.tree-item-group[data-type="notebook"]').length;
       expect(postCreateNbsCount).toBe(initialNbsCount + 1);
@@ -574,6 +584,9 @@ describe('Fluent Notes - Store & Parsers', () => {
       const renameOkBtn = host.querySelector('.btn-ok') as HTMLElement;
       renameOkBtn.click();
       
+      // Advance timers to trigger the prompt dialog cleanup & callback
+      vi.advanceTimersByTime(300);
+      
       const renamedNbRow = Array.from(host.querySelectorAll('.tree-row[data-type="notebook"]'))
         .find(row => row.textContent?.includes('Renamed Notebook')) as HTMLElement;
       expect(renamedNbRow).not.toBeUndefined();
@@ -592,6 +605,7 @@ describe('Fluent Notes - Store & Parsers', () => {
       expect(postDeleteNbsCount).toBe(initialNbsCount);
       
       window.confirm = originalConfirm;
+      vi.useRealTimers();
     });
   });
 });

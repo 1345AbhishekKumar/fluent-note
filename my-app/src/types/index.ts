@@ -1,6 +1,6 @@
 export type BlockType =
   | 'paragraph' | 'heading1' | 'heading2' | 'heading3'
-  | 'todo' | 'bullet' | 'numbered' | 'toggle'
+  | 'todo' | 'bullet' | 'numbered' | 'toggle' | 'toggle_h1' | 'toggle_h2' | 'toggle_h3'
   | 'quote' | 'divider' | 'code'
   | 'image' | 'video' | 'audio' | 'pdf' | 'bookmark' | 'file'
   | 'equation' | 'math'
@@ -16,7 +16,12 @@ export interface Block {
   url?: string;        // for image, video, audio, pdf, bookmark
   fileName?: string;   // for file uploads
   language?: string;   // for code blocks
+  codeWrap?: boolean;
+  codeFullWidth?: boolean;
   collapsed?: boolean; // for toggle blocks
+  textColor?: string;
+  bgColor?: string;
+  comment?: string;
 }
 
 export interface Note {
@@ -87,9 +92,11 @@ export interface AppInstance {
   renderList: () => void;
   renderEditor: () => void;
   syncNotes: (newNotes: Note[]) => void;
-  selectNote: (id: string | null, focusTitle?: boolean) => void;
+  selectNote: (id: string | null, focusTitle?: boolean, skipHistory?: boolean) => void;
   renderMeta: () => void;
   getSelectedNoteId: () => string | null;
   selectFirstNote: () => void;
   showReceivedToast: (closureCount: number, title: string) => void;
+  st: any;
+  navigateNote: (direction: 'prev' | 'next') => void;
 }

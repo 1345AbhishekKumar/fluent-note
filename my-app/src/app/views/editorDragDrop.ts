@@ -1,6 +1,6 @@
 import type { AppContext } from '../context';
 import type { Block } from '../../types';
-import { findBlockById, renderBlockTree, genId } from '../../utils';
+import { findBlockById, renderBlockTree, genId, setEdBodyHtml } from '../../utils';
 import { saveClips, saveAndSyncContent } from '../../store';
 import { renderReviewInbox } from './review';
 
@@ -90,7 +90,7 @@ export function initEditorDragDrop(ctx: AppContext) {
           renderReviewInbox(ctx);
         }
 
-        ctx.elements.edBody.innerHTML = renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes });
+        setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes }));
         saveAndSyncContent();
         ctx.markSaving();
       }
@@ -118,7 +118,7 @@ export function initEditorDragDrop(ctx: AppContext) {
       const insertOffset = isTop ? 0 : 1;
       destMatch.parentList.splice(destIndex + insertOffset, 0, dragMatch.block);
       
-      ctx.elements.edBody.innerHTML = renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes });
+      setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes }));
       saveAndSyncContent();
       ctx.markSaving();
     }
