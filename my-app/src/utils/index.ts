@@ -2,6 +2,7 @@ import type { Block, Note, BlockType, Folder } from '../types';
 import { sharedNotebooks as NBS } from '../store/notebookStore';
 
 const dragHandleSvg = '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="1.5" class="f"/><circle cx="9" cy="12" r="1.5" class="f"/><circle cx="9" cy="16" r="1.5" class="f"/><circle cx="15" cy="8" r="1.5" class="f"/><circle cx="15" cy="12" r="1.5" class="f"/><circle cx="15" cy="16" r="1.5" class="f"/></svg>';
+const addSvg = '<svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor"/></svg>';
 
 export const genId = () => 'b' + Math.random().toString(36).slice(2, 7);
 
@@ -159,7 +160,10 @@ export function renderBlockTree(
     const placeholder = placeholderMap[type] ?? 'Start writing…';
     const checkedClass = (type === 'todo' && block.checked) ? 'checked' : '';
 
-    const dragHandle = `<div class="block-drag-handle" draggable="true">${dragHandleSvg}</div>`;
+    const dragHandle = `<div class="block-actions-container">
+      <button class="block-add-btn" data-id="${block.id}" contenteditable="false" title="Click to add a block below">${addSvg}</button>
+      <div class="block-drag-handle" draggable="true">${dragHandleSvg}</div>
+    </div>`;
     const levelStyle = `style="--level: ${level}"`;
 
     // ── divider: no text field, no drag ───────────────────────────────────
@@ -203,19 +207,25 @@ export function renderBlockTree(
         { val: 'rust', label: 'Rust' }
       ];
 
-      const selectHtml = `<select class="code-lang-select" data-id="${block.id}" style="background: transparent; border: none; font-size: 11px; font-weight: 600; color: var(--text3); cursor: pointer; font-family: monospace; outline: none; text-transform: uppercase; padding-right: 4px;">
+      const selectHtml = `<select class="code-lang-select" data-id="${block.id}">
         ${langOptions.map(o => `<option value="${o.val}" ${lang === o.val ? 'selected' : ''}>${o.label}</option>`).join('')}
       </select>`;
 
       return `<div class="block-wrapper block-code-wrapper ${fullWidthClass} ${wrapClass}" data-id="${block.id}" data-type="code" ${levelStyle}>
         ${dragHandle}
         <div class="block-code-wrap" ${inlineBgStyle}>
-          <div class="block-code-header">
-            ${selectHtml}
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <button class="code-wrap-btn ${block.codeWrap ? 'active' : ''}" data-id="${block.id}" title="Toggle Wrap text" style="font-size: 11px; font-weight: 500; color: var(--text2); background: none; border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; cursor: pointer;">Wrap</button>
-              <button class="code-fullwidth-btn ${block.codeFullWidth ? 'active' : ''}" data-id="${block.id}" title="Toggle Full width" style="font-size: 11px; font-weight: 500; color: var(--text2); background: none; border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; cursor: pointer;">↔</button>
-              <button class="code-copy-btn" data-id="${block.id}" title="Copy code">Copy</button>
+          <div class="block-code-header-premium">
+            <div class="code-lang-container">
+              ${selectHtml}
+              <span class="code-lang-arrow">▼</span>
+            </div>
+            <div class="code-controls-container">
+              <button class="code-copy-btn-premium" data-id="${block.id}" title="Copy code">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              </button>
+              <button class="code-more-btn-premium" data-id="${block.id}" title="More options">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1.5"></circle><circle cx="19" cy="12" r="1.5"></circle><circle cx="5" cy="12" r="1.5"></circle></svg>
+              </button>
             </div>
           </div>
           <div class="block-text-field block-code-field" ${inlineTextStyle} contenteditable="true" spellcheck="false" data-ph="${placeholder}">${highlighted}</div>
@@ -257,16 +267,49 @@ export function renderBlockTree(
       </div>`;
     }
     if (type === 'bookmark') {
-      const inner = block.url
-        ? `<a class="block-bookmark-link" href="${block.url}" target="_blank" rel="noopener">
-             <span class="bookmark-icon">🔖</span>
-             <span class="bookmark-text">${esc(block.content || block.url)}</span>
-             <span class="bookmark-url">${esc(block.url)}</span>
-           </a>`
-        : `<div class="block-media-placeholder" data-prompt="bookmark" data-id="${block.id}">🔖 Click to add web bookmark</div>`;
-      return `<div class="block-wrapper" data-id="${block.id}" data-type="bookmark" ${levelStyle}>
-        ${dragHandle}<div class="block-bookmark">${inner}</div>
-      </div>`;
+      if (block.url) {
+        if (block.bookmarkTitle) {
+          const imageHtml = block.bookmarkImage
+            ? `<div class="bookmark-image-container" style="background-image: url('${block.bookmarkImage}')"></div>`
+            : '';
+          const iconHtml = block.bookmarkIcon
+            ? `<img class="bookmark-favicon" src="${block.bookmarkIcon}" alt="favicon" onerror="this.style.display='none'" />`
+            : `<span class="bookmark-favicon-placeholder">🔖</span>`;
+            
+          return `<div class="block-wrapper" data-id="${block.id}" data-type="bookmark" ${levelStyle}>
+            ${dragHandle}
+            <div class="block-bookmark premium-bookmark">
+              <a class="block-bookmark-link-premium" href="${block.url}" target="_blank" rel="noopener">
+                ${imageHtml}
+                <div class="bookmark-info-container">
+                  <div class="bookmark-header-row">
+                    ${iconHtml}
+                    <span class="bookmark-site-title">${esc(block.bookmarkTitle)}</span>
+                  </div>
+                  <p class="bookmark-desc">${esc(block.bookmarkDesc || 'No description available')}</p>
+                  <span class="bookmark-url-premium">${esc(block.url)}</span>
+                </div>
+              </a>
+            </div>
+          </div>`;
+        } else {
+          return `<div class="block-wrapper" data-id="${block.id}" data-type="bookmark" ${levelStyle}>
+            ${dragHandle}
+            <div class="block-bookmark">
+              <a class="block-bookmark-link" href="${block.url}" target="_blank" rel="noopener">
+                <span class="bookmark-icon">🔖</span>
+                <span class="bookmark-text">${esc(block.content || block.url)}</span>
+                <span class="bookmark-url">${esc(block.url)}</span>
+              </a>
+            </div>
+          </div>`;
+        }
+      } else {
+        return `<div class="block-wrapper" data-id="${block.id}" data-type="bookmark" ${levelStyle}>
+          ${dragHandle}
+          <div class="block-media-placeholder" data-prompt="bookmark" data-id="${block.id}">🔖 Click to add web bookmark</div>
+        </div>`;
+      }
     }
     if (type === 'file') {
       const inner = block.url
@@ -398,7 +441,9 @@ export function renderBlockTree(
         <div class="block-main-row">
           ${dragHandle}
           <div class="block-content-container" ${inlineBgStyle}>
-            <button class="toggle-arrow-btn" data-id="${block.id}">▶</button>
+            <div class="block-list-marker-gutter">
+              <button class="toggle-arrow-btn" data-id="${block.id}">▶</button>
+            </div>
             <div class="block-text-field" ${inlineTextStyle} contenteditable="true" spellcheck="false" data-ph="${placeholder}">${renderLinksInContent(block.content)}</div>
             ${commentHtml}
           </div>
@@ -411,6 +456,24 @@ export function renderBlockTree(
     const childrenHtml = (block.children && block.children.length > 0)
       ? `<div class="block-children-container">${renderBlockTree(block.children, level + 1, rootBlocks || blocks, contextInfo)}</div>`
       : `<div class="block-children-container"></div>`;
+
+    // Callout block
+    if (type === 'callout') {
+      const calloutIcon = block.icon || '💡';
+      return `<div class="block-wrapper" data-id="${block.id}" data-type="callout" ${levelStyle}>
+        <div class="block-main-row">
+          ${dragHandle}
+          <div class="block-content-container" ${inlineBgStyle}>
+            <div class="block-callout-box">
+              <button class="callout-icon-btn" data-id="${block.id}" contenteditable="false">${calloutIcon}</button>
+              <div class="block-text-field" ${inlineTextStyle} contenteditable="true" spellcheck="true" data-ph="Callout text...">${renderLinksInContent(block.content)}</div>
+              ${commentHtml}
+            </div>
+          </div>
+        </div>
+        ${childrenHtml}
+      </div>`;
+    }
 
     // Bullet list items
     if (type === 'bullet') {

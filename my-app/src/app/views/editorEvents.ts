@@ -371,6 +371,7 @@ export function initEditorKeyEvents(ctx: AppContext) {
     { type: 'toggle_h3',  label: 'Toggle heading 3', desc: 'Small toggle header',  icon: '▶3',  aliases: ['toggle h3','toggle3','h3 toggle'] },
     { type: 'quote',      label: 'Quote',      desc: 'Block quote',             icon: '❝',   aliases: ['quote','blockquote'] },
     { type: 'divider',    label: 'Divider',    desc: 'Horizontal rule',         icon: '—',   aliases: ['div','divider','hr','separator'] },
+    { type: 'callout',    label: 'Callout',    desc: 'Info box with icon',      icon: '💡',  aliases: ['callout','info','box','alert'] },
     { type: 'subpage',    label: 'Page',       desc: 'Nested sub-page',         icon: '📄',  aliases: ['page','subpage'] },
     { type: 'subfolder',  label: 'Subfolder',  desc: 'Nested sub-folder',       icon: '📁',  aliases: ['folder','subfolder'] },
     // ── MEDIA ─────────────────────────────────────────────────────────────
@@ -422,7 +423,7 @@ export function initEditorKeyEvents(ctx: AppContext) {
     
     // /turn support: filters to basic block styles
     if (q === 'turn') {
-      const basicTypes = ['paragraph', 'heading1', 'heading2', 'heading3', 'bullet', 'numbered', 'todo', 'toggle', 'toggle_h1', 'toggle_h2', 'toggle_h3', 'quote', 'divider'];
+      const basicTypes = ['paragraph', 'heading1', 'heading2', 'heading3', 'bullet', 'numbered', 'todo', 'toggle', 'toggle_h1', 'toggle_h2', 'toggle_h3', 'quote', 'divider', 'callout'];
       return [
         { group: 'Basic Conversions' },
         ...allSlashItems.filter(item => !item.group && basicTypes.includes(item.type || ''))
@@ -541,7 +542,33 @@ export function initEditorKeyEvents(ctx: AppContext) {
     block.type = cmdType as BlockType;
     block.url = url;
     block.content = url;
+    
+    // Clear any existing preview metadata
+    block.bookmarkTitle = undefined;
+    block.bookmarkDesc = undefined;
+    block.bookmarkImage = undefined;
+    block.bookmarkIcon = undefined;
+    
     rerender(n);
+    
+    if (cmdType === 'bookmark') {
+      if (window.electronAPI && window.electronAPI.fetchLinkMetadata) {
+        window.electronAPI.fetchLinkMetadata(url)
+          .then((meta) => {
+            if (meta && meta.title) {
+              block.bookmarkTitle = meta.title;
+              block.bookmarkDesc = meta.description;
+              block.bookmarkImage = meta.image;
+              block.bookmarkIcon = meta.icon;
+              rerender(n);
+            }
+          })
+          .catch((err) => {
+            console.error('Error fetching link metadata:', err);
+          });
+      }
+    }
+    
     const match = findBlockById(n.blocks, block.id);
     if (match) {
       focusNextBlockOrNew(n, match.index, match.parentList);
@@ -707,6 +734,153 @@ export function initEditorKeyEvents(ctx: AppContext) {
     }, 0);
   }
 
+  function openMathPopupEditor(block: Block, n: Note, anchorEl: HTMLElement) {
+    ctx.root.querySelector('.math-popup-editor')?.remove();
+
+    const popup = document.createElement('div');
+    popup.className = 'math-popup-editor';
+    popup.style.cssText = `
+      position: absolute;
+      display: flex;
+      align-items: center;
+      background: #252526;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      gap: 8px;
+      z-index: 10000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    `;
+
+    const textarea = document.createElement('textarea');
+    textarea.className = 'math-popup-textarea';
+    textarea.value = block.content || '';
+    textarea.style.cssText = `
+      background: transparent;
+      border: none;
+      color: #ffffff;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 13px;
+      outline: none;
+      resize: none;
+      width: 280px;
+      height: 38px;
+      line-height: 1.4;
+    `;
+    textarea.placeholder = "Enter TeX / LaTeX formula...";
+
+    const doneBtn = document.createElement('button');
+    doneBtn.className = 'math-popup-done-btn';
+    doneBtn.innerHTML = `Done <span style="font-size: 10px; margin-left: 2px;">↵</span>`;
+    doneBtn.style.cssText = `
+      background: #0078d4;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      height: 32px;
+      white-space: nowrap;
+      transition: background 0.15s;
+    `;
+    doneBtn.addEventListener('mouseenter', () => doneBtn.style.background = '#106ebe');
+    doneBtn.addEventListener('mouseleave', () => doneBtn.style.background = '#0078d4');
+
+    popup.appendChild(textarea);
+    popup.appendChild(doneBtn);
+
+    const rect = anchorEl.getBoundingClientRect();
+    const parentRect = ctx.elements.edInner.getBoundingClientRect();
+    popup.style.left = `${rect.left - parentRect.left}px`;
+    popup.style.top = `${rect.bottom - parentRect.top + 6}px`;
+
+    ctx.elements.edInner.appendChild(popup);
+    textarea.focus();
+    textarea.select();
+
+    let finished = false;
+    const saveAndClose = () => {
+      if (finished) return;
+      finished = true;
+      block.content = textarea.value.trim();
+      rerender(n);
+      popup.remove();
+      
+      const match = findBlockById(n.blocks, block.id);
+      if (match) {
+        focusNextBlockOrNew(n, match.index, match.parentList);
+      }
+    };
+
+    const cancelAndClose = () => {
+      if (finished) return;
+      finished = true;
+      rerender(n);
+      popup.remove();
+    };
+
+    doneBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      saveAndClose();
+    });
+
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        saveAndClose();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelAndClose();
+      }
+    });
+
+    setTimeout(() => {
+      const handleOutsideClick = (e: MouseEvent) => {
+        if (!popup.contains(e.target as Node) && !anchorEl.contains(e.target as Node)) {
+          saveAndClose();
+          document.removeEventListener('mousedown', handleOutsideClick);
+        }
+      };
+      document.addEventListener('mousedown', handleOutsideClick);
+    }, 0);
+  }
+
+  function openCalloutEmojiPicker(block: Block, n: Note, anchorEl: HTMLElement) {
+    ctx.root.querySelector('.emoji-picker')?.remove();
+    const picker = document.createElement('div');
+    picker.className = 'emoji-picker';
+    picker.innerHTML = EMOJI_LIST.map(e =>
+      `<button class="emoji-btn" data-emoji="${e}">${e}</button>`
+    ).join('');
+    
+    const rect = anchorEl.getBoundingClientRect();
+    const innerRect = ctx.elements.edInner.getBoundingClientRect();
+    picker.style.left = (rect.left - innerRect.left) + 'px';
+    picker.style.top = (rect.bottom - innerRect.top + 4) + 'px';
+    
+    ctx.elements.edInner.appendChild(picker);
+    picker.querySelectorAll('.emoji-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const emoji = (btn as HTMLElement).dataset.emoji!;
+        block.icon = emoji;
+        rerender(n);
+        picker.remove();
+      });
+    });
+    
+    setTimeout(() => {
+      const closePicker = (e: MouseEvent) => {
+        if (!picker.contains(e.target as Node)) { picker.remove(); document.removeEventListener('click', closePicker); }
+      };
+      document.addEventListener('click', closePicker);
+    }, 0);
+  }
+
   function rerender(n: Note) {
     setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes }));
     saveAndSyncContent();
@@ -754,10 +928,14 @@ export function initEditorKeyEvents(ctx: AppContext) {
 
       // ── basic block types ─────────────────────────────────────────────
       case 'paragraph':
+      case 'callout':
       case 'heading1': case 'heading2': case 'heading3':
       case 'bullet': case 'numbered':
       case 'quote': case 'toggle': case 'toggle_h1': case 'toggle_h2': case 'toggle_h3':
         match.block.type = cmdType as BlockType;
+        if (cmdType === 'callout') {
+          match.block.icon = '💡';
+        }
         break;
 
       case 'todo':
@@ -802,9 +980,15 @@ export function initEditorKeyEvents(ctx: AppContext) {
         return;
 
       // ── inline: equation / math ───────────────────────────────────────
-      case 'equation': case 'math':
-        openTexPrompt(cmdType, match.block, n);
+      case 'equation': case 'math': {
+        match.block.type = cmdType as BlockType;
+        rerender(n);
+        const blockEl = ctx.elements.edBody.querySelector(`[data-id="${blockId}"]`) as HTMLElement;
+        if (blockEl) {
+          openMathPopupEditor(match.block, n, blockEl);
+        }
         return;
+      }
 
       // ── inline: mention ───────────────────────────────────────────────
       case 'mention':
@@ -1627,9 +1811,41 @@ export function initEditorKeyEvents(ctx: AppContext) {
       closeSlashMenu();
     }
   });
-
   ctx.elements.edBody.addEventListener('click', e => {
     const target = e.target as HTMLElement;
+
+    // ── Add block button click ──────────────────────────────────────────────
+    const addBtn = target.closest('.block-add-btn') as HTMLElement;
+    if (addBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const blockEl = addBtn.closest('.block-wrapper') as HTMLElement;
+      if (!blockEl) return;
+      const bId = blockEl.dataset.id!;
+      const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+      if (!n) return;
+      const match = findBlockById(n.blocks, bId);
+      if (match) {
+        const { parentList, index } = match;
+        const newBlockId = genId();
+        const newBlock: Block = {
+          id: newBlockId,
+          type: 'paragraph',
+          content: '',
+          children: []
+        };
+        parentList.splice(index + 1, 0, newBlock);
+        
+        rerender(n);
+        const newField = ctx.elements.edBody.querySelector(`[data-id="${newBlockId}"] .block-text-field`) as HTMLElement;
+        if (newField) {
+          newField.focus();
+        }
+        saveAndSyncContent();
+        ctx.markSaving();
+      }
+      return;
+    }
 
     // ── Drag handle click ──────────────────────────────────────────────────
     const dragHandle = target.closest('.block-drag-handle') as HTMLElement;
@@ -1652,6 +1868,41 @@ export function initEditorKeyEvents(ctx: AppContext) {
             match.parentList.splice(match.index + 1, 0, clone);
             rerender(n);
           }},
+          { label: 'Move to', icon: '↗', action: () => {
+            const targets = ctx.st.notes.filter(x => x.id !== n.id);
+            if (targets.length === 0) { ctx.toast('No other notes to move to', '', () => {}); return; }
+            const picker = document.createElement('div');
+            picker.className = 'slash-menu mention-picker';
+            picker.innerHTML = targets.slice(0, 12).map((t, i) =>
+              `<button class="slash-item" data-index="${i}"><span class="slash-item-icon">📄</span><span class="slash-item-label">${t.title || 'Untitled'}</span></button>`
+            ).join('');
+            const blockEl = ctx.elements.edBody.querySelector(`[data-id="${bId}"]`) as HTMLElement;
+            const rect = blockEl?.getBoundingClientRect();
+            const innerRect = ctx.elements.edInner.getBoundingClientRect();
+            if (rect) {
+              picker.style.left = (rect.left - innerRect.left) + 'px';
+              picker.style.top = (rect.bottom - innerRect.top + 4) + 'px';
+            }
+            ctx.elements.edInner.appendChild(picker);
+            picker.querySelectorAll('.slash-item').forEach((btn, i) => {
+              btn.addEventListener('click', () => {
+                const target = targets[i];
+                const blockCopy = duplicateBlockWithNewIds(match.block);
+                target.blocks.push(blockCopy);
+                match.parentList.splice(match.index, 1);
+                if (n.blocks.length === 0) n.blocks.push({ id: genId(), type: 'paragraph', content: '', children: [] });
+                rerender(n);
+                picker.remove();
+                ctx.toast(`Block moved to "${target.title || 'Untitled'}"`, '', () => {});
+              });
+            });
+            setTimeout(() => {
+              const close = (e: MouseEvent) => {
+                if (!picker.contains(e.target as Node)) { picker.remove(); document.removeEventListener('click', close); }
+              };
+              document.addEventListener('click', close);
+            }, 0);
+          }},
           { label: 'Delete', icon: '🗑', danger: true, action: () => {
             match.parentList.splice(match.index, 1);
             if (n.blocks.length === 0) n.blocks.push({ id: genId(), type: 'paragraph', content: '', children: [] });
@@ -1667,9 +1918,28 @@ export function initEditorKeyEvents(ctx: AppContext) {
           { label: 'Numbered list', icon: '1.', action: () => { match.block.type = 'numbered'; rerender(n); } },
           { label: 'To-do list', icon: '☑', action: () => { match.block.type = 'todo'; match.block.checked = false; rerender(n); } },
           { label: 'Toggle list', icon: '▶', action: () => { match.block.type = 'toggle'; rerender(n); } },
+          { label: 'Toggle heading 1', icon: '▶1', action: () => { match.block.type = 'toggle_h1'; rerender(n); } },
+          { label: 'Toggle heading 2', icon: '▶2', action: () => { match.block.type = 'toggle_h2'; rerender(n); } },
+          { label: 'Toggle heading 3', icon: '▶3', action: () => { match.block.type = 'toggle_h3'; rerender(n); } },
           { label: 'Quote', icon: '❝', action: () => { match.block.type = 'quote'; rerender(n); } },
-          { label: 'Code', icon: '</>', action: () => { match.block.type = 'code'; match.block.language = 'plaintext'; rerender(n); } },
           { label: 'Divider', icon: '—', action: () => { match.block.type = 'divider'; match.block.content = ''; rerender(n); } },
+          { label: 'Callout', icon: '💡', action: () => { match.block.type = 'callout'; match.block.icon = '💡'; rerender(n); } },
+          { label: 'Page', icon: '📄', action: () => { rerender(n); ctx.newSubNote(n.id); } },
+          { label: 'Subfolder', icon: '📁', action: () => { rerender(n); ctx.newSubFolder(n.id); } },
+          { label: 'Image', icon: '🖼', action: () => { rerender(n); openMediaFilePrompt('image', match.block, n); } },
+          { label: 'Video', icon: '🎬', action: () => { rerender(n); openMediaFilePrompt('video', match.block, n); } },
+          { label: 'Audio', icon: '🎵', action: () => { rerender(n); openMediaFilePrompt('audio', match.block, n); } },
+          { label: 'PDF', icon: '📄', action: () => { openUrlPrompt('pdf', match.block, n); } },
+          { label: 'Bookmark', icon: '🔖', action: () => { openUrlPrompt('bookmark', match.block, n); } },
+          { label: 'Code', icon: '</>', action: () => { match.block.type = 'code'; match.block.language = 'plaintext'; rerender(n); } },
+          { label: 'File', icon: '📎', action: () => { rerender(n); openMediaFilePrompt('file', match.block, n); } },
+          { label: 'Mention', icon: '@', action: () => { openMentionPicker(match.block, n, bId); } },
+          { label: 'Date', icon: '📅', action: () => { openDatePicker(match.block, n); } },
+          { label: 'Equation', icon: '∑', action: () => { openTexPrompt('equation', match.block, n); } },
+          { label: 'Emoji', icon: '😊', action: () => { openEmojiPicker(match.block, n, bId); } },
+          { label: 'Contents', icon: '≡', action: () => { match.block.type = 'toc'; match.block.content = ''; rerender(n); } },
+          { label: 'Template', icon: '🔁', action: () => { match.block.type = 'template'; match.block.content = 'Template button'; rerender(n); } },
+          { label: 'Breadcrumb', icon: '›', action: () => { match.block.type = 'breadcrumb'; match.block.content = ''; rerender(n); } },
           { label: 'Math Equation', icon: '∫', action: () => { match.block.type = 'math'; rerender(n); } }
         ];
         
@@ -1773,7 +2043,7 @@ export function initEditorKeyEvents(ctx: AppContext) {
     }
 
     // ── Code block copy button ─────────────────────────────────────────────
-    const copyBtn = target.closest('.code-copy-btn') as HTMLElement;
+    const copyBtn = target.closest('.code-copy-btn, .code-copy-btn-premium') as HTMLElement;
     if (copyBtn) {
       const bId = copyBtn.dataset.id!;
       const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
@@ -1781,9 +2051,64 @@ export function initEditorKeyEvents(ctx: AppContext) {
       const match = findBlockById(n.blocks, bId);
       if (match) {
         navigator.clipboard.writeText(match.block.content).then(() => {
-          copyBtn.textContent = 'Copied!';
-          setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+          const originalText = copyBtn.textContent || '';
+          if (copyBtn.classList.contains('code-copy-btn-premium')) {
+            const oldSvg = copyBtn.innerHTML;
+            copyBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--success, #00a300)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            setTimeout(() => { copyBtn.innerHTML = oldSvg; }, 1500);
+          } else {
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => { copyBtn.textContent = originalText; }, 1500);
+          }
         });
+      }
+      return;
+    }
+
+    // ── Code block more options button ──────────────────────────────────────
+    const moreBtn = target.closest('.code-more-btn-premium') as HTMLElement;
+    if (moreBtn) {
+      e.preventDefault();
+      const bId = moreBtn.dataset.id!;
+      const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+      if (!n) return;
+      const match = findBlockById(n.blocks, bId);
+      if (match) {
+        const menuItems: FlyoutItem[] = [
+          { 
+            label: match.block.codeWrap ? 'Unwrap lines' : 'Wrap lines', 
+            icon: '↩', 
+            action: () => { 
+              match.block.codeWrap = !match.block.codeWrap; 
+              rerender(n); 
+            } 
+          },
+          { 
+            label: match.block.codeFullWidth ? 'Standard width' : 'Full width', 
+            icon: '↔', 
+            action: () => { 
+              match.block.codeFullWidth = !match.block.codeFullWidth; 
+              rerender(n); 
+            } 
+          }
+        ];
+        ctx.openFly(moreBtn, menuItems);
+      }
+      return;
+    }
+
+    // ── Callout icon button click to edit icon ────────────────────────────
+    const calloutIconBtn = target.closest('.callout-icon-btn') as HTMLElement;
+    if (calloutIconBtn) {
+      e.preventDefault();
+      const blockEl = calloutIconBtn.closest('.block-wrapper') as HTMLElement;
+      if (!blockEl) return;
+      const bId = blockEl.dataset.id!;
+      const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+      if (!n) return;
+      const match = findBlockById(n.blocks, bId);
+      if (match) {
+        openCalloutEmojiPicker(match.block, n, calloutIconBtn);
       }
       return;
     }
@@ -1826,41 +2151,13 @@ export function initEditorKeyEvents(ctx: AppContext) {
     // ── Math block click to edit ───────────────────────────────────────────
     const mathBlock = target.closest('.block-math') as HTMLElement;
     if (mathBlock && !target.closest('.block-media-placeholder')) {
-      if (mathBlock.querySelector('.block-math-editor')) return; // already editing
+      if (ctx.root.querySelector('.math-popup-editor')) return; // already editing
       const bId = mathBlock.dataset.id!;
       const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
       if (!n) return;
       const match = findBlockById(n.blocks, bId);
       if (match) {
-        const originalContent = match.block.content || '';
-        mathBlock.innerHTML = `<textarea class="block-math-editor" style="width: 100%; min-height: 80px; font-family: monospace; font-size: 13.5px; border: 1px solid var(--border); border-radius: 4px; padding: 8px; background: var(--bg2); color: var(--text1); outline: none; resize: vertical;">${esc(originalContent)}</textarea>`;
-        const textarea = mathBlock.querySelector('.block-math-editor') as HTMLTextAreaElement;
-        textarea.focus();
-        textarea.select();
-        
-        let finished = false;
-        const saveAndExit = () => {
-          if (finished) return;
-          finished = true;
-          match.block.content = textarea.value.trim();
-          rerender(n);
-        };
-        
-        textarea.addEventListener('blur', () => {
-          saveAndExit();
-        });
-        
-        textarea.addEventListener('keydown', e => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            textarea.blur();
-          } else if (e.key === 'Escape') {
-            e.preventDefault();
-            finished = true;
-            match.block.content = originalContent;
-            rerender(n);
-          }
-        });
+        openMathPopupEditor(match.block, n, mathBlock);
       }
       return;
     }
@@ -1879,7 +2176,7 @@ export function initEditorKeyEvents(ctx: AppContext) {
       } else if (['pdf','bookmark'].includes(prompt_type)) {
         openUrlPrompt(prompt_type, match.block, n);
       } else if (prompt_type === 'math') {
-        openTexPrompt('math', match.block, n);
+        openMathPopupEditor(match.block, n, placeholder);
       }
       return;
     }

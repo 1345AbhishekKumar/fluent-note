@@ -1,7 +1,7 @@
 export type BlockType =
   | 'paragraph' | 'heading1' | 'heading2' | 'heading3'
   | 'todo' | 'bullet' | 'numbered' | 'toggle' | 'toggle_h1' | 'toggle_h2' | 'toggle_h3'
-  | 'quote' | 'divider' | 'code'
+  | 'quote' | 'divider' | 'code' | 'callout'
   | 'image' | 'video' | 'audio' | 'pdf' | 'bookmark' | 'file'
   | 'equation' | 'math'
   | 'toc' | 'breadcrumb' | 'template';
@@ -12,6 +12,7 @@ export interface Block {
   content: string;
   checked?: boolean;
   children: Block[];
+  icon?: string;        // for callout custom emoji
   // Media / embed extras
   url?: string;        // for image, video, audio, pdf, bookmark
   fileName?: string;   // for file uploads
@@ -22,6 +23,11 @@ export interface Block {
   textColor?: string;
   bgColor?: string;
   comment?: string;
+  // Bookmark details
+  bookmarkTitle?: string;
+  bookmarkDesc?: string;
+  bookmarkImage?: string;
+  bookmarkIcon?: string;
 }
 
 export interface Note {

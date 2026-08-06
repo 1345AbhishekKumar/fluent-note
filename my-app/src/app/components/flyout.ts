@@ -8,10 +8,26 @@ import { saveAndSyncContent, saveAndSync } from '../../store';
 export function initFlyout(ctx: AppContext) {
   let flyItems: FlyoutItem[] = [];
   let flyAnchor: HTMLElement | null = null;
+  let searchQuery = '';
+  let originalItems: FlyoutItem[] = [];
 
   function buildFly(items: FlyoutItem[]) {
-    flyItems = items;
-    ctx.elements.fly.innerHTML = items.map((it, i) => {
+    let filtered = items;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      filtered = items.filter(it => {
+        if (it.sep || it.head) return false;
+        return it.label && it.label.toLowerCase().includes(q);
+      });
+      if (filtered.length === 0) {
+        filtered = [{ head: 'No matching commands' }];
+      } else {
+        filtered = [{ head: `Filter: "${searchQuery}"` }, ...filtered];
+      }
+    }
+
+    flyItems = filtered;
+    ctx.elements.fly.innerHTML = filtered.map((it, i) => {
       if (it.sep) return '<div class="fly-sep"></div>';
       if (it.head) return `<div class="fly-head">${it.head}</div>`;
       
@@ -72,6 +88,8 @@ export function initFlyout(ctx: AppContext) {
   }
 
   function openFly(anchor: HTMLElement, items: FlyoutItem[]) {
+    searchQuery = '';
+    originalItems = items;
     buildFly(items);
     const wr = ctx.root.getBoundingClientRect();
     const ar = anchor.getBoundingClientRect();
@@ -79,6 +97,8 @@ export function initFlyout(ctx: AppContext) {
   }
 
   function openFlyAt(cx: number, cy: number, items: FlyoutItem[]) {
+    searchQuery = '';
+    originalItems = items;
     buildFly(items);
     const wr = ctx.root.getBoundingClientRect();
     placeFly(cx - wr.left, cy - wr.top + 4, null);
@@ -88,6 +108,7 @@ export function initFlyout(ctx: AppContext) {
     if (!ctx.elements.fly.classList.contains('open') && !ctx.elements.fly.classList.contains('is-open')) return;
     ctx.elements.fly.classList.remove('open', 'is-open');
     ctx.elements.fly.classList.add('is-closing');
+    searchQuery = '';
     flyAnchor = null;
     if (closeTimer) clearTimeout(closeTimer);
     closeTimer = setTimeout(() => {
@@ -114,6 +135,43 @@ export function initFlyout(ctx: AppContext) {
     const target = e.target as HTMLElement;
     if (ctx.elements.fly.classList.contains('open') && !ctx.elements.fly.contains(target) && !(flyAnchor && flyAnchor.contains(target))) {
       closeFly();
+    }
+  }, true);
+
+  document.addEventListener('keydown', e => {
+    const isOpen = ctx.elements.fly.classList.contains('open') || ctx.elements.fly.classList.contains('is-open');
+    if (!isOpen) return;
+
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+      return;
+    }
+
+    if (e.key === 'Escape') {
+      closeFly();
+      e.preventDefault();
+      e.stopPropagation();
+    } else if (e.key === 'Backspace') {
+      if (searchQuery.length > 0) {
+        searchQuery = searchQuery.slice(0, -1);
+        buildFly(originalItems);
+      }
+      e.preventDefault();
+      e.stopPropagation();
+    } else if (e.key === 'Enter') {
+      const firstActionableIndex = flyItems.findIndex(it => !it.sep && !it.head);
+      if (firstActionableIndex !== -1) {
+        const it = flyItems[firstActionableIndex];
+        closeFly();
+        if (it.action) it.action();
+      }
+      e.preventDefault();
+      e.stopPropagation();
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      searchQuery += e.key;
+      buildFly(originalItems);
+      e.preventDefault();
+      e.stopPropagation();
     }
   }, true);
 
