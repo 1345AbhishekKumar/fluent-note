@@ -6,7 +6,7 @@ import { sharedNotes, APPS, saveAndSync, saveAndSyncContent, loadClips, sharedFo
 import type { AppContext } from './context';
 import { initFlyout } from './components/flyout';
 import { startP2PShare } from './components/p2p';
-import { renderSidebar, initSidebarEvents } from './views/sidebar';
+import { renderSidebar, initSidebarEvents, openVaultSwitcher, reloadFromVault } from './views/sidebar';
 import { renderList, initListEvents, filtered } from './views/list';
 import { renderEditor, initEditorEvents } from './views/editor';
 import { renderReviewInbox } from './views/review';
@@ -24,8 +24,17 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
     <span class="app-ico">${IC.pen}</span><span class="app-name">Fluent Notes</span>
     <div class="tb-search"><div class="sbox"><span class="ic s-ic">${IC.search}</span><input class="search" type="text" placeholder="Search notes" spellcheck="false"><kbd class="s-kbd">Ctrl K</kbd></div></div>
     <span class="tb-spacer"></span>
-    <div class="lens-switcher-container">
-      <button class="tbtn style-btn lens-btn"><span class="lens-lbl">Notes Lens</span><span class="ic">${IC.chevD}</span></button>
+    <div class="lens-switcher-container" style="position:relative;">
+      <button class="tbtn style-btn lens-btn" id="lensSwitcherBtn"><span class="lens-lbl">Notes Lens</span><span class="ic lens-chev">${IC.chevD}</span></button>
+      <div class="lens-vault-dropdown" id="lensVaultDropdown" style="display:none;">
+        <div class="lvd-section-label">Switch Vault</div>
+        <div class="lvd-vault-list" id="lvdVaultList"></div>
+        <div class="lvd-divider"></div>
+        <button class="lvd-manage-btn" id="lvdManageBtn">
+          <span class="ic">${IC.vault}</span>
+          <span>Manage Vaults…</span>
+        </button>
+      </div>
     </div>
     <button class="tbtn ic split-btn" title="Side-by-side themes">${IC.split}</button>
     <button class="tbtn ic theme-btn" title="Toggle theme">${IC.moon}</button>
@@ -135,6 +144,45 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
     <div class="scrim"></div>
   </div>
   <div class="flyout"></div>
+  <div class="vault-overlay" id="vaultOverlay" aria-modal="true" role="dialog" aria-label="Vault Manager" style="display:none;">
+    <div class="vault-manager">
+      <!-- Left: vault list -->
+      <div class="vm-left">
+        <div class="vm-vault-list" id="vmVaultList"></div>
+      </div>
+      <!-- Right: branding + actions -->
+      <div class="vm-right">
+        <div class="vm-brand">
+          <div class="vm-logo-wrap">
+            <span class="vm-logo-ic">${IC.vault}</span>
+          </div>
+          <h1 class="vm-brand-name">Fluent Notes</h1>
+          <p class="vm-brand-version">Local Markdown Vault</p>
+        </div>
+        <div class="vm-action-list">
+          <div class="vm-action-row">
+            <div class="vm-action-info">
+              <span class="vm-action-title">Create new vault</span>
+              <span class="vm-action-desc">Create a new vault under a folder.</span>
+            </div>
+            <button class="vm-action-btn vm-btn-primary" id="vaultCreateNew">Create</button>
+          </div>
+          <div class="vm-action-row">
+            <div class="vm-action-info">
+              <span class="vm-action-title">Open folder as vault</span>
+              <span class="vm-action-desc">Choose an existing folder of Markdown files.</span>
+            </div>
+            <button class="vm-action-btn vm-btn-secondary" id="vaultOpenFolder">Open</button>
+          </div>
+        </div>
+        <div class="vm-create-form" id="vaultCreateForm" style="display:none;">
+          <input type="text" class="vm-name-input" id="vaultNameInput" placeholder="Vault name…" maxlength="80" />
+          <button class="vm-action-btn vm-btn-primary" id="vaultCreateConfirm">Choose Folder &amp; Create</button>
+        </div>
+        <button class="vm-close-btn" id="vaultClose" aria-label="Close vault manager">${IC.close}</button>
+      </div>
+    </div>
+  </div>
   <div class="toast"><span class="t-msg"></span><button class="t-act"></button></div>`;
   host.appendChild(root);
 
@@ -295,6 +343,18 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
     st,
     navigateNote(direction) {
       navigateNote(direction);
+    },
+    closeVaultSwitcher() {
+      const overlay = root.querySelector('#vaultOverlay') as HTMLElement;
+      if (overlay) {
+        overlay.style.display = 'none';
+        const closeBtn = overlay.querySelector('#vaultClose') as HTMLElement;
+        if (closeBtn) closeBtn.style.display = '';
+        const createForm = overlay.querySelector('#vaultCreateForm') as HTMLElement;
+        if (createForm) createForm.style.display = 'none';
+        const nameInput = overlay.querySelector('#vaultNameInput') as HTMLInputElement;
+        if (nameInput) nameInput.value = '';
+      }
     }
   };
 
@@ -352,14 +412,84 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
   if (winMax) winMax.addEventListener('click', () => window.electronAPI?.maximizeWindow?.());
   if (winClose) winClose.addEventListener('click', () => window.electronAPI?.closeWindow?.());
 
+  /* ── Notes Lens button → Vault picker dropdown ─────────────────── */
+  const lensSwitcherBtn = q<HTMLButtonElement>('#lensSwitcherBtn');
+  const lensVaultDropdown = q<HTMLElement>('#lensVaultDropdown');
+  const lvdVaultList = q<HTMLElement>('#lvdVaultList');
+  const lvdManageBtn = q<HTMLButtonElement>('#lvdManageBtn');
+
+  function populateLensDropdown() {
+    if (!window.electronAPI) {
+      lensVaultDropdown.innerHTML = '<p style="font-size:11px;color:var(--text-muted);padding:8px 12px;">Desktop app only</p>';
+      return;
+    }
+    const currentPath = window.electronAPI.getVaultPathSync();
+    const recents: string[] = window.electronAPI.getRecentVaultsSync() ?? [];
+
+    lvdVaultList.innerHTML = '';
+    recents.forEach(vaultPath => {
+      const parts = vaultPath.replace(/\\/g, '/').split('/');
+      const vaultName = parts[parts.length - 1] || vaultPath;
+      const isActive = vaultPath === currentPath;
+      const row = document.createElement('button');
+      row.className = 'lvd-vault-item' + (isActive ? ' active' : '');
+      row.innerHTML = `<span class="lvd-vault-name">${vaultName}</span>${isActive ? `<span class="lvd-check-ic">${IC.check}</span>` : ''}`;
+      row.title = vaultPath;
+      if (!isActive) {
+        row.addEventListener('click', async () => {
+          try {
+            await window.electronAPI!.openVaultByPath(vaultPath);
+            await reloadFromVault(ctx);
+            ctx.api.selectFirstNote();
+            lensVaultDropdown.style.display = 'none';
+            const lensLbl = q<HTMLElement>('.lens-lbl');
+            if (lensLbl) lensLbl.textContent = vaultName;
+            ctx.renderSidebar();
+            ctx.renderList();
+            toast(`Switched to ${vaultName}`);
+          } catch (e) {
+            toast('Failed to switch vault');
+          }
+        });
+      }
+      lvdVaultList.appendChild(row);
+    });
+  }
+
+  if (lensSwitcherBtn && lensVaultDropdown) {
+    lensSwitcherBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = lensVaultDropdown.style.display !== 'none';
+      lensVaultDropdown.style.display = isOpen ? 'none' : 'block';
+      if (!isOpen) populateLensDropdown();
+    });
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+      if (!lensSwitcherBtn.contains(e.target as Node) && !lensVaultDropdown.contains(e.target as Node)) {
+        lensVaultDropdown.style.display = 'none';
+      }
+    });
+  }
+
+  if (lvdManageBtn) {
+    lvdManageBtn.addEventListener('click', () => {
+      lensVaultDropdown.style.display = 'none';
+      openVaultSwitcher(ctx);
+    });
+  }
+
   function renderMeta() {
     const n = st.notes.find(x => x.id === st.sel);
     if (!n) return;
-    const nb = NBS.find(x => x.id === n.nb) || NBS[0];
+    const nb = NBS.find(x => x.id === n.nb);
     const dotEl = elements.metaNb.querySelector('.dot') as HTMLElement;
-    if (dotEl) dotEl.style.background = nb.color;
+    if (dotEl) {
+      dotEl.style.background = nb ? nb.color : 'transparent';
+      dotEl.style.display = nb ? 'inline-block' : 'none';
+    }
     const nbNameEl = elements.metaNb.querySelector('.nb-name');
-    if (nbNameEl) nbNameEl.textContent = nb.name;
+    if (nbNameEl) nbNameEl.textContent = nb ? nb.name : 'No Notebook';
     elements.metaDate.textContent = 'Updated ' + n.date.toLowerCase();
     elements.mtTxt.textContent = n.tags.length ? n.tags.map(t => TAGS.find(x => x.id === t)?.name || t).join(', ') : 'Tags';
     elements.pinBtn.classList.toggle('on', n.pinned);
@@ -627,12 +757,45 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
   initListEvents(ctx);
   initEditorEvents(ctx);
 
+  // Listen for Ctrl+Shift+, shortcut dispatched from sidebar.ts
+  document.addEventListener('fluent:open-vault-switcher', () => {
+    openVaultSwitcher(ctx);
+  });
+
+  // Escape to close vault overlay
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const overlay = document.getElementById('vaultOverlay');
+      if (overlay && overlay.style.display === 'flex') {
+        overlay.style.display = 'none';
+      }
+    }
+  });
+
   // Initial load
   const initialSelId = sharedNotes.length ? sharedNotes[0].id : null;
   st.sel = initialSelId;
   api.renderSidebar();
   api.renderList();
   api.renderEditor();
+
+  // Set vault name in lens button
+  if (window.electronAPI) {
+    try {
+      const vaultPath = window.electronAPI.getVaultPathSync();
+      if (vaultPath) {
+        const parts = vaultPath.replace(/\\/g, '/').split('/');
+        const vaultName = parts[parts.length - 1] || vaultPath;
+        const lensLbl = q<HTMLElement>('.lens-lbl');
+        if (lensLbl) lensLbl.textContent = vaultName;
+      } else {
+        // No active vault configured, open the switcher immediately on startup
+        openVaultSwitcher(ctx);
+        const closeBtn = root.querySelector('#vaultClose') as HTMLElement;
+        if (closeBtn) closeBtn.style.display = 'none';
+      }
+    } catch (e) { /* ignore */ }
+  }
   
   return api;
 }

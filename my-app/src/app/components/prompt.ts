@@ -83,11 +83,14 @@ export function showPrompt(
   input.select();
   
   let closed = false;
+  let callbackCalled = false;
   const close = (result: string | null) => {
     if (closed) return;
     closed = true;
     modal.classList.remove('show');
     const cleanup = () => {
+      if (callbackCalled) return;
+      callbackCalled = true;
       modal.remove();
       callback(result);
     };

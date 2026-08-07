@@ -526,6 +526,163 @@ export function initEditorKeyEvents(ctx: AppContext) {
     visibleSlashItems = [];
   }
 
+  function openLanguagePicker(btn: HTMLElement, blockId: string) {
+    closeLanguagePicker();
+
+    const popup = document.createElement('div');
+    popup.className = 'language-picker-popup';
+    popup.innerHTML = `
+      <div class="lang-search-wrapper">
+        <input type="text" class="lang-search-input" placeholder="Search for a language..." />
+      </div>
+      <div class="lang-list-container"></div>
+    `;
+
+    const btnRect = btn.getBoundingClientRect();
+    const innerRect = ctx.elements.edInner.getBoundingClientRect();
+    popup.style.left = Math.max(8, btnRect.right - innerRect.left - 200) + 'px';
+    popup.style.top = (btnRect.bottom - innerRect.top + 4) + 'px';
+
+    ctx.elements.edInner.appendChild(popup);
+
+    const searchInput = popup.querySelector('.lang-search-input') as HTMLInputElement;
+    const listContainer = popup.querySelector('.lang-list-container') as HTMLElement;
+
+    const langOptions = [
+      { val: 'plaintext', label: 'Plain Text' },
+      { val: 'javascript', label: 'JavaScript' },
+      { val: 'typescript', label: 'TypeScript' },
+      { val: 'html', label: 'HTML' },
+      { val: 'css', label: 'CSS' },
+      { val: 'json', label: 'JSON' },
+      { val: 'python', label: 'Python' },
+      { val: 'sql', label: 'SQL' },
+      { val: 'cpp', label: 'C++' },
+      { val: 'java', label: 'Java' },
+      { val: 'rust', label: 'Rust' },
+      // Frameworks
+      { val: 'javascript', label: 'React (JSX)' },
+      { val: 'typescript', label: 'React (TSX)' },
+      { val: 'html', label: 'Vue' },
+      { val: 'html', label: 'Angular' },
+      { val: 'html', label: 'Svelte' },
+      { val: 'typescript', label: 'Next.js' },
+      { val: 'typescript', label: 'Nuxt.js' },
+      { val: 'python', label: 'Django' },
+      { val: 'python', label: 'Flask' },
+      { val: 'javascript', label: 'Express' },
+      { val: 'java', label: 'Spring' },
+      { val: 'php', label: 'Laravel' },
+      { val: 'ruby', label: 'Ruby on Rails' },
+      // Additional languages
+      { val: 'c', label: 'C' },
+      { val: 'csharp', label: 'C#' },
+      { val: 'dart', label: 'Dart' },
+      { val: 'docker', label: 'Docker' },
+      { val: 'elixir', label: 'Elixir' },
+      { val: 'erlang', label: 'Erlang' },
+      { val: 'go', label: 'Go' },
+      { val: 'graphql', label: 'GraphQL' },
+      { val: 'groovy', label: 'Groovy' },
+      { val: 'haskell', label: 'Haskell' },
+      { val: 'kotlin', label: 'Kotlin' },
+      { val: 'latex', label: 'LaTeX' },
+      { val: 'lisp', label: 'Lisp' },
+      { val: 'lua', label: 'Lua' },
+      { val: 'markdown', label: 'Markdown' },
+      { val: 'matlab', label: 'Matlab' },
+      { val: 'nix', label: 'Nix' },
+      { val: 'objectivec', label: 'Objective-C' },
+      { val: 'ocaml', label: 'OCaml' },
+      { val: 'php', label: 'PHP' },
+      { val: 'powershell', label: 'PowerShell' },
+      { val: 'ruby', label: 'Ruby' },
+      { val: 'scala', label: 'Scala' },
+      { val: 'swift', label: 'Swift' },
+      { val: 'verilog', label: 'Verilog' },
+      { val: 'vhdl', label: 'VHDL' },
+      { val: 'xml', label: 'XML' },
+      { val: 'yaml', label: 'YAML' }
+    ];
+
+    let selectedIndex = 0;
+    let filteredOptions = [...langOptions];
+
+    function renderList() {
+      listContainer.innerHTML = filteredOptions.map((opt, i) => `
+        <button class="lang-picker-item ${i === selectedIndex ? 'active' : ''}" data-val="${opt.val}" data-index="${i}">
+          ${opt.label}
+        </button>
+      `).join('');
+
+      listContainer.querySelectorAll('.lang-picker-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const val = (item as HTMLElement).dataset.val!;
+          selectLanguage(val);
+        });
+      });
+    }
+
+    function selectLanguage(val: string) {
+      const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+      if (!n) return;
+      const match = findBlockById(n.blocks, blockId);
+      if (match) {
+        match.block.language = val;
+        rerender(n);
+        saveAndSyncContent();
+        ctx.markSaving();
+      }
+      closeLanguagePicker();
+    }
+
+    searchInput.addEventListener('input', () => {
+      const query = searchInput.value.toLowerCase().trim();
+      filteredOptions = langOptions.filter(o => 
+        o.label.toLowerCase().includes(query) || o.val.toLowerCase().includes(query)
+      );
+      selectedIndex = 0;
+      renderList();
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedIndex = (selectedIndex + 1) % filteredOptions.length;
+        renderList();
+        scrollToActiveItem();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedIndex = (selectedIndex - 1 + filteredOptions.length) % filteredOptions.length;
+        renderList();
+        scrollToActiveItem();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (filteredOptions[selectedIndex]) {
+          selectLanguage(filteredOptions[selectedIndex].val);
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closeLanguagePicker();
+      }
+    });
+
+    function scrollToActiveItem() {
+      const activeEl = listContainer.querySelector('.lang-picker-item.active') as HTMLElement;
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: 'nearest' });
+      }
+    }
+
+    setTimeout(() => searchInput.focus(), 50);
+    renderList();
+  }
+
+  function closeLanguagePicker() {
+    const picker = ctx.root.querySelector('.language-picker-popup');
+    if (picker) picker.remove();
+  }
+
   function updateSlashMenuSelection(menu: HTMLElement) {
     menu.querySelectorAll('.slash-item').forEach((btn, i) => {
       btn.classList.toggle('selected', i === selectedSlashItemIndex);
@@ -536,43 +693,162 @@ export function initEditorKeyEvents(ctx: AppContext) {
   }
 
   // ── Helpers for inline / advanced commands ────────────────────────────────
-  function openUrlPrompt(cmdType: string, block: Block, n: Note) {
-    const url = prompt(`Enter URL for ${cmdType}:`, block.url || '');
-    if (url === null) return;
-    block.type = cmdType as BlockType;
-    block.url = url;
-    block.content = url;
+  function openUrlPopupEditor(cmdType: string, block: Block, n: Note, anchorEl: HTMLElement, originalState?: Partial<Block>) {
+    ctx.root.querySelector('.url-popup-editor')?.remove();
+
+    const popup = document.createElement('div');
+    popup.className = 'url-popup-editor bookmark-popup-editor';
+
+    const buttonText = cmdType === 'bookmark' ? 'Create bookmark' : 'Embed PDF';
+    const placeholderText = 'Paste in https://...';
+    const descriptionText = cmdType === 'bookmark' 
+      ? 'Create a visual bookmark from a link.' 
+      : 'Embed a PDF file from a URL.';
+
+    if (cmdType === 'pdf') {
+      popup.innerHTML = `
+        <button class="bookmark-popup-btn pdf-upload-btn" style="background: var(--nav-h); color: var(--text1); border: 1px solid var(--pane-brd); margin-bottom: 8px;">Upload local PDF</button>
+        <div style="text-align: center; margin: 4px 0 8px; color: var(--text3); font-size: 11px; font-weight: 500;">OR</div>
+        <input type="text" class="bookmark-popup-input" placeholder="${placeholderText}" value="${block.url || ''}" />
+        <button class="bookmark-popup-btn bookmark-action-btn">${buttonText}</button>
+        <p class="bookmark-popup-desc" style="margin-top: 8px;">${descriptionText}</p>
+      `;
+    } else {
+      popup.innerHTML = `
+        <input type="text" class="bookmark-popup-input" placeholder="${placeholderText}" value="${block.url || ''}" />
+        <button class="bookmark-popup-btn bookmark-action-btn">${buttonText}</button>
+        <p class="bookmark-popup-desc">${descriptionText}</p>
+      `;
+    }
+
+    const rect = anchorEl.getBoundingClientRect();
+    const parentRect = ctx.elements.edInner.getBoundingClientRect();
     
-    // Clear any existing preview metadata
-    block.bookmarkTitle = undefined;
-    block.bookmarkDesc = undefined;
-    block.bookmarkImage = undefined;
-    block.bookmarkIcon = undefined;
-    
-    rerender(n);
-    
-    if (cmdType === 'bookmark') {
-      if (window.electronAPI && window.electronAPI.fetchLinkMetadata) {
-        window.electronAPI.fetchLinkMetadata(url)
-          .then((meta) => {
-            if (meta && meta.title) {
-              block.bookmarkTitle = meta.title;
-              block.bookmarkDesc = meta.description;
-              block.bookmarkImage = meta.image;
-              block.bookmarkIcon = meta.icon;
-              rerender(n);
-            }
-          })
-          .catch((err) => {
-            console.error('Error fetching link metadata:', err);
-          });
+    popup.style.left = `${rect.left - parentRect.left}px`;
+    popup.style.top = `${rect.bottom - parentRect.top + 6}px`;
+
+    ctx.elements.edInner.appendChild(popup);
+
+    const input = popup.querySelector('.bookmark-popup-input') as HTMLInputElement;
+    const button = popup.querySelector('.bookmark-action-btn') as HTMLButtonElement;
+    const uploadBtn = popup.querySelector('.pdf-upload-btn') as HTMLButtonElement;
+
+    setTimeout(() => {
+      input.focus();
+      input.select();
+    }, 50);
+
+    let finished = false;
+    let handleOutsideClick: (e: MouseEvent) => void;
+
+    const saveAndClose = () => {
+      if (finished) return;
+      let url = input.value.trim();
+      if (!url) {
+        cancelAndClose();
+        return;
       }
+      finished = true;
+
+      // Automatically prefix with https:// if no protocol schema is present
+      if (!/^(https?:\/\/|file:\/\/|mailto:|tel:)/i.test(url)) {
+        url = 'https://' + url;
+      }
+
+      block.type = cmdType as BlockType;
+      block.url = url;
+      block.content = url;
+
+      block.bookmarkTitle = undefined;
+      block.bookmarkDesc = undefined;
+      block.bookmarkImage = undefined;
+      block.bookmarkIcon = undefined;
+
+      rerender(n);
+
+      if (cmdType === 'bookmark') {
+        if (window.electronAPI && window.electronAPI.fetchLinkMetadata) {
+          window.electronAPI.fetchLinkMetadata(url)
+            .then((meta) => {
+              if (meta && meta.title) {
+                block.bookmarkTitle = meta.title;
+                block.bookmarkDesc = meta.description;
+                block.bookmarkImage = meta.image;
+                block.bookmarkIcon = meta.icon;
+                rerender(n);
+              }
+            })
+            .catch((err) => {
+              console.error('Error fetching link metadata:', err);
+            });
+        }
+      }
+
+      if (handleOutsideClick) {
+        document.removeEventListener('mousedown', handleOutsideClick);
+      }
+      popup.remove();
+
+      const match = findBlockById(n.blocks, block.id);
+      if (match) {
+        focusNextBlockOrNew(n, match.index, match.parentList);
+      }
+    };
+
+    const cancelAndClose = () => {
+      if (finished) return;
+      finished = true;
+      if (originalState) {
+        // Clear media/bookmark fields first so we don't have dangling attributes
+        delete block.url;
+        delete block.bookmarkTitle;
+        delete block.bookmarkDesc;
+        delete block.bookmarkImage;
+        delete block.bookmarkIcon;
+        Object.assign(block, originalState);
+        rerender(n);
+      }
+      if (handleOutsideClick) {
+        document.removeEventListener('mousedown', handleOutsideClick);
+      }
+      popup.remove();
+    };
+
+    button.addEventListener('click', (e) => {
+      e.stopPropagation();
+      saveAndClose();
+    });
+
+    if (uploadBtn) {
+      uploadBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        cancelAndClose();
+        openMediaFilePrompt('pdf', block, n);
+      });
     }
-    
-    const match = findBlockById(n.blocks, block.id);
-    if (match) {
-      focusNextBlockOrNew(n, match.index, match.parentList);
-    }
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveAndClose();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelAndClose();
+      }
+    });
+
+    setTimeout(() => {
+      handleOutsideClick = (e: MouseEvent) => {
+        if (!popup.contains(e.target as Node) && !anchorEl.contains(e.target as Node)) {
+          if (input.value.trim()) {
+            saveAndClose();
+          } else {
+            cancelAndClose();
+          }
+        }
+      };
+      document.addEventListener('mousedown', handleOutsideClick);
+    }, 0);
   }
 
   function openMediaFilePrompt(cmdType: string, block: Block, n: Note) {
@@ -581,6 +857,7 @@ export function initEditorKeyEvents(ctx: AppContext) {
     if (cmdType === 'image') input.accept = 'image/*';
     else if (cmdType === 'video') input.accept = 'video/*';
     else if (cmdType === 'audio') input.accept = 'audio/*';
+    else if (cmdType === 'pdf') input.accept = 'application/pdf';
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
@@ -734,7 +1011,7 @@ export function initEditorKeyEvents(ctx: AppContext) {
     }, 0);
   }
 
-  function openMathPopupEditor(block: Block, n: Note, anchorEl: HTMLElement) {
+  function openMathPopupEditor(block: Block, n: Note, anchorEl: HTMLElement, originalState?: Partial<Block>) {
     ctx.root.querySelector('.math-popup-editor')?.remove();
 
     const popup = document.createElement('div');
@@ -820,6 +1097,9 @@ export function initEditorKeyEvents(ctx: AppContext) {
     const cancelAndClose = () => {
       if (finished) return;
       finished = true;
+      if (originalState) {
+        Object.assign(block, originalState);
+      }
       rerender(n);
       popup.remove();
     };
@@ -965,9 +1245,24 @@ export function initEditorKeyEvents(ctx: AppContext) {
       }
 
       // ── media blocks (URL prompt) ─────────────────────────────────────
-      case 'pdf': case 'bookmark':
-        openUrlPrompt(cmdType, match.block, n);
+      case 'pdf': case 'bookmark': {
+        const originalState: Partial<Block> = {
+          type: match.block.type,
+          content: match.block.content,
+          url: match.block.url,
+          bookmarkTitle: match.block.bookmarkTitle,
+          bookmarkDesc: match.block.bookmarkDesc,
+          bookmarkImage: match.block.bookmarkImage,
+          bookmarkIcon: match.block.bookmarkIcon
+        };
+        match.block.type = cmdType as BlockType;
+        rerender(n);
+        const blockEl = ctx.elements.edBody.querySelector(`[data-id="${blockId}"]`) as HTMLElement;
+        if (blockEl) {
+          openUrlPopupEditor(cmdType, match.block, n, blockEl, originalState);
+        }
         return;
+      }
 
       // ── inline: emoji ─────────────────────────────────────────────────
       case 'emoji':
@@ -981,11 +1276,15 @@ export function initEditorKeyEvents(ctx: AppContext) {
 
       // ── inline: equation / math ───────────────────────────────────────
       case 'equation': case 'math': {
+        const originalState: Partial<Block> = {
+          type: match.block.type,
+          content: match.block.content
+        };
         match.block.type = cmdType as BlockType;
         rerender(n);
         const blockEl = ctx.elements.edBody.querySelector(`[data-id="${blockId}"]`) as HTMLElement;
         if (blockEl) {
-          openMathPopupEditor(match.block, n, blockEl);
+          openMathPopupEditor(match.block, n, blockEl, originalState);
         }
         return;
       }
@@ -1754,6 +2053,78 @@ export function initEditorKeyEvents(ctx: AppContext) {
     const clipboardData = e.clipboardData;
     if (!clipboardData) return;
 
+    const files = clipboardData.files;
+    if (files && files.length > 0) {
+      e.preventDefault();
+      const target = e.target as HTMLElement;
+      const blockEl = target.closest('.block-wrapper') as HTMLElement;
+      if (!blockEl) return;
+      const blockId = blockEl.dataset.id!;
+      const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+      if (!n) return;
+      const match = findBlockById(n.blocks, blockId);
+      if (!match) return;
+
+      const { parentList, index, block: currentBlock } = match;
+
+      let insertIndex = index;
+      let isFirst = true;
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        let blockType: BlockType = 'file';
+        if (file.type.startsWith('image/')) blockType = 'image';
+        else if (file.type.startsWith('video/')) blockType = 'video';
+        else if (file.type.startsWith('audio/')) blockType = 'audio';
+        else if (file.type === 'application/pdf') blockType = 'pdf';
+
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const url = ev.target?.result as string;
+          const newBlock: Block = {
+            id: genId(),
+            type: blockType,
+            url,
+            content: file.name,
+            fileName: file.name,
+            children: []
+          };
+
+          // If the current block is an empty paragraph, we can replace it
+          let blockToTrack = newBlock;
+          if (isFirst && (currentBlock.type === 'paragraph' || currentBlock.type === 'bullet') && !currentBlock.content.trim()) {
+            currentBlock.type = blockType;
+            currentBlock.url = url;
+            currentBlock.content = file.name;
+            currentBlock.fileName = file.name;
+            blockToTrack = currentBlock;
+            isFirst = false;
+          } else {
+            parentList.splice(insertIndex + 1, 0, newBlock);
+            insertIndex++;
+          }
+
+          // Ensure a follow-up paragraph block exists so the user can continue typing
+          const targetIndex = parentList.indexOf(blockToTrack);
+          if (targetIndex !== -1) {
+            const nextBlock = parentList[targetIndex + 1];
+            if (!nextBlock || isNonTextFieldBlock(nextBlock.type)) {
+              parentList.splice(targetIndex + 1, 0, {
+                id: genId(),
+                type: 'paragraph',
+                content: '',
+                children: []
+              });
+            }
+          }
+
+          rerender(n);
+        };
+        reader.readAsDataURL(file);
+      }
+      return;
+    }
+
     const pastedText = clipboardData.getData('text');
     const isUrl = /^(https?:\/\/[^\s]+)$/i.test(pastedText.trim());
     if (isUrl) {
@@ -1804,11 +2175,28 @@ export function initEditorKeyEvents(ctx: AppContext) {
     }
   });
 
-  // Close slash menu on outside clicks
+  // Close menus on outside clicks
   document.addEventListener('mousedown', e => {
+    const target = e.target as HTMLElement;
     const menu = ctx.root.querySelector('.slash-menu');
-    if (menu && !menu.contains(e.target as Node) && !(e.target as HTMLElement).classList.contains('block-text-field')) {
+    if (menu && !menu.contains(e.target as Node) && !target.classList.contains('block-text-field')) {
       closeSlashMenu();
+    }
+    const picker = ctx.root.querySelector('.language-picker-popup');
+    if (picker && !picker.contains(e.target as Node) && !target.closest('.code-lang-container')) {
+      closeLanguagePicker();
+    }
+
+    // Clear block selection on outside click/focus
+    if (ctx.st.selectedBlockIds && ctx.st.selectedBlockIds.size > 0) {
+      const isDragHandle = target.closest('.block-drag-handle');
+      const isFlyout = target.closest('#flyout') || target.closest('.fly-item') || target.closest('.url-popup-editor') || target.closest('.math-popup-editor');
+      const isSelectionModifier = e.shiftKey || e.altKey || e.metaKey;
+      
+      if (!isDragHandle && !isFlyout && !isSelectionModifier) {
+        ctx.st.selectedBlockIds.clear();
+        rerenderSelectionStyles();
+      }
     }
   });
   ctx.elements.edBody.addEventListener('click', e => {
@@ -1929,8 +2317,32 @@ export function initEditorKeyEvents(ctx: AppContext) {
           { label: 'Image', icon: '🖼', action: () => { rerender(n); openMediaFilePrompt('image', match.block, n); } },
           { label: 'Video', icon: '🎬', action: () => { rerender(n); openMediaFilePrompt('video', match.block, n); } },
           { label: 'Audio', icon: '🎵', action: () => { rerender(n); openMediaFilePrompt('audio', match.block, n); } },
-          { label: 'PDF', icon: '📄', action: () => { openUrlPrompt('pdf', match.block, n); } },
-          { label: 'Bookmark', icon: '🔖', action: () => { openUrlPrompt('bookmark', match.block, n); } },
+           { label: 'PDF', icon: '📄', action: () => {
+            const originalState: Partial<Block> = {
+              type: match.block.type,
+              content: match.block.content,
+              url: match.block.url
+            };
+            match.block.type = 'pdf';
+            rerender(n);
+            const blockEl = ctx.elements.edBody.querySelector(`[data-id="${bId}"]`) as HTMLElement;
+            if (blockEl) openUrlPopupEditor('pdf', match.block, n, blockEl, originalState);
+          } },
+          { label: 'Bookmark', icon: '🔖', action: () => {
+            const originalState: Partial<Block> = {
+              type: match.block.type,
+              content: match.block.content,
+              url: match.block.url,
+              bookmarkTitle: match.block.bookmarkTitle,
+              bookmarkDesc: match.block.bookmarkDesc,
+              bookmarkImage: match.block.bookmarkImage,
+              bookmarkIcon: match.block.bookmarkIcon
+            };
+            match.block.type = 'bookmark';
+            rerender(n);
+            const blockEl = ctx.elements.edBody.querySelector(`[data-id="${bId}"]`) as HTMLElement;
+            if (blockEl) openUrlPopupEditor('bookmark', match.block, n, blockEl, originalState);
+          } },
           { label: 'Code', icon: '</>', action: () => { match.block.type = 'code'; match.block.language = 'plaintext'; rerender(n); } },
           { label: 'File', icon: '📎', action: () => { rerender(n); openMediaFilePrompt('file', match.block, n); } },
           { label: 'Mention', icon: '@', action: () => { openMentionPicker(match.block, n, bId); } },
@@ -2162,6 +2574,24 @@ export function initEditorKeyEvents(ctx: AppContext) {
       return;
     }
 
+    // ── Bookmark click prevention: require Ctrl/Cmd + click to navigate ────
+    const bookmarkLink = target.closest('.block-bookmark-link, .block-bookmark-link-premium, .bookmark-link') as HTMLAnchorElement;
+    if (bookmarkLink) {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) {
+        let url = bookmarkLink.getAttribute('href');
+        if (url) {
+          if (!/^(https?:\/\/|file:\/\/|mailto:|tel:)/i.test(url)) {
+            url = 'https://' + url;
+          }
+          if (window.electronAPI && window.electronAPI.openExternalUrl) {
+            window.electronAPI.openExternalUrl(url);
+          }
+        }
+      }
+      return;
+    }
+
     // ── Media placeholder: click to upload/enter URL ───────────────────────
     const placeholder = target.closest('.block-media-placeholder') as HTMLElement;
     if (placeholder) {
@@ -2174,7 +2604,7 @@ export function initEditorKeyEvents(ctx: AppContext) {
       if (['image','video','audio','file'].includes(prompt_type)) {
         openMediaFilePrompt(prompt_type, match.block, n);
       } else if (['pdf','bookmark'].includes(prompt_type)) {
-        openUrlPrompt(prompt_type, match.block, n);
+        openUrlPopupEditor(prompt_type, match.block, n, placeholder);
       } else if (prompt_type === 'math') {
         openMathPopupEditor(match.block, n, placeholder);
       }
@@ -2527,24 +2957,18 @@ export function initEditorKeyEvents(ctx: AppContext) {
   });
 
   // ── Code block controls event listeners ─────────────────────────────────
-  ctx.elements.edBody.addEventListener('change', e => {
-    const target = e.target as HTMLSelectElement;
-    if (target.classList.contains('code-lang-select')) {
-      const blockEl = target.closest('.block-wrapper') as HTMLElement;
-      if (!blockEl) return;
-      const bId = blockEl.dataset.id!;
-      const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
-      if (!n) return;
-      const match = findBlockById(n.blocks, bId);
-      if (match) {
-        match.block.language = target.value;
-        rerender(n);
-      }
-    }
-  });
-
   ctx.elements.edBody.addEventListener('click', e => {
     const target = e.target as HTMLElement;
+
+    // Code language dropdown trigger click
+    const langTrigger = target.closest('.code-lang-container') as HTMLElement;
+    if (langTrigger) {
+      e.preventDefault();
+      e.stopPropagation();
+      const bId = langTrigger.dataset.id!;
+      openLanguagePicker(langTrigger, bId);
+      return;
+    }
     
     // Wrap button click
     const wrapBtn = target.closest('.code-wrap-btn') as HTMLElement;
@@ -2580,6 +3004,15 @@ export function initEditorKeyEvents(ctx: AppContext) {
   // Focus transition: strip tags to plaintext
   ctx.elements.edBody.addEventListener('focusin', e => {
     const target = e.target as HTMLElement;
+    
+    // Clear selection when focusing any editable block field
+    if (target.classList.contains('block-text-field') || target.classList.contains('block-code-field')) {
+      if (ctx.st.selectedBlockIds && ctx.st.selectedBlockIds.size > 0) {
+        ctx.st.selectedBlockIds.clear();
+        rerenderSelectionStyles();
+      }
+    }
+
     if (!target.classList.contains('block-code-field')) return;
     
     const blockEl = target.closest('.block-wrapper') as HTMLElement;

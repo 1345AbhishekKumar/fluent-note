@@ -105,4 +105,5 @@ export interface AppInstance {
   showReceivedToast: (closureCount: number, title: string) => void;
   st: any;
   navigateNote: (direction: 'prev' | 'next') => void;
+  closeVaultSwitcher?: () => void;
 }

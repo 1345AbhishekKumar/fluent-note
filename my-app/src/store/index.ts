@@ -3,8 +3,36 @@ import { DEFAULT_NOTES, DEFAULT_CLIPS, LOCAL_STORAGE_KEY, CLIPS_KEY, DEFAULT_FOL
 import { htmlToBlocks, blocksToHtml } from '../utils';
 import { sharedNotebooks, saveNotebooks } from './notebookStore';
 
+let cachedVault: any = null;
+export function getCachedVault() {
+  if (cachedVault) return cachedVault;
+  if (typeof window !== 'undefined' && window.electronAPI) {
+    try {
+      cachedVault = window.electronAPI.loadVaultSync();
+      return cachedVault;
+    } catch (e) {
+      console.error('Error loading vault synchronously:', e);
+    }
+  }
+  return null;
+}
+
+export function clearVaultCache() {
+  cachedVault = null;
+}
+
 export function loadNotes(): Note[] {
   try {
+    const vault = getCachedVault();
+    if (vault && vault.notes) {
+      return vault.notes.map((n: any) => {
+        if (!n.blocks || n.blocks.length === 0) {
+          n.blocks = htmlToBlocks(n.body || '');
+        }
+        return n;
+      });
+    }
+
     if (typeof localStorage !== 'undefined') {
       const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (raw) {
@@ -48,6 +76,9 @@ export const sharedNotes: Note[] = loadNotes();
 
 export function loadFolders(): Folder[] {
   try {
+    const vault = getCachedVault();
+    if (vault && vault.folders) return vault.folders;
+
     if (typeof localStorage !== 'undefined') {
       const raw = localStorage.getItem(FOLDERS_KEY);
       if (raw) return JSON.parse(raw);
@@ -72,6 +103,9 @@ export const sharedFolders: Folder[] = loadFolders();
 
 export function loadClips(): TransientClip[] {
   try {
+    const vault = getCachedVault();
+    if (vault && vault.clips) return vault.clips;
+
     if (typeof localStorage !== 'undefined') {
       const raw = localStorage.getItem(CLIPS_KEY);
       if (raw) return JSON.parse(raw);
@@ -87,6 +121,7 @@ export function saveClips(clips: TransientClip[]) {
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(CLIPS_KEY, JSON.stringify(clips));
     }
+    saveVaultToDisk();
   } catch (e) {}
 }
 
@@ -94,10 +129,27 @@ export const APPS: AppInstance[] = [];
 
 export { sharedNotebooks, saveNotebooks } from './notebookStore';
 
+export function saveVaultToDisk() {
+  if (typeof window !== 'undefined' && window.electronAPI) {
+    const data = {
+      notes: sharedNotes,
+      folders: sharedFolders,
+      notebooks: sharedNotebooks,
+      clips: loadClips()
+    };
+    window.electronAPI.saveVault(data).then(res => {
+      if (res && !res.success) {
+        console.error('Error saving vault:', res.error);
+      }
+    });
+  }
+}
+
 export function saveAndSync() {
   saveNotes(sharedNotes);
   saveFolders(sharedFolders);
   saveNotebooks(sharedNotebooks);
+  saveVaultToDisk();
   APPS.forEach(app => {
     app.syncNotes(sharedNotes);
     app.renderSidebar();
@@ -111,6 +163,7 @@ export function saveAndSyncContent() {
   saveNotes(sharedNotes);
   saveFolders(sharedFolders);
   saveNotebooks(sharedNotebooks);
+  saveVaultToDisk();
   APPS.forEach(app => {
     app.syncNotes(sharedNotes);
     app.renderList();

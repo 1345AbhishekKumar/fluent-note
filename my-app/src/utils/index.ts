@@ -20,6 +20,80 @@ export function htmlToBlocks(html: string): Block[] {
         blocks.push({ id: genId(), type: 'heading1', content: el.textContent || '', children: [] });
       } else if (tag === 'h3') {
         blocks.push({ id: genId(), type: 'heading2', content: el.textContent || '', children: [] });
+      } else if (tag === 'img') {
+        blocks.push({
+          id: genId(),
+          type: 'image',
+          url: el.getAttribute('src') || '',
+          content: el.getAttribute('alt') || 'image',
+          children: []
+        });
+      } else if (tag === 'video') {
+        blocks.push({
+          id: genId(),
+          type: 'video',
+          url: el.getAttribute('src') || '',
+          content: 'video',
+          children: []
+        });
+      } else if (tag === 'audio') {
+        blocks.push({
+          id: genId(),
+          type: 'audio',
+          url: el.getAttribute('src') || '',
+          content: 'audio',
+          children: []
+        });
+      } else if (tag === 'iframe') {
+        blocks.push({
+          id: genId(),
+          type: 'pdf',
+          url: el.getAttribute('src') || '',
+          content: 'PDF',
+          children: []
+        });
+      } else if (tag === 'pre') {
+        const codeEl = el.querySelector('code');
+        let lang = 'plaintext';
+        if (codeEl) {
+          const classes = Array.from(codeEl.classList);
+          const langClass = classes.find(c => c.startsWith('language-'));
+          if (langClass) {
+            lang = langClass.replace('language-', '');
+          }
+        }
+        blocks.push({
+          id: genId(),
+          type: 'code',
+          content: el.textContent || '',
+          language: lang,
+          children: []
+        });
+      } else if (tag === 'a' && el.classList.contains('bookmark-link')) {
+        let url = el.getAttribute('href') || '';
+        if (url && !/^(https?:\/\/|file:\/\/|mailto:|tel:)/i.test(url)) {
+          url = 'https://' + url;
+        }
+        blocks.push({
+          id: genId(),
+          type: 'bookmark',
+          url: url,
+          content: el.textContent || '',
+          bookmarkTitle: el.getAttribute('data-title') || undefined,
+          bookmarkDesc: el.getAttribute('data-desc') || undefined,
+          bookmarkImage: el.getAttribute('data-image') || undefined,
+          bookmarkIcon: el.getAttribute('data-icon') || undefined,
+          children: []
+        });
+      } else if (tag === 'a' && el.classList.contains('file-link')) {
+        blocks.push({
+          id: genId(),
+          type: 'file',
+          url: el.getAttribute('href') || '',
+          content: el.textContent || '',
+          fileName: el.getAttribute('download') || '',
+          children: []
+        });
       } else if (tag === 'li') {
         const isTodo = el.querySelector('input[type="checkbox"]') !== null || el.textContent?.trim().startsWith('[ ]') || el.textContent?.trim().startsWith('[x]');
         const checked = el.querySelector('input[type="checkbox"]') ? (el.querySelector('input[type="checkbox"]') as HTMLInputElement).checked : false;
@@ -78,6 +152,20 @@ export function blocksToHtml(blocks: Block[]): string {
     } else if (block.type === 'todo') {
       const checkedAttr = block.checked ? 'checked' : '';
       html += `<p><input type="checkbox" ${checkedAttr} disabled> ${esc(block.content)}</p>`;
+    } else if (block.type === 'image') {
+      html += `<p><img src="${block.url || ''}" alt="${esc(block.content || 'image')}" /></p>`;
+    } else if (block.type === 'video') {
+      html += `<p><video src="${block.url || ''}" controls></video></p>`;
+    } else if (block.type === 'audio') {
+      html += `<p><audio src="${block.url || ''}" controls></audio></p>`;
+    } else if (block.type === 'pdf') {
+      html += `<p><iframe src="${block.url || ''}" class="block-media-pdf"></iframe></p>`;
+    } else if (block.type === 'bookmark') {
+      html += `<p><a class="bookmark-link" href="${block.url || ''}" data-title="${esc(block.bookmarkTitle || '')}" data-desc="${esc(block.bookmarkDesc || '')}" data-image="${esc(block.bookmarkImage || '')}" data-icon="${esc(block.bookmarkIcon || '')}">${esc(block.content || block.url || 'Bookmark')}</a></p>`;
+    } else if (block.type === 'file') {
+      html += `<p><a class="file-link" href="${block.url || ''}" download="${esc(block.fileName || '')}">${esc(block.content || 'File')}</a></p>`;
+    } else if (block.type === 'code') {
+      html += `<pre><code class="language-${block.language || 'plaintext'}">${esc(block.content || '')}</code></pre>`;
     } else {
       html += `<p>${esc(block.content)}</p>`;
     }
@@ -204,19 +292,53 @@ export function renderBlockTree(
         { val: 'sql', label: 'SQL' },
         { val: 'cpp', label: 'C++' },
         { val: 'java', label: 'Java' },
-        { val: 'rust', label: 'Rust' }
+        { val: 'rust', label: 'Rust' },
+        // Frameworks
+        { val: 'javascript', label: 'React (JSX)' },
+        { val: 'typescript', label: 'React (TSX)' },
+        { val: 'html', label: 'Vue' },
+        { val: 'html', label: 'Angular' },
+        { val: 'html', label: 'Svelte' },
+        // Additional languages
+        { val: 'c', label: 'C' },
+        { val: 'csharp', label: 'C#' },
+        { val: 'dart', label: 'Dart' },
+        { val: 'docker', label: 'Docker' },
+        { val: 'elixir', label: 'Elixir' },
+        { val: 'erlang', label: 'Erlang' },
+        { val: 'go', label: 'Go' },
+        { val: 'graphql', label: 'GraphQL' },
+        { val: 'groovy', label: 'Groovy' },
+        { val: 'haskell', label: 'Haskell' },
+        { val: 'kotlin', label: 'Kotlin' },
+        { val: 'latex', label: 'LaTeX' },
+        { val: 'lisp', label: 'Lisp' },
+        { val: 'lua', label: 'Lua' },
+        { val: 'markdown', label: 'Markdown' },
+        { val: 'matlab', label: 'Matlab' },
+        { val: 'nix', label: 'Nix' },
+        { val: 'objectivec', label: 'Objective-C' },
+        { val: 'ocaml', label: 'OCaml' },
+        { val: 'php', label: 'PHP' },
+        { val: 'powershell', label: 'PowerShell' },
+        { val: 'ruby', label: 'Ruby' },
+        { val: 'scala', label: 'Scala' },
+        { val: 'swift', label: 'Swift' },
+        { val: 'verilog', label: 'Verilog' },
+        { val: 'vhdl', label: 'VHDL' },
+        { val: 'xml', label: 'XML' },
+        { val: 'yaml', label: 'YAML' }
       ];
 
-      const selectHtml = `<select class="code-lang-select" data-id="${block.id}">
-        ${langOptions.map(o => `<option value="${o.val}" ${lang === o.val ? 'selected' : ''}>${o.label}</option>`).join('')}
-      </select>`;
+      const currentOpt = langOptions.find(o => o.val === lang);
+      const currentLabel = currentOpt ? currentOpt.label : lang.toUpperCase();
 
       return `<div class="block-wrapper block-code-wrapper ${fullWidthClass} ${wrapClass}" data-id="${block.id}" data-type="code" ${levelStyle}>
         ${dragHandle}
         <div class="block-code-wrap" ${inlineBgStyle}>
           <div class="block-code-header-premium">
-            <div class="code-lang-container">
-              ${selectHtml}
+            <div class="code-lang-container" data-id="${block.id}">
+              <span class="code-lang-select-label">${currentLabel}</span>
               <span class="code-lang-arrow">▼</span>
             </div>
             <div class="code-controls-container">
@@ -279,7 +401,7 @@ export function renderBlockTree(
           return `<div class="block-wrapper" data-id="${block.id}" data-type="bookmark" ${levelStyle}>
             ${dragHandle}
             <div class="block-bookmark premium-bookmark">
-              <a class="block-bookmark-link-premium" href="${block.url}" target="_blank" rel="noopener">
+              <a class="block-bookmark-link-premium" href="${block.url}" target="_blank" rel="noopener" title="Ctrl + Click to open link">
                 ${imageHtml}
                 <div class="bookmark-info-container">
                   <div class="bookmark-header-row">
@@ -296,7 +418,7 @@ export function renderBlockTree(
           return `<div class="block-wrapper" data-id="${block.id}" data-type="bookmark" ${levelStyle}>
             ${dragHandle}
             <div class="block-bookmark">
-              <a class="block-bookmark-link" href="${block.url}" target="_blank" rel="noopener">
+              <a class="block-bookmark-link" href="${block.url}" target="_blank" rel="noopener" title="Ctrl + Click to open link">
                 <span class="bookmark-icon">🔖</span>
                 <span class="bookmark-text">${esc(block.content || block.url)}</span>
                 <span class="bookmark-url">${esc(block.url)}</span>
@@ -307,7 +429,7 @@ export function renderBlockTree(
       } else {
         return `<div class="block-wrapper" data-id="${block.id}" data-type="bookmark" ${levelStyle}>
           ${dragHandle}
-          <div class="block-media-placeholder" data-prompt="bookmark" data-id="${block.id}">🔖 Click to add web bookmark</div>
+          <div class="block-media-placeholder" data-prompt="bookmark" data-id="${block.id}">🔖 Add a web bookmark</div>
         </div>`;
       }
     }
@@ -763,90 +885,91 @@ export function findNotebookForParent(parentId: string, folders: Folder[], notes
 export function setEdBodyHtml(edBody: HTMLElement, newHtml: string) {
   if (!edBody) return;
 
-  interface PreservedMedia {
-    blockId: string;
-    mediaEl: HTMLElement;
-    currentTime?: number;
-    paused?: boolean;
-    volume?: number;
-    muted?: boolean;
-    src: string;
-    tagName: string;
-  }
+  // Parse new HTML into a temporary container
+  const temp = document.createElement('div');
+  temp.innerHTML = newHtml;
 
-  const preserved: PreservedMedia[] = [];
-
-  const wrappers = edBody.querySelectorAll('.block-wrapper');
-  wrappers.forEach(wrapper => {
-    const blockId = (wrapper as HTMLElement).dataset.id;
-    if (!blockId) return;
-
-    const mediaNodes = wrapper.querySelectorAll('video, audio, iframe');
-    mediaNodes.forEach(node => {
-      const mediaEl = node as HTMLElement;
-      const tagName = mediaEl.tagName ? mediaEl.tagName.toLowerCase() : '';
-      const src = (mediaEl as any).src || mediaEl.getAttribute('src') || '';
-
-      if (tagName === 'video' || tagName === 'audio') {
-        const media = mediaEl as HTMLMediaElement;
-        preserved.push({
-          blockId,
-          mediaEl,
-          currentTime: media.currentTime,
-          paused: media.paused,
-          volume: media.volume,
-          muted: media.muted,
-          src,
-          tagName
-        });
-      } else if (tagName === 'iframe') {
-        preserved.push({
-          blockId,
-          mediaEl,
-          src,
-          tagName
-        });
-      }
-    });
+  const newBlocks = Array.from(temp.querySelectorAll('.block-wrapper')) as HTMLElement[];
+  const oldBlocksMap = new Map<string, HTMLElement>();
+  
+  // Build a map of existing block wrappers in edBody
+  edBody.querySelectorAll('.block-wrapper').forEach(node => {
+    const bEl = node as HTMLElement;
+    const id = bEl.dataset.id;
+    if (id) oldBlocksMap.set(id, bEl);
   });
 
-  edBody.innerHTML = newHtml;
+  const newChildren: HTMLElement[] = [];
 
-  preserved.forEach(item => {
-    const newWrapper = edBody.querySelector(`[data-id="${item.blockId}"]`);
-    if (!newWrapper) return;
+  newBlocks.forEach(newBlock => {
+    const id = newBlock.dataset.id;
+    if (!id) return;
 
-    const newMediaNodes = newWrapper.querySelectorAll(item.tagName);
-    let targetNewEl: Element | null = null;
+    const oldBlock = oldBlocksMap.get(id);
+    if (oldBlock) {
+      // Detect media blocks either by data-type or by presence of media child elements
+      const newMedia = newBlock.querySelector('iframe, video, audio, img') as Element | null;
+      const oldMedia = oldBlock.querySelector('iframe, video, audio, img') as Element | null;
 
-    newMediaNodes.forEach(node => {
-      const nSrc = (node as any).src || node.getAttribute('src') || '';
-      if (nSrc === item.src || newMediaNodes.length === 1) {
-        targetNewEl = node;
-      }
-    });
+      const mediaTagsByType: Record<string, string> = {
+        pdf: 'iframe', video: 'video', audio: 'audio', image: 'img'
+      };
+      const dataType = newBlock.dataset.type || '';
+      const expectedTag = mediaTagsByType[dataType] || '';
 
-    if (targetNewEl) {
-      (targetNewEl as Element).replaceWith(item.mediaEl);
-      if (item.tagName === 'video' || item.tagName === 'audio') {
-        const media = item.mediaEl as HTMLMediaElement;
-        if (item.currentTime !== undefined && !isNaN(item.currentTime)) {
-          try { media.currentTime = item.currentTime; } catch (e) {}
-        }
-        if (item.volume !== undefined) {
-          try { media.volume = item.volume; } catch (e) {}
-        }
-        if (item.muted !== undefined) {
-          try { media.muted = item.muted; } catch (e) {}
-        }
-        if (item.paused === false && typeof media.play === 'function') {
-          try {
-            const p = media.play();
-            if (p && typeof p.catch === 'function') p.catch(() => {});
-          } catch (e) {}
+      // A block is treated as media if its data-type is a media type, OR if it contains a media element
+      const isMedia = (expectedTag !== '' && newMedia?.tagName.toLowerCase() === expectedTag)
+        || (newMedia !== null && oldMedia !== null && newMedia.tagName === oldMedia.tagName);
+
+      if (isMedia && newMedia && oldMedia) {
+        // Use getAttribute to get the raw src string, avoiding JSDOM absolute URL resolution
+        const oldSrc = oldMedia.getAttribute('src') || '';
+        const newSrc = newMedia.getAttribute('src') || '';
+
+        if (oldSrc === newSrc && oldSrc !== '') {
+          // Sync classes and inline styles from the new wrapper to the preserved old one
+          oldBlock.className = newBlock.className;
+          oldBlock.style.cssText = newBlock.style.cssText;
+
+          newChildren.push(oldBlock);
+          return;
         }
       }
     }
+
+    newChildren.push(newBlock);
   });
+
+  // Reconcile edBody children with newChildren in-place to prevent iframe reload
+  let currentChild = edBody.firstElementChild;
+  
+  for (let i = 0; i < newChildren.length; i++) {
+    const targetChild = newChildren[i];
+    
+    if (currentChild === targetChild) {
+      currentChild = currentChild.nextElementSibling;
+    } else {
+      const isCurrentChildNeededLater = currentChild && newChildren.slice(i).includes(currentChild as HTMLElement);
+      if (isCurrentChildNeededLater) {
+        edBody.insertBefore(targetChild, currentChild!);
+      } else {
+        if (currentChild) {
+          const toRemove = currentChild;
+          currentChild = currentChild.nextElementSibling;
+          toRemove.remove();
+          i--; // Compare the same targetChild with the next currentChild
+        } else {
+          edBody.appendChild(targetChild);
+        }
+      }
+    }
+  }
+  
+  // Remove any remaining trailing old children in edBody
+  while (currentChild) {
+    const toRemove = currentChild;
+    currentChild = currentChild.nextElementSibling;
+    toRemove.remove();
+  }
 }
 

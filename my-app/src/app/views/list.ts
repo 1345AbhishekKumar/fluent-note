@@ -67,13 +67,14 @@ export function renderGridView(ctx: AppContext, arr: Note[]) {
       </thead>
       <tbody>
         ${sorted.map(n => {
-          const nb = NBS.find(x => x.id === n.nb) || NBS[0];
+          const nb = NBS.find(x => x.id === n.nb);
+          const nbHtml = nb ? `<span class="dot" style="background:${nb.color}; display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:6px;"></span>${nb.name}` : '—';
           const tagsText = n.tags.map(t => TAGS.find(x => x.id === t)?.name || t).join(', ');
           const selClass = n.id === ctx.st.sel ? 'sel' : '';
           return `
             <tr class="${selClass}" data-id="${n.id}">
               <td>${esc(n.title) || 'Untitled'}</td>
-              <td><span class="dot" style="background:${nb.color}; display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:6px;"></span>${nb.name}</td>
+              <td>${nbHtml}</td>
               <td>${esc(tagsText) || '—'}</td>
               <td>${n.date}</td>
             </tr>
@@ -306,12 +307,13 @@ export function renderList(ctx: AppContext) {
     renderGraphView(ctx, arr);
   } else {
     ctx.elements.lpScroll.innerHTML = arr.map(n => {
-      const nb = NBS.find(x => x.id === n.nb) || NBS[0];
+      const nb = NBS.find(x => x.id === n.nb);
+      const nbHtml = nb ? `<span class="nc-nb"><span class="dot" style="background:${nb.color}"></span>${nb.name}</span>` : '';
       const tg = TAGS.find(x => x.id === n.tags[0]);
       return `<button class="note-card rv ${n.id === ctx.st.sel ? 'sel' : ''}" data-id="${n.id}">
         <div class="nc-top"><span class="nc-title">${esc(n.title) || 'Untitled'}</span>${n.pinned ? `<span class="nc-pin ic">${IC.pin}</span>` : ''}</div>
         <div class="nc-snip">${esc(strip(n.body)) || 'No additional text'}</div>
-        <div class="nc-meta"><span>${n.date}</span><span class="nc-nb"><span class="dot" style="background:${nb.color}"></span>${nb.name}</span>${tg ? `<span class="nc-tag"><span class="dot" style="background:${tg.color}"></span>${tg.name}</span>` : ''}</div>
+        <div class="nc-meta"><span>${n.date}</span>${nbHtml}${tg ? `<span class="nc-tag"><span class="dot" style="background:${tg.color}"></span>${tg.name}</span>` : ''}</div>
       </button>`;
     }).join('');
   }
