@@ -11,6 +11,10 @@ import { renderList, initListEvents, filtered } from './views/list';
 import { renderEditor, initEditorEvents } from './views/editor';
 import { renderReviewInbox } from './views/review';
 import { showPrompt } from './components/prompt';
+import { renderAppLayout } from './appLayout';
+import { selectNote, navigateNote, deleteNote, newNote, newSubNote, newSubFolder } from './appActions';
+import { initVaultSwitcher } from './appVaultSwitcher';
+import { initResponsive } from './appResponsive';
 
 const REDUCED = (typeof matchMedia !== 'undefined') ? matchMedia('(prefers-reduced-motion: reduce)').matches : false;
 
@@ -18,172 +22,7 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
   const root = document.createElement('div');
   root.className = 'win';
   root.dataset.theme = theme;
-  root.innerHTML = `
-  <div class="titlebar">
-    <button class="tbtn ic burger" title="Toggle navigation" aria-label="Toggle navigation">${IC.menu}</button>
-    <span class="app-ico">${IC.pen}</span><span class="app-name">Fluent Notes</span>
-    <div class="tb-search"><div class="sbox"><span class="ic s-ic">${IC.search}</span><input class="search" type="text" placeholder="Search notes" spellcheck="false"><kbd class="s-kbd">Ctrl K</kbd></div></div>
-    <span class="tb-spacer"></span>
-    <div class="lens-switcher-container" style="position:relative;">
-      <button class="tbtn style-btn lens-btn" id="lensSwitcherBtn"><span class="lens-lbl">Notes Lens</span><span class="ic lens-chev">${IC.chevD}</span></button>
-      <div class="lens-vault-dropdown" id="lensVaultDropdown" style="display:none;">
-        <div class="lvd-section-label">Switch Vault</div>
-        <div class="lvd-vault-list" id="lvdVaultList"></div>
-        <div class="lvd-divider"></div>
-        <button class="lvd-manage-btn" id="lvdManageBtn">
-          <span class="ic">${IC.vault}</span>
-          <span>Manage Vaults…</span>
-        </button>
-      </div>
-    </div>
-    <button class="tbtn ic split-btn" title="Side-by-side themes">${IC.split}</button>
-    <button class="tbtn ic theme-btn" title="Toggle theme">${IC.moon}</button>
-    ${winControlsHtml}
-  </div>
-  <div class="app-body">
-    <aside class="pane sidebar">
-      <div class="sb-scroll">
-        <button class="sb-new"><span class="ic">${IC.plus}</span><span class="sb-txt">New note</span></button>
-        <div class="sb-label sb-txt">Quick access</div>
-        <nav class="sb-nav">
-          <button class="nav-item rv" data-q="all"><span class="ni-bar"></span><span class="ic">${IC.home}</span><span class="sb-txt">All notes</span></button>
-          <button class="nav-item rv" data-q="pinned"><span class="ni-bar"></span><span class="ic">${IC.pin}</span><span class="sb-txt">Pinned</span></button>
-        </nav>
-        <div class="sb-label sb-txt">Views</div>
-        <nav class="sb-nav views-nav">
-          <button class="nav-item rv" data-view="list"><span class="ni-bar"></span><span class="ic">${IC.ul}</span><span class="sb-txt">List</span></button>
-          <button class="nav-item rv" data-view="grid"><span class="ni-bar"></span><span class="ic">${IC.grid}</span><span class="sb-txt">Grid</span></button>
-          <button class="nav-item rv" data-view="graph"><span class="ni-bar"></span><span class="ic">${IC.graph}</span><span class="sb-txt">Graph</span></button>
-        </nav>
-        <div class="sb-label sb-txt" style="display:flex; justify-content:space-between; align-items:center; width:100%; padding-right:10px;">
-          <span>Notebooks</span>
-          <button class="btn-new-nb" title="New notebook" style="display:flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:3px; cursor:pointer; color:var(--text3);">
-            ${IC.plus}
-          </button>
-        </div>
-        <nav class="sb-nav nbs"></nav>
-        <div class="sb-label sb-txt">Tags</div>
-        <div class="sb-tags"></div>
-      </div>
-      <div class="sb-foot" style="display:flex; flex-direction:column; gap:2px;">
-        <button class="nav-item rv sb-import"><span class="ic">${IC.link}</span><span class="sb-txt">Import Share</span></button>
-        <button class="nav-item rv sb-set"><span class="ic">${IC.gear}</span><span class="sb-txt">Settings</span></button>
-      </div>
-    </aside>
-    <section class="pane listpane">
-      <div class="lp-head">
-        <div class="lp-tr">
-          <h2 class="lp-title">All notes</h2>
-          <div class="lp-actions">
-            <button class="ib ic act-filter" title="Filter by tag">${IC.tag}</button>
-            <button class="ib ic act-sort" title="Sort & view">${IC.sortIc}</button>
-            <button class="ib ic new-note" title="New note">${IC.plus}</button>
-          </div>
-        </div>
-        <div class="lp-sub"></div>
-      </div>
-      <div class="lp-scroll"></div>
-    </section>
-    <div class="review-inbox-pane">
-      <h3>Transient Highlights</h3>
-      <div class="review-clusters"></div>
-    </div>
-    <section class="pane editorpane">
-      <div class="ed-bar">
-        <button class="ib ic ed-back" title="Back to list">${IC.back}</button>
-        <div class="ed-tools">
-          <button class="ib ic" data-cmd="undo" title="Undo">${IC.undo}</button>
-          <button class="ib ic" data-cmd="redo" title="Redo">${IC.redo}</button>
-          <span class="sep"></span>
-          <button class="ib style-btn"><span class="style-lbl">Paragraph</span><span class="ic">${IC.chevD}</span></button>
-          <span class="sep"></span>
-          <button class="ib tb-chr" data-cmd="bold" title="Bold (Ctrl+B)"><span class="chr b">B</span></button>
-          <button class="ib tb-chr" data-cmd="italic" title="Italic (Ctrl+I)"><span class="chr i">I</span></button>
-          <button class="ib tb-chr" data-cmd="underline" title="Underline (Ctrl+U)"><span class="chr u">U</span></button>
-          <button class="ib tb-chr" data-cmd="strikeThrough" title="Strikethrough"><span class="chr s">S</span></button>
-          <span class="sep"></span>
-          <button class="ib ic" data-cmd="insertUnorderedList" title="Bulleted list">${IC.ul}</button>
-          <button class="ib ic" data-cmd="insertOrderedList" title="Numbered list">${IC.ol}</button>
-          <button class="ib ic" data-cmd="quote" title="Quote">${IC.quote}</button>
-          <button class="ib ic" data-cmd="hiliteColor" title="Highlight">${IC.hl}</button>
-          <button class="ib ic" data-cmd="link" title="Insert link">${IC.link}</button>
-          <button class="ib tb-chr" data-cmd="math" title="Inline Equation (Ctrl+Shift+E)"><span class="chr" style="font-weight: normal; font-family: 'Cambria Math', 'Times New Roman', serif;">√x</span></button>
-          <span class="sep"></span>
-          <button class="ib ic pin-btn" title="Pin note">${IC.pin}</button>
-          <button class="ib ic ed-more" title="More">${IC.dots}</button>
-        </div>
-      </div>
-      <div class="ed-scroll"><div class="ed-inner">
-        <h1 class="ed-title" contenteditable="true" spellcheck="false"></h1>
-        <div class="ed-meta">
-          <button class="pill meta-nb"><span class="dot"></span><span class="nb-name"></span><span class="ic">${IC.chevD}</span></button>
-          <span class="meta-date"><span class="ic">${IC.clock}</span><span class="md-txt"></span></span>
-          <button class="pill meta-tags"><span class="ic">${IC.tag}</span><span class="mt-txt">Tags</span><span class="ic">${IC.chevD}</span></button>
-        </div>
-        <div class="academic-metadata">
-          <label>Authors <input type="text" class="ac-authors" placeholder="Authors" spellcheck="false"></label>
-          <label>Journal <input type="text" class="ac-journal" placeholder="Journal" spellcheck="false"></label>
-          <label>Year <input type="text" class="ac-year" placeholder="Year" spellcheck="false"></label>
-        </div>
-        <div class="ed-body" spellcheck="false" data-ph="Start writing…"></div>
-        <div class="sub-items-panel">
-          <div class="sub-items-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <h4 style="margin:0;">Subfolders & Subpages</h4>
-            <button class="ib ic sub-items-add-btn" title="Add subfolder or subpage" style="width:24px; height:24px; border-radius:4px; display:flex; align-items:center; justify-content:center; background:transparent; border:none; color:var(--text3); cursor:pointer;">${IC.plus}</button>
-          </div>
-          <div class="sub-items-list"></div>
-        </div>
-        <div class="backlinks-panel">
-          <h4>Backlinks</h4>
-          <div class="backlinks-list"></div>
-        </div>
-        <div class="ed-empty"><span class="ic">${IC.pen}</span>Select a note, or create a new one.</div>
-      </div></div>
-      <div class="ed-status"><span class="wc">0 words</span><span class="save ok"><span class="ic">${IC.check}</span><span class="save-t">Saved</span></span></div>
-    </section>
-    <div class="scrim"></div>
-  </div>
-  <div class="flyout"></div>
-  <div class="vault-overlay" id="vaultOverlay" aria-modal="true" role="dialog" aria-label="Vault Manager" style="display:none;">
-    <div class="vault-manager">
-      <!-- Left: vault list -->
-      <div class="vm-left">
-        <div class="vm-vault-list" id="vmVaultList"></div>
-      </div>
-      <!-- Right: branding + actions -->
-      <div class="vm-right">
-        <div class="vm-brand">
-          <div class="vm-logo-wrap">
-            <span class="vm-logo-ic">${IC.vault}</span>
-          </div>
-          <h1 class="vm-brand-name">Fluent Notes</h1>
-          <p class="vm-brand-version">Local Markdown Vault</p>
-        </div>
-        <div class="vm-action-list">
-          <div class="vm-action-row">
-            <div class="vm-action-info">
-              <span class="vm-action-title">Create new vault</span>
-              <span class="vm-action-desc">Create a new vault under a folder.</span>
-            </div>
-            <button class="vm-action-btn vm-btn-primary" id="vaultCreateNew">Create</button>
-          </div>
-          <div class="vm-action-row">
-            <div class="vm-action-info">
-              <span class="vm-action-title">Open folder as vault</span>
-              <span class="vm-action-desc">Choose an existing folder of Markdown files.</span>
-            </div>
-            <button class="vm-action-btn vm-btn-secondary" id="vaultOpenFolder">Open</button>
-          </div>
-        </div>
-        <div class="vm-create-form" id="vaultCreateForm" style="display:none;">
-          <input type="text" class="vm-name-input" id="vaultNameInput" placeholder="Vault name…" maxlength="80" />
-          <button class="vm-action-btn vm-btn-primary" id="vaultCreateConfirm">Choose Folder &amp; Create</button>
-        </div>
-        <button class="vm-close-btn" id="vaultClose" aria-label="Close vault manager">${IC.close}</button>
-      </div>
-    </div>
-  </div>
-  <div class="toast"><span class="t-msg"></span><button class="t-act"></button></div>`;
+  root.innerHTML = renderAppLayout(theme, IC, TAGS, winControlsHtml);
   host.appendChild(root);
 
   const q = <T extends HTMLElement>(s: string): T => root.querySelector(s) as T;
@@ -323,7 +162,7 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
       st.notes = newNotes;
     },
     selectNote(id, focusTitle, skipHistory) {
-      selectNote(id, focusTitle, skipHistory);
+      selectNote(ctx, id, focusTitle, skipHistory);
     },
     renderMeta: () => renderMeta(),
     getSelectedNoteId() {
@@ -331,18 +170,18 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
     },
     selectFirstNote() {
       const arr = filtered(ctx);
-      selectNote(arr.length ? arr[0].id : null);
+      selectNote(ctx, arr.length ? arr[0].id : null);
     },
     showReceivedToast(closureCount, title) {
       toast(`Received ${closureCount} shared notes (incl. "${title}") from peer!`);
       const nId = resolveNoteId(title, st.notes);
       if (nId) {
-        selectNote(nId);
+        selectNote(ctx, nId);
       }
     },
     st,
     navigateNote(direction) {
-      navigateNote(direction);
+      navigateNote(ctx, direction);
     },
     closeVaultSwitcher() {
       const overlay = root.querySelector('#vaultOverlay') as HTMLElement;
@@ -365,7 +204,7 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
     elements,
     toast,
     markSaving,
-    selectNote,
+    selectNote: (id, focusTitle, skipHistory) => selectNote(ctx, id, focusTitle, skipHistory),
     renderSidebar: () => renderSidebar(ctx),
     renderList: () => renderList(ctx),
     renderEditor: () => renderEditor(ctx),
@@ -373,10 +212,10 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
     renderReviewInbox: () => renderReviewInbox(ctx),
     switchLens,
     startP2PShare: (target) => startP2PShare(ctx, target),
-    newNote,
-    newSubNote,
-    newSubFolder,
-    deleteNote,
+    newNote: () => newNote(ctx),
+    newSubNote: (parentId) => newSubNote(ctx, parentId),
+    newSubFolder: (parentId) => newSubFolder(ctx, parentId),
+    deleteNote: (n) => deleteNote(ctx, n),
     showPrompt: (title, placeholder, defaultValue, cb) => showPrompt(ctx, title, placeholder, defaultValue, cb),
     closeOverlayIf,
     syncToolbar,
@@ -412,72 +251,7 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
   if (winMax) winMax.addEventListener('click', () => window.electronAPI?.maximizeWindow?.());
   if (winClose) winClose.addEventListener('click', () => window.electronAPI?.closeWindow?.());
 
-  /* ── Notes Lens button → Vault picker dropdown ─────────────────── */
-  const lensSwitcherBtn = q<HTMLButtonElement>('#lensSwitcherBtn');
-  const lensVaultDropdown = q<HTMLElement>('#lensVaultDropdown');
-  const lvdVaultList = q<HTMLElement>('#lvdVaultList');
-  const lvdManageBtn = q<HTMLButtonElement>('#lvdManageBtn');
-
-  function populateLensDropdown() {
-    if (!window.electronAPI) {
-      lensVaultDropdown.innerHTML = '<p style="font-size:11px;color:var(--text-muted);padding:8px 12px;">Desktop app only</p>';
-      return;
-    }
-    const currentPath = window.electronAPI.getVaultPathSync();
-    const recents: string[] = window.electronAPI.getRecentVaultsSync() ?? [];
-
-    lvdVaultList.innerHTML = '';
-    recents.forEach(vaultPath => {
-      const parts = vaultPath.replace(/\\/g, '/').split('/');
-      const vaultName = parts[parts.length - 1] || vaultPath;
-      const isActive = vaultPath === currentPath;
-      const row = document.createElement('button');
-      row.className = 'lvd-vault-item' + (isActive ? ' active' : '');
-      row.innerHTML = `<span class="lvd-vault-name">${vaultName}</span>${isActive ? `<span class="lvd-check-ic">${IC.check}</span>` : ''}`;
-      row.title = vaultPath;
-      if (!isActive) {
-        row.addEventListener('click', async () => {
-          try {
-            await window.electronAPI!.openVaultByPath(vaultPath);
-            await reloadFromVault(ctx);
-            ctx.api.selectFirstNote();
-            lensVaultDropdown.style.display = 'none';
-            const lensLbl = q<HTMLElement>('.lens-lbl');
-            if (lensLbl) lensLbl.textContent = vaultName;
-            ctx.renderSidebar();
-            ctx.renderList();
-            toast(`Switched to ${vaultName}`);
-          } catch (e) {
-            toast('Failed to switch vault');
-          }
-        });
-      }
-      lvdVaultList.appendChild(row);
-    });
-  }
-
-  if (lensSwitcherBtn && lensVaultDropdown) {
-    lensSwitcherBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const isOpen = lensVaultDropdown.style.display !== 'none';
-      lensVaultDropdown.style.display = isOpen ? 'none' : 'block';
-      if (!isOpen) populateLensDropdown();
-    });
-
-    // Close on outside click
-    document.addEventListener('click', (e) => {
-      if (!lensSwitcherBtn.contains(e.target as Node) && !lensVaultDropdown.contains(e.target as Node)) {
-        lensVaultDropdown.style.display = 'none';
-      }
-    });
-  }
-
-  if (lvdManageBtn) {
-    lvdManageBtn.addEventListener('click', () => {
-      lensVaultDropdown.style.display = 'none';
-      openVaultSwitcher(ctx);
-    });
-  }
+  initVaultSwitcher(ctx, root);
 
   function renderMeta() {
     const n = st.notes.find(x => x.id === st.sel);
@@ -509,180 +283,7 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
     renderEditor(ctx);
   }
 
-  function expandAncestors(id: string | null) {
-    let currentId: string | null = id;
-    while (currentId) {
-      const folder = st.folders.find(f => f.id === currentId);
-      if (folder) {
-        if (folder.parentId) {
-          st.expandedFolders.add(folder.parentId);
-        }
-        currentId = folder.parentId;
-        continue;
-      }
-      const note = st.notes.find(n => n.id === currentId);
-      if (note) {
-        if (note.parentId) {
-          st.expandedFolders.add(note.parentId);
-        }
-        currentId = note.parentId || null;
-        continue;
-      }
-      break;
-    }
-  }
 
-  function selectNote(id: string | null, focusTitle: boolean = false, skipHistory: boolean = false) {
-    st.sel = id;
-    if (id) {
-      expandAncestors(id);
-      if (!skipHistory) {
-        if (!st.historyStack) st.historyStack = [];
-        if (st.historyIndex >= 0 && st.historyIndex < st.historyStack.length - 1) {
-          st.historyStack = st.historyStack.slice(0, st.historyIndex + 1);
-        }
-        if (st.historyStack.length === 0 || st.historyStack[st.historyStack.length - 1] !== id) {
-          st.historyStack.push(id);
-          st.historyIndex = st.historyStack.length - 1;
-        }
-      }
-    }
-    renderList(ctx);
-    renderSidebar(ctx);
-    elements.edInner.classList.add('swap');
-    setTimeout(() => {
-      renderEditor(ctx);
-      elements.edInner.classList.remove('swap');
-      if (focusTitle) elements.edTitle.focus();
-    }, REDUCED ? 0 : 120);
-    if (root.classList.contains('s') && id) {
-      root.classList.add('show-editor');
-    }
-  }
-
-  function navigateNote(direction: 'prev' | 'next') {
-    const arr = filtered(ctx);
-    if (!arr.length) return;
-    const currentId = st.sel;
-    if (!currentId) {
-      selectNote(arr[0].id);
-      return;
-    }
-    const idx = arr.findIndex(n => n.id === currentId);
-    if (direction === 'prev') {
-      if (idx > 0) selectNote(arr[idx - 1].id);
-    } else {
-      if (idx !== -1 && idx < arr.length - 1) selectNote(arr[idx + 1].id);
-    }
-  }
-
-  function deleteNote(n: Note) {
-    const idx = sharedNotes.indexOf(n);
-    if (idx !== -1) {
-      sharedNotes.splice(idx, 1);
-      APPS.forEach(app => {
-        if (app.getSelectedNoteId() === n.id) app.selectFirstNote();
-      });
-      saveAndSync();
-      toast('Note deleted', 'Undo', () => {
-        sharedNotes.splice(idx, 0, n);
-        APPS.forEach(app => {
-          if (app.getSelectedNoteId() === null) app.selectNote(n.id);
-        });
-        saveAndSync();
-      });
-    }
-  }
-
-  function newNote() {
-    let parentNb = 'design';
-    if (st.folder) {
-      parentNb = findNotebookForParent(st.folder, st.folders, st.notes);
-    } else if (st.nb !== 'all') {
-      parentNb = st.nb;
-    }
-    const n: Note = {
-      id: 'n' + Math.random().toString(36).slice(2, 7),
-      title: '',
-      body: '',
-      blocks: [{ id: genId(), type: 'paragraph', content: '', children: [] }],
-      nb: parentNb,
-      tags: st.tag ? [st.tag] : [],
-      pinned: false,
-      date: 'Just now',
-      ord: --st.ordMin,
-      parentId: st.folder || null
-    };
-    sharedNotes.unshift(n);
-    st.quick = 'all';
-    saveAndSync();
-    selectNote(n.id, true);
-  }
-
-  function newSubNote(parentId: string) {
-    const parentNb = findNotebookForParent(parentId, st.folders, st.notes);
-    const n: Note = {
-      id: 'n' + Math.random().toString(36).slice(2, 7),
-      title: '',
-      body: '',
-      blocks: [{ id: genId(), type: 'paragraph', content: '', children: [] }],
-      nb: parentNb,
-      tags: [],
-      pinned: false,
-      date: 'Just now',
-      ord: --st.ordMin,
-      parentId: parentId
-    };
-    sharedNotes.unshift(n);
-    st.expandedFolders.add(parentId);
-    expandAncestors(parentId);
-
-    // Set active filter to parent container so it shows in the list view
-    const isParentFolder = st.folders.some(f => f.id === parentId);
-    const isParentNote = st.notes.some(x => x.id === parentId);
-    if (isParentFolder || isParentNote) {
-      st.folder = parentId;
-      st.nb = 'all';
-    } else {
-      st.nb = parentId;
-      st.folder = null;
-    }
-    st.quick = 'all';
-    st.tag = null;
-
-    saveAndSync();
-    selectNote(n.id, true);
-  }
-
-  function newSubFolder(parentId: string) {
-    showPrompt(ctx, 'Folder name:', 'Folder Name', 'New Folder', name => {
-      if (!name) return;
-      const f: Folder = {
-        id: 'f' + Math.random().toString(36).slice(2, 7),
-        name: name,
-        parentId: parentId,
-        color: '#23b8b8'
-      };
-      st.folders.push(f);
-      st.expandedFolders.add(parentId);
-      expandAncestors(parentId);
-
-      // Set active filter to parent container so the user sees the context
-      const isParentFolder = st.folders.some(x => x.id === parentId);
-      const isParentNote = st.notes.some(x => x.id === parentId);
-      if (isParentFolder || isParentNote) {
-        st.folder = parentId;
-        st.nb = 'all';
-      } else {
-        st.nb = parentId;
-        st.folder = null;
-      }
-      st.quick = 'all';
-      st.tag = null;
-
-      saveAndSync();
-    });
-  }
 
   function closeOverlayIf() {
     if (st.overlay) {
@@ -691,41 +292,7 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
     }
   }
 
-  /* ---------- burger / overlay ---------- */
-  elements.burger.addEventListener('click', () => {
-    if (root.classList.contains('m') || root.classList.contains('s')) {
-      st.overlay = !st.overlay;
-      root.classList.toggle('sb-open', st.overlay);
-    } else {
-      st.sbUser = !st.sbUser;
-      root.classList.toggle('sb-user', st.sbUser);
-    }
-  });
-  elements.scrim.addEventListener('click', closeOverlayIf);
-
-  /* ---------- reveal hover ---------- */
-  root.addEventListener('pointermove', e => {
-    if (e.pointerType !== 'mouse') return;
-    const target = e.target as HTMLElement;
-    const t = target.closest('.rv') as HTMLElement;
-    if (!t) return;
-    const r = t.getBoundingClientRect();
-    t.style.setProperty('--mx', (e.clientX - r.left) + 'px');
-    t.style.setProperty('--my', (e.clientY - r.top) + 'px');
-  });
-
-  /* ---------- container breakpoints ---------- */
-  new ResizeObserver(() => {
-    const w = root.clientWidth;
-    const h = root.clientHeight;
-    root.classList.toggle('xl', w >= 1000);
-    root.classList.toggle('l', w >= 780 && w < 1000);
-    root.classList.toggle('m', w >= 620 && w < 780);
-    root.classList.toggle('s', w < 620);
-    root.classList.toggle('h-sm', h < 600 && h >= 430);
-    root.classList.toggle('h-xs', h < 430);
-    if (!(w < 620)) root.classList.remove('show-editor');
-  }).observe(root);
+  initResponsive(ctx, root);
 
   function syncToolbar() {
     if (document.activeElement !== elements.edBody && document.activeElement !== elements.edTitle) return;

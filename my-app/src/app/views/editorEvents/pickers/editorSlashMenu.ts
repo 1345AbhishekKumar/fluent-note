@@ -1,0 +1,380 @@
+import type { AppContext } from '../../../context';
+import type { Block, BlockType, Note } from '../../../../types';
+import { findBlockById, moveCaret } from '../../../../utils';
+import { duplicateBlockWithNewIds } from '../editorHelpers';
+import { 
+  rerenderNote, focusNextBlockOrNew, openMediaFilePrompt, openUrlPopupEditor,
+  openEmojiPicker, openDatePicker, openMentionPicker, openMathPopupEditor 
+} from './editorPopups';
+
+export interface SlashItem {
+  group?: string;
+  type?: string;
+  label?: string;
+  desc?: string;
+  icon?: string;
+  aliases?: string[];
+  danger?: boolean;
+}
+
+export const allSlashItems: SlashItem[] = [
+  { group: 'Basic' },
+  { type: 'paragraph',  label: 'Text',       desc: 'Plain text block',        icon: '¶',   aliases: ['text','plain'] },
+  { type: 'heading1',   label: 'Heading 1',  desc: 'Large heading',           icon: 'H1',  aliases: ['h1','#'] },
+  { type: 'heading2',   label: 'Heading 2',  desc: 'Medium heading',          icon: 'H2',  aliases: ['h2','##'] },
+  { type: 'heading3',   label: 'Heading 3',  desc: 'Small heading',           icon: 'H3',  aliases: ['h3','###'] },
+  { type: 'bullet',     label: 'Bullet',     desc: 'Bulleted list item',      icon: '•',   aliases: ['bullet','list'] },
+  { type: 'numbered',   label: 'Numbered',   desc: 'Numbered list item',      icon: '1.',  aliases: ['num','numbered','ol'] },
+  { type: 'todo',       label: 'To-do',      desc: 'Checkbox task',           icon: '☑',   aliases: ['todo','task','check'] },
+  { type: 'toggle',     label: 'Toggle list',desc: 'Collapsible section',     icon: '▶',   aliases: ['toggle','collapse','>'] },
+  { type: 'toggle_h1',  label: 'Toggle heading 1', desc: 'Large toggle header',  icon: '▶1',  aliases: ['toggle h1','toggle1','h1 toggle'] },
+  { type: 'toggle_h2',  label: 'Toggle heading 2', desc: 'Medium toggle header', icon: '▶2',  aliases: ['toggle h2','toggle2','h2 toggle'] },
+  { type: 'toggle_h3',  label: 'Toggle heading 3', desc: 'Small toggle header',  icon: '▶3',  aliases: ['toggle h3','toggle3','h3 toggle'] },
+  { type: 'quote',      label: 'Quote',      desc: 'Block quote',             icon: '❝',   aliases: ['quote','blockquote'] },
+  { type: 'divider',    label: 'Divider',    desc: 'Horizontal rule',         icon: '—',   aliases: ['div','divider','hr','separator'] },
+  { type: 'callout',    label: 'Callout',    desc: 'Info box with icon',      icon: '💡',  aliases: ['callout','info','box','alert'] },
+  { type: 'subpage',    label: 'Page',       desc: 'Nested sub-page',         icon: '📄',  aliases: ['page','subpage'] },
+  { type: 'subfolder',  label: 'Subfolder',  desc: 'Nested sub-folder',       icon: '📁',  aliases: ['folder','subfolder'] },
+  { group: 'Media' },
+  { type: 'image',      label: 'Image',      desc: 'Upload or embed image',   icon: '🖼',  aliases: ['image','img','photo','picture'] },
+  { type: 'video',      label: 'Video',      desc: 'Upload or embed video',   icon: '🎬',  aliases: ['video','youtube','vimeo'] },
+  { type: 'audio',      label: 'Audio',      desc: 'Upload or embed audio',   icon: '🎵',  aliases: ['audio','music','sound','spotify'] },
+  { type: 'pdf',        label: 'PDF',        desc: 'Embed a PDF from URL',    icon: '📄',  aliases: ['pdf'] },
+  { type: 'bookmark',   label: 'Bookmark',   desc: 'Web bookmark card',       icon: '🔖',  aliases: ['book','bookmark','link','url'] },
+  { type: 'code',       label: 'Code',       desc: 'Syntax-highlighted code', icon: '</>',  aliases: ['code','snippet','pre'] },
+  { type: 'file',       label: 'File',       desc: 'Upload any file',         icon: '📎',  aliases: ['file','upload','attach'] },
+  { group: 'Inline' },
+  { type: 'mention',    label: 'Mention',    desc: 'Mention a page or person',icon: '@',   aliases: ['mention','at','person'] },
+  { type: 'date',       label: 'Date',       desc: 'Insert date/reminder',    icon: '📅',  aliases: ['date','reminder','time','calendar'] },
+  { type: 'equation',   label: 'Equation',   desc: 'Inline TeX formula',      icon: '∑',   aliases: ['equation','eq','formula'] },
+  { type: 'emoji',      label: 'Emoji',      desc: 'Insert emoji',            icon: '😊',  aliases: ['emoji','emoticon'] },
+  { group: 'Advanced' },
+  { type: 'duplicate',  label: 'Duplicate',  desc: 'Copy this block',         icon: '⧉',   aliases: ['duplicate','copy','clone'] },
+  { type: 'moveto',     label: 'Move to',    desc: 'Move block to a page',    icon: '↗',   aliases: ['moveto','move'] },
+  { type: 'delete',     label: 'Delete',     desc: 'Delete this block',       icon: '🗑',  aliases: ['delete','remove'], danger: true },
+  { type: 'toc',        label: 'Contents',   desc: 'Table of contents',       icon: '≡',   aliases: ['toc','contents','tableofcontents'] },
+  { type: 'template',   label: 'Template',   desc: 'Reusable block button',   icon: '🔁',  aliases: ['button','template'] },
+  { type: 'breadcrumb', label: 'Breadcrumb', desc: 'Page location trail',     icon: '›',   aliases: ['bread','breadcrumb','trail'] },
+  { type: 'math',       label: 'Math',       desc: 'Block TeX equation',      icon: '∫',   aliases: ['math','latex','tex'] },
+  { group: 'Colors' },
+  { type: 'color_blue', label: 'Blue text', icon: '🎨', aliases: ['color blue','blue','text blue'] },
+  { type: 'color_red', label: 'Red text', icon: '🎨', aliases: ['color red','red','text red'] },
+  { type: 'color_green', label: 'Green text', icon: '🎨', aliases: ['color green','green','text green'] },
+  { type: 'color_yellow', label: 'Yellow text', icon: '🎨', aliases: ['color yellow','yellow','text yellow'] },
+  { type: 'color_purple', label: 'Purple text', icon: '🎨', aliases: ['color purple','purple','text purple'] },
+  { type: 'color_default', label: 'Default color', icon: '🎨', aliases: ['color default','default','black'] },
+  { type: 'bg_blue', label: 'Blue background', icon: '🎨', aliases: ['blue background','bg blue'] },
+  { type: 'bg_red', label: 'Red background', icon: '🎨', aliases: ['red background','bg red'] },
+  { type: 'bg_green', label: 'Green background', icon: '🎨', aliases: ['green background','bg green'] },
+  { type: 'bg_yellow', label: 'Yellow background', icon: '🎨', aliases: ['yellow background','bg yellow'] },
+  { type: 'bg_purple', label: 'Purple background', icon: '🎨', aliases: ['purple background','bg purple'] },
+  { type: 'bg_default', label: 'Default background', icon: '🎨', aliases: ['bg default','default background'] }
+];
+
+let activeSlashBlockId: string | null = null;
+let selectedSlashItemIndex = 0;
+let visibleSlashItems: SlashItem[] = [];
+
+export function getActiveSlashBlockId() { return activeSlashBlockId; }
+export function getSelectedSlashItemIndex() { return selectedSlashItemIndex; }
+export function setSelectedSlashItemIndex(idx: number) { selectedSlashItemIndex = idx; }
+export function getVisibleSlashItems() { return visibleSlashItems; }
+
+export function filterSlashItems(query: string): SlashItem[] {
+  if (!query) return allSlashItems;
+  const q = query.toLowerCase();
+  
+  if (q === 'turn') {
+    const basicTypes = ['paragraph', 'heading1', 'heading2', 'heading3', 'bullet', 'numbered', 'todo', 'toggle', 'toggle_h1', 'toggle_h2', 'toggle_h3', 'quote', 'divider', 'callout'];
+    return [
+      { group: 'Basic Conversions' },
+      ...allSlashItems.filter(item => !item.group && basicTypes.includes(item.type || ''))
+    ];
+  }
+
+  if (q === 'color') {
+    return [
+      { group: 'Colors' },
+      ...allSlashItems.filter(item => !item.group && (item.type?.startsWith('color_') || item.type?.startsWith('bg_')))
+    ];
+  }
+
+  const result: SlashItem[] = [];
+  let lastGroup: SlashItem | null = null;
+  for (const item of allSlashItems) {
+    if (item.group) { lastGroup = item; continue; }
+    const matchLabel = (item.label || '').toLowerCase().includes(q);
+    const matchAlias = (item.aliases || []).some(a => a.toLowerCase().includes(q));
+    if (matchLabel || matchAlias) {
+      if (lastGroup && (result.length === 0 || result[result.length - 1].group !== lastGroup.group)) {
+        result.push(lastGroup);
+      }
+      result.push(item);
+    }
+  }
+  return result;
+}
+
+export function showSlashMenu(ctx: AppContext, blockEl: HTMLElement, textField: HTMLElement, query = '') {
+  closeSlashMenu(ctx);
+  selectedSlashItemIndex = 0;
+
+  const filtered = filterSlashItems(query);
+  visibleSlashItems = filtered;
+
+  if (filtered.filter(i => !i.group).length === 0) return;
+
+  const menu = document.createElement('div');
+  menu.className = 'slash-menu';
+
+  let realIndex = 0;
+  menu.innerHTML = filtered.map(item => {
+    if (item.group) {
+      return `<div class="slash-menu-group">${item.group}</div>`;
+    }
+    const i = realIndex++;
+    const dangerCls = item.danger ? ' danger' : '';
+    return `<button class="slash-item${dangerCls} ${i === selectedSlashItemIndex ? 'selected' : ''}" data-index="${i}">
+      <span class="slash-item-icon">${item.icon}</span>
+      <div class="slash-item-info">
+        <span class="slash-item-label">${item.label}</span>
+        <span class="slash-item-desc">${item.desc || ''}</span>
+      </div>
+    </button>`;
+  }).join('');
+
+  const rect = textField.getBoundingClientRect();
+  const innerRect = ctx.elements.edInner.getBoundingClientRect();
+  menu.style.left = (rect.left - innerRect.left) + 'px';
+  menu.style.top = (rect.bottom - innerRect.top + 4) + 'px';
+
+  ctx.elements.edInner.appendChild(menu);
+  activeSlashBlockId = blockEl.dataset.id!;
+
+  menu.querySelectorAll('.slash-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const index = parseInt((btn as HTMLElement).dataset.index!);
+      executeSlashCommand(ctx, index);
+    });
+  });
+}
+
+export function closeSlashMenu(ctx?: AppContext) {
+  const menu = document.querySelector('.slash-menu');
+  if (menu) menu.remove();
+  activeSlashBlockId = null;
+  selectedSlashItemIndex = 0;
+  visibleSlashItems = [];
+}
+
+export function updateSlashMenuSelection(menu: HTMLElement) {
+  menu.querySelectorAll('.slash-item').forEach((btn, i) => {
+    btn.classList.toggle('selected', i === selectedSlashItemIndex);
+  });
+  const sel = menu.querySelector('.slash-item.selected') as HTMLElement;
+  if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+
+export function executeSlashCommand(ctx: AppContext, realIndex: number) {
+  if (!activeSlashBlockId) return;
+  const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+  if (!n) return;
+
+  let count = 0;
+  let chosenItem: SlashItem | undefined;
+  for (const item of visibleSlashItems) {
+    if (item.group) continue;
+    if (count === realIndex) { chosenItem = item; break; }
+    count++;
+  }
+  if (!chosenItem) return;
+
+  const match = findBlockById(n.blocks, activeSlashBlockId);
+  closeSlashMenu(ctx);
+  if (!match) return;
+
+  let content = match.block.content.trim();
+  const slashPos = content.lastIndexOf('/');
+  if (slashPos !== -1) content = content.substring(0, slashPos).trim();
+  match.block.content = content;
+
+  const cmdType = chosenItem.type!;
+  const blockId = match.block.id;
+
+  switch (cmdType) {
+    case 'subpage':
+      rerenderNote(ctx, n);
+      ctx.newSubNote(n.id);
+      return;
+    case 'subfolder':
+      rerenderNote(ctx, n);
+      ctx.newSubFolder(n.id);
+      return;
+
+    case 'paragraph':
+    case 'callout':
+    case 'heading1': case 'heading2': case 'heading3':
+    case 'bullet': case 'numbered':
+    case 'quote': case 'toggle': case 'toggle_h1': case 'toggle_h2': case 'toggle_h3':
+      match.block.type = cmdType as BlockType;
+      if (cmdType === 'callout') match.block.icon = '💡';
+      break;
+
+    case 'todo':
+      match.block.type = 'todo';
+      match.block.checked = false;
+      break;
+
+    case 'divider':
+      match.block.type = 'divider';
+      match.block.content = '';
+      rerenderNote(ctx, n);
+      focusNextBlockOrNew(ctx, n, match.index, match.parentList);
+      return;
+
+    case 'code':
+      match.block.type = 'code';
+      match.block.language = 'plaintext';
+      break;
+
+    case 'image': case 'video': case 'audio': case 'file': {
+      rerenderNote(ctx, n);
+      openMediaFilePrompt(ctx, cmdType, match.block, n);
+      return;
+    }
+
+    case 'pdf': case 'bookmark': {
+      const originalState: Partial<Block> = {
+        type: match.block.type,
+        content: match.block.content,
+        url: match.block.url,
+        bookmarkTitle: match.block.bookmarkTitle,
+        bookmarkDesc: match.block.bookmarkDesc,
+        bookmarkImage: match.block.bookmarkImage,
+        bookmarkIcon: match.block.bookmarkIcon
+      };
+      match.block.type = cmdType as BlockType;
+      rerenderNote(ctx, n);
+      const blockEl = ctx.elements.edBody.querySelector(`[data-id="${blockId}"]`) as HTMLElement;
+      if (blockEl) {
+        openUrlPopupEditor(ctx, cmdType, match.block, n, blockEl, originalState);
+      }
+      return;
+    }
+
+    case 'emoji':
+      openEmojiPicker(ctx, match.block, n, blockId);
+      return;
+
+    case 'date':
+      openDatePicker(ctx, match.block, n);
+      return;
+
+    case 'equation': case 'math': {
+      const originalState: Partial<Block> = {
+        type: match.block.type,
+        content: match.block.content
+      };
+      match.block.type = cmdType as BlockType;
+      rerenderNote(ctx, n);
+      const blockEl = ctx.elements.edBody.querySelector(`[data-id="${blockId}"]`) as HTMLElement;
+      if (blockEl) {
+        openMathPopupEditor(ctx, match.block, n, blockEl, originalState);
+      }
+      return;
+    }
+
+    case 'mention':
+      openMentionPicker(ctx, match.block, n, blockId);
+      return;
+
+    case 'duplicate': {
+      const clone = duplicateBlockWithNewIds(match.block);
+      match.parentList.splice(match.index + 1, 0, clone);
+      rerenderNote(ctx, n);
+      return;
+    }
+
+    case 'delete':
+      match.parentList.splice(match.index, 1);
+      if (n.blocks.length === 0) n.blocks.push({ id: 'b' + Math.random().toString(36).slice(2, 7), type: 'paragraph', content: '', children: [] });
+      rerenderNote(ctx, n);
+      return;
+
+    case 'moveto': {
+      const targets = ctx.st.notes.filter(x => x.id !== n.id);
+      if (targets.length === 0) { ctx.toast('No other notes to move to', '', () => {}); return; }
+      const picker = document.createElement('div');
+      picker.className = 'slash-menu mention-picker';
+      picker.innerHTML = targets.slice(0, 12).map((t, i) =>
+        `<button class="slash-item" data-index="${i}"><span class="slash-item-icon">📄</span><span class="slash-item-label">${t.title || 'Untitled'}</span></button>`
+      ).join('');
+      const blockEl = ctx.elements.edBody.querySelector(`[data-id="${blockId}"]`) as HTMLElement;
+      const rect = blockEl?.getBoundingClientRect();
+      const innerRect = ctx.elements.edInner.getBoundingClientRect();
+      if (rect) {
+        picker.style.left = (rect.left - innerRect.left) + 'px';
+        picker.style.top = (rect.bottom - innerRect.top + 4) + 'px';
+      }
+      ctx.elements.edInner.appendChild(picker);
+      picker.querySelectorAll('.slash-item').forEach((btn, i) => {
+        btn.addEventListener('click', () => {
+          const target = targets[i];
+          const blockCopy = duplicateBlockWithNewIds(match.block);
+          target.blocks.push(blockCopy);
+          match.parentList.splice(match.index, 1);
+          if (n.blocks.length === 0) n.blocks.push({ id: 'b' + Math.random().toString(36).slice(2, 7), type: 'paragraph', content: '', children: [] });
+          rerenderNote(ctx, n);
+          picker.remove();
+          ctx.toast(`Block moved to "${target.title || 'Untitled'}"`, '', () => {});
+        });
+      });
+      setTimeout(() => {
+        const close = (e: MouseEvent) => {
+          if (!picker.contains(e.target as Node)) { picker.remove(); document.removeEventListener('click', close); }
+        };
+        document.addEventListener('click', close);
+      }, 0);
+      return;
+    }
+
+    case 'toc':
+      match.block.type = 'toc';
+      match.block.content = '';
+      rerenderNote(ctx, n);
+      focusNextBlockOrNew(ctx, n, match.index, match.parentList);
+      return;
+
+    case 'breadcrumb':
+      match.block.type = 'breadcrumb';
+      match.block.content = '';
+      rerenderNote(ctx, n);
+      focusNextBlockOrNew(ctx, n, match.index, match.parentList);
+      return;
+
+    case 'template':
+      match.block.type = 'template';
+      match.block.content = 'Template button';
+      break;
+
+    case 'color_blue':    match.block.textColor = '#2b579a'; ctx.st.lastUsedColor = '#2b579a'; break;
+    case 'color_red':     match.block.textColor = '#b91d47'; ctx.st.lastUsedColor = '#b91d47'; break;
+    case 'color_green':   match.block.textColor = '#00a300'; ctx.st.lastUsedColor = '#00a300'; break;
+    case 'color_yellow':  match.block.textColor = '#d8c200'; ctx.st.lastUsedColor = '#d8c200'; break;
+    case 'color_purple':  match.block.textColor = '#7e3878'; ctx.st.lastUsedColor = '#7e3878'; break;
+    case 'color_default': match.block.textColor = ''; ctx.st.lastUsedColor = ''; break;
+    case 'bg_blue':       match.block.bgColor = 'rgba(43,87,154,0.12)'; ctx.st.lastUsedBgColor = 'rgba(43,87,154,0.12)'; break;
+    case 'bg_red':        match.block.bgColor = 'rgba(185,29,71,0.12)'; ctx.st.lastUsedBgColor = 'rgba(185,29,71,0.12)'; break;
+    case 'bg_green':      match.block.bgColor = 'rgba(0,163,0,0.12)'; ctx.st.lastUsedBgColor = 'rgba(0,163,0,0.12)'; break;
+    case 'bg_yellow':     match.block.bgColor = 'rgba(255,233,160,0.35)'; ctx.st.lastUsedBgColor = 'rgba(255,233,160,0.35)'; break;
+    case 'bg_purple':     match.block.bgColor = 'rgba(126,56,120,0.12)'; ctx.st.lastUsedBgColor = 'rgba(126,56,120,0.12)'; break;
+    case 'bg_default':    match.block.bgColor = ''; ctx.st.lastUsedBgColor = ''; break;
+
+    default:
+      return;
+  }
+
+  rerenderNote(ctx, n);
+  const field = ctx.elements.edBody.querySelector(`[data-id="${blockId}"] .block-text-field`) as HTMLElement;
+  if (field) moveCaret(field);
+}

@@ -1,0 +1,287 @@
+import type { Block, Note, BlockType } from '../../types';
+import { esc } from '../stringHelpers';
+import { renderLinksInContent } from './inlineParsers';
+
+export const dragHandleSvg = '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="1.5" class="f"/><circle cx="9" cy="12" r="1.5" class="f"/><circle cx="9" cy="16" r="1.5" class="f"/><circle cx="15" cy="8" r="1.5" class="f"/><circle cx="15" cy="12" r="1.5" class="f"/><circle cx="15" cy="16" r="1.5" class="f"/></svg>';
+export const addSvg = '<svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor"/></svg>';
+
+export function getDragHandleHtml(blockId: string): string {
+  return `<div class="block-actions-container">
+    <button class="block-add-btn" data-id="${blockId}" contenteditable="false" title="Click to add a block below">${addSvg}</button>
+    <div class="block-drag-handle" draggable="true">${dragHandleSvg}</div>
+  </div>`;
+}
+
+export function renderCodeBlockHtml(
+  block: Block,
+  levelStyle: string,
+  dragHandle: string,
+  inlineBgStyle: string,
+  inlineTextStyle: string,
+  placeholder: string
+): string {
+  const lang = block.language || 'plaintext';
+  const wrapClass = block.codeWrap ? 'wrap-text' : '';
+  const fullWidthClass = block.codeFullWidth ? 'full-width' : '';
+  
+  const hasPrism = typeof window !== 'undefined' && (window as any).Prism;
+  let highlighted = esc(block.content || '');
+  if (hasPrism && block.content && lang !== 'plaintext') {
+    try {
+      const grammar = (window as any).Prism.languages[lang];
+      if (grammar) {
+        highlighted = (window as any).Prism.highlight(block.content, grammar, lang);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  const langOptions = [
+    { val: 'plaintext', label: 'Plain Text' },
+    { val: 'javascript', label: 'JavaScript' },
+    { val: 'typescript', label: 'TypeScript' },
+    { val: 'html', label: 'HTML' },
+    { val: 'css', label: 'CSS' },
+    { val: 'json', label: 'JSON' },
+    { val: 'python', label: 'Python' },
+    { val: 'sql', label: 'SQL' },
+    { val: 'cpp', label: 'C++' },
+    { val: 'java', label: 'Java' },
+    { val: 'rust', label: 'Rust' },
+    { val: 'javascript', label: 'React (JSX)' },
+    { val: 'typescript', label: 'React (TSX)' },
+    { val: 'html', label: 'Vue' },
+    { val: 'html', label: 'Angular' },
+    { val: 'html', label: 'Svelte' },
+    { val: 'c', label: 'C' },
+    { val: 'csharp', label: 'C#' },
+    { val: 'dart', label: 'Dart' },
+    { val: 'docker', label: 'Docker' },
+    { val: 'elixir', label: 'Elixir' },
+    { val: 'erlang', label: 'Erlang' },
+    { val: 'go', label: 'Go' },
+    { val: 'graphql', label: 'GraphQL' },
+    { val: 'groovy', label: 'Groovy' },
+    { val: 'haskell', label: 'Haskell' },
+    { val: 'kotlin', label: 'Kotlin' },
+    { val: 'latex', label: 'LaTeX' },
+    { val: 'lisp', label: 'Lisp' },
+    { val: 'lua', label: 'Lua' },
+    { val: 'markdown', label: 'Markdown' },
+    { val: 'matlab', label: 'Matlab' },
+    { val: 'nix', label: 'Nix' },
+    { val: 'objectivec', label: 'Objective-C' },
+    { val: 'ocaml', label: 'OCaml' },
+    { val: 'php', label: 'PHP' },
+    { val: 'powershell', label: 'PowerShell' },
+    { val: 'ruby', label: 'Ruby' },
+    { val: 'scala', label: 'Scala' },
+    { val: 'swift', label: 'Swift' },
+    { val: 'verilog', label: 'Verilog' },
+    { val: 'vhdl', label: 'VHDL' },
+    { val: 'xml', label: 'XML' },
+    { val: 'yaml', label: 'YAML' }
+  ];
+
+  const currentOpt = langOptions.find(o => o.val === lang);
+  const currentLabel = currentOpt ? currentOpt.label : lang.toUpperCase();
+
+  return `<div class="block-wrapper block-code-wrapper ${fullWidthClass} ${wrapClass}" data-id="${block.id}" data-type="code" ${levelStyle}>
+    ${dragHandle}
+    <div class="block-code-wrap" ${inlineBgStyle}>
+      <div class="block-code-header-premium">
+        <div class="code-lang-container" data-id="${block.id}">
+          <span class="code-lang-select-label">${currentLabel}</span>
+          <span class="code-lang-arrow">▼</span>
+        </div>
+        <div class="code-controls-container">
+          <button class="code-copy-btn-premium" data-id="${block.id}" title="Copy code">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          </button>
+          <button class="code-more-btn-premium" data-id="${block.id}" title="More options">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1.5"></circle><circle cx="19" cy="12" r="1.5"></circle><circle cx="5" cy="12" r="1.5"></circle></svg>
+          </button>
+        </div>
+      </div>
+      <div class="block-text-field block-code-field" ${inlineTextStyle} contenteditable="true" spellcheck="false" data-ph="${placeholder}">${highlighted}</div>
+    </div>
+  </div>`;
+}
+
+export function renderMediaBlockHtml(block: Block, levelStyle: string, dragHandle: string): string {
+  const type = block.type;
+  if (type === 'image') {
+    const inner = block.url
+      ? `<img class="block-media-img" src="${block.url}" alt="${esc(block.content || 'image')}" />`
+      : `<div class="block-media-placeholder" data-prompt="image" data-id="${block.id}">🖼 Click to add image</div>`;
+    return `<div class="block-wrapper" data-id="${block.id}" data-type="image" ${levelStyle}>
+      ${dragHandle}<div class="block-media-container">${inner}</div>
+    </div>`;
+  }
+  if (type === 'video') {
+    const inner = block.url
+      ? `<video class="block-media-video" src="${block.url}" controls></video>`
+      : `<div class="block-media-placeholder" data-prompt="video" data-id="${block.id}">🎬 Click to add video</div>`;
+    return `<div class="block-wrapper" data-id="${block.id}" data-type="video" ${levelStyle}>
+      ${dragHandle}<div class="block-media-container">${inner}</div>
+    </div>`;
+  }
+  if (type === 'audio') {
+    const inner = block.url
+      ? `<audio class="block-media-audio" src="${block.url}" controls></audio>`
+      : `<div class="block-media-placeholder" data-prompt="audio" data-id="${block.id}">🎵 Click to add audio</div>`;
+    return `<div class="block-wrapper" data-id="${block.id}" data-type="audio" ${levelStyle}>
+      ${dragHandle}<div class="block-media-container">${inner}</div>
+    </div>`;
+  }
+  if (type === 'pdf') {
+    const inner = block.url
+      ? `<iframe class="block-media-pdf" src="${block.url}" title="PDF"></iframe>`
+      : `<div class="block-media-placeholder" data-prompt="pdf" data-id="${block.id}">📄 Click to embed PDF</div>`;
+    return `<div class="block-wrapper" data-id="${block.id}" data-type="pdf" ${levelStyle}>
+      ${dragHandle}<div class="block-media-container">${inner}</div>
+    </div>`;
+  }
+  if (type === 'bookmark') {
+    if (block.url) {
+      if (block.bookmarkTitle) {
+        const imageHtml = block.bookmarkImage
+          ? `<div class="bookmark-image-container" style="background-image: url('${block.bookmarkImage}')"></div>`
+          : '';
+        const iconHtml = block.bookmarkIcon
+          ? `<img class="bookmark-favicon" src="${block.bookmarkIcon}" alt="favicon" onerror="this.style.display='none'" />`
+          : `<span class="bookmark-favicon-placeholder">🔖</span>`;
+          
+        return `<div class="block-wrapper" data-id="${block.id}" data-type="bookmark" ${levelStyle}>
+          ${dragHandle}
+          <div class="block-bookmark premium-bookmark">
+            <a class="block-bookmark-link-premium" href="${block.url}" target="_blank" rel="noopener" title="Ctrl + Click to open link">
+              ${imageHtml}
+              <div class="bookmark-info-container">
+                <div class="bookmark-header-row">
+                  ${iconHtml}
+                  <span class="bookmark-site-title">${esc(block.bookmarkTitle)}</span>
+                </div>
+                <p class="bookmark-desc">${esc(block.bookmarkDesc || 'No description available')}</p>
+                <span class="bookmark-url-premium">${esc(block.url)}</span>
+              </div>
+            </a>
+          </div>
+        </div>`;
+      } else {
+        return `<div class="block-wrapper" data-id="${block.id}" data-type="bookmark" ${levelStyle}>
+          ${dragHandle}
+          <div class="block-bookmark">
+            <a class="block-bookmark-link" href="${block.url}" target="_blank" rel="noopener" title="Ctrl + Click to open link">
+              <span class="bookmark-icon">🔖</span>
+              <span class="bookmark-text">${esc(block.content || block.url)}</span>
+              <span class="bookmark-url">${esc(block.url)}</span>
+            </a>
+          </div>
+        </div>`;
+      }
+    } else {
+      return `<div class="block-wrapper" data-id="${block.id}" data-type="bookmark" ${levelStyle}>
+        ${dragHandle}
+        <div class="block-media-placeholder" data-prompt="bookmark" data-id="${block.id}">🔖 Add a web bookmark</div>
+      </div>`;
+    }
+  }
+  if (type === 'file') {
+    const inner = block.url
+      ? `<a class="block-file-link" href="${block.url}" download="${block.fileName || 'file'}">
+           <span class="file-icon">📎</span>
+           <span class="file-name">${esc(block.fileName || block.content || 'File')}</span>
+         </a>`
+      : `<div class="block-media-placeholder" data-prompt="file" data-id="${block.id}">📎 Click to upload file</div>`;
+    return `<div class="block-wrapper" data-id="${block.id}" data-type="file" ${levelStyle}>
+      ${dragHandle}<div class="block-file">${inner}</div>
+    </div>`;
+  }
+  return '';
+}
+
+export function renderMathBlockHtml(block: Block, levelStyle: string, dragHandle: string): string {
+  let mathHtml = '';
+  const isMath = block.type === 'math';
+  const rawContent = block.content || '';
+  
+  const hasKatex = typeof window !== 'undefined' && (window as any).katex;
+  if (rawContent) {
+    if (hasKatex) {
+      try {
+        mathHtml = (window as any).katex.renderToString(rawContent, {
+          throwOnError: false,
+          displayMode: isMath
+        });
+      } catch (err) {
+        mathHtml = `<span style="color:var(--danger)">${esc(rawContent)}</span>`;
+      }
+    } else {
+      mathHtml = `<div class="block-math-display" style="background: var(--bg2); padding: 12px; border-radius: 6px; font-family: monospace; font-size: 14px;">${esc(rawContent)}</div>`;
+    }
+  } else {
+    mathHtml = `<div class="block-media-placeholder" data-prompt="math" data-id="${block.id}">∫ Click to add equation (TeX)</div>`;
+  }
+
+  return `<div class="block-wrapper" data-id="${block.id}" data-type="${block.type}" ${levelStyle}>
+    ${dragHandle}
+    <div class="block-math" data-id="${block.id}" style="cursor: pointer;">
+      ${mathHtml}
+    </div>
+  </div>`;
+}
+
+export function renderTocBlockHtml(block: Block, levelStyle: string, dragHandle: string, rootBlocks?: Block[], blocks?: Block[]): string {
+  const activeRoot = rootBlocks || blocks || [];
+  const headings: { level: number; text: string; id: string }[] = [];
+  function walk(list: Block[]) {
+    for (const b of list) {
+      if (b.type === 'heading1') headings.push({ level: 1, text: b.content, id: b.id });
+      else if (b.type === 'heading2') headings.push({ level: 2, text: b.content, id: b.id });
+      else if (b.type === 'heading3') headings.push({ level: 3, text: b.content, id: b.id });
+      if (b.children?.length) walk(b.children);
+    }
+  }
+  walk(activeRoot);
+  const tocHtml = headings.length === 0
+    ? '<div style="color:var(--text3);font-size:12.5px;font-style:italic">No headings found</div>'
+    : headings.map(h =>
+        `<div class="toc-item toc-h${h.level}" style="padding-left:${(h.level - 1) * 12}px">
+          <a class="toc-link" href="#" data-blockid="${h.id}" style="color:var(--accent); text-decoration:none; display:block; padding: 2px 0;">${esc(h.text) || '(untitled)'}</a>
+        </div>`
+      ).join('');
+
+  return `<div class="block-wrapper" data-id="${block.id}" data-type="toc" ${levelStyle}>
+    ${dragHandle}
+    <div class="block-toc" style="background: var(--bg2); border-radius: 8px; padding: 12px 16px; border: 1px solid var(--border);"><div class="toc-label" style="font-weight:600; font-size: 13.5px; margin-bottom: 6px; color: var(--text1);">📋 Table of Contents</div>${tocHtml}</div>
+  </div>`;
+}
+
+export function renderBreadcrumbBlockHtml(
+  block: Block, levelStyle: string, dragHandle: string, contextInfo?: { note: Note; allNotes: Note[] }
+): string {
+  let crumbHtml = '';
+  if (contextInfo) {
+    const { note, allNotes } = contextInfo;
+    const crumbs: string[] = [];
+    let parentId = note.parentId;
+    let safety = 0;
+    while (parentId && safety++ < 10) {
+      const parent = allNotes.find(x => x.id === parentId);
+      if (!parent) break;
+      crumbs.unshift(`<a class="bc-link" href="#" data-noteid="${parent.id}" style="color: var(--accent); text-decoration: none;">${esc(parent.title || 'Untitled')}</a>`);
+      parentId = parent.parentId;
+    }
+    crumbs.push(`<span class="bc-current" style="color: var(--text2); font-weight: 500;">${esc(note.title || 'Untitled')}</span>`);
+    crumbHtml = crumbs.join('<span class="bc-sep" style="margin: 0 4px; color: var(--text3);"> › </span>');
+  } else {
+    crumbHtml = block.content || '<span style="color:var(--text3);font-size:12px">Breadcrumb</span>';
+  }
+
+  return `<div class="block-wrapper" data-id="${block.id}" data-type="breadcrumb" ${levelStyle}>
+    ${dragHandle}
+    <nav class="block-breadcrumb" style="font-size: 12.5px; background: var(--bg2); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);">${crumbHtml}</nav>
+  </div>`;
+}
