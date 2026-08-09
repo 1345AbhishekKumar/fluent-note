@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   moveVault: (p: string) => ipcRenderer.invoke('move-vault', p),
   revealVaultInExplorer: (p: string) => ipcRenderer.invoke('reveal-vault-in-explorer', p),
   openExternalUrl: (url: string) => ipcRenderer.invoke('open-external-url', url),
+  copyAssetToVault: (srcPath: string) => ipcRenderer.invoke('copy-asset-to-vault', srcPath),
 });
 
 declare global {
@@ -40,6 +41,7 @@ declare global {
       moveVault: (p: string) => Promise<string | null>;
       revealVaultInExplorer: (p: string) => Promise<boolean>;
       openExternalUrl: (url: string) => Promise<boolean>;
+      copyAssetToVault: (srcPath: string) => Promise<{ url: string; fileName: string } | null>;
     };
   }
 }

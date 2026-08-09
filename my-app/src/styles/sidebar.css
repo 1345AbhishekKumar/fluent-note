@@ -1,0 +1,198 @@
+/* sidebar */
+.sb-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px 8px 8px;
+}
+.sb-new {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 34px;
+  padding: 0 13px;
+  border-radius: 7px;
+  background: var(--accent-fill);
+  color: var(--accent-on);
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  transition: background var(--duration-quick) var(--ease-smooth-out), transform var(--duration-micro) var(--ease-smooth-out);
+  box-shadow: var(--sh-card);
+}
+.sb-new:hover {
+  background: var(--accent-fill-h);
+}
+.sb-new:active {
+  transform: scale(var(--scale-medium));
+}
+.sb-new .ic svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2;
+}
+.sb-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  color: var(--text3);
+  padding: 10px 10px 5px;
+}
+.sb-label.nb-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding-right: 10px;
+}
+.sb-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 35px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text2);
+  transition: background var(--duration-quick) var(--ease-smooth-out), transform var(--duration-micro) var(--ease-smooth-out);
+}
+.nav-item:hover {
+  background: var(--nav-h);
+  color: var(--text1);
+}
+.nav-item:active {
+  transform: scale(var(--scale-small));
+}
+.nav-item.sel {
+  background: var(--nav-h);
+  color: var(--text1);
+  font-weight: 600;
+}
+.ni-bar {
+  position: absolute;
+  left: 1px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 0;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: height var(--duration-fast) var(--ease-smooth-out);
+}
+.nav-item.sel .ni-bar {
+  height: 15px;
+}
+.tree-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-right: -4px;
+  border-radius: 4px;
+  cursor: pointer;
+  transform: rotate(-90deg);
+  transition: transform var(--duration-quick) var(--ease-smooth-out), background var(--duration-quick) var(--ease-smooth-out);
+}
+.tree-chevron.open {
+  transform: rotate(0deg);
+}
+.tree-chevron:hover {
+  background: var(--nav-h);
+}
+.tree-chevron svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.tree-chevron-spacer {
+  display: inline-block;
+  width: 18px;
+  margin-right: -4px;
+}
+.tree-row {
+  height: 32px !important;
+  gap: 8px !important;
+}
+.tree-row:hover .tree-add-btn {
+  display: inline-flex !important;
+}
+.tree-add-btn:hover {
+  opacity: 1 !important;
+  background: var(--nav-h);
+}
+.tree-row.dragging {
+  opacity: 0.4;
+}
+.tree-row.drag-over {
+  background: var(--nav-h);
+  border-radius: 4px;
+  outline: 1.5px dashed var(--accent);
+  outline-offset: -1px;
+}
+.tree-children {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cnt {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--text3);
+  font-weight: 500;
+}
+.sb-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 8px 8px;
+}
+.tagchip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text2);
+  background: var(--nav-h);
+  border: 1px solid transparent;
+  transition: background var(--duration-quick) var(--ease-smooth-out), color var(--duration-quick) var(--ease-smooth-out), border-color var(--duration-quick) var(--ease-smooth-out);
+}
+.tagchip:hover {
+  background: var(--card-h);
+  color: var(--text1);
+}
+.tagchip.on {
+  background: color-mix(in srgb, var(--tc) 16%, transparent);
+  border-color: color-mix(in srgb, var(--tc) 45%, transparent);
+  color: var(--text1);
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.sb-foot {
+  flex: none;
+  border-top: 1px solid var(--divider);
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}

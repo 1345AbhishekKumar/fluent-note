@@ -1,0 +1,244 @@
+:root {
+  /* Durations */
+  --duration-stagger: 40ms;  /* per-item stagger offset */
+  --duration-micro: 80ms;  /* tooltip/path delay, shake segment, large stagger */
+  --duration-quick: 150ms;  /* modal/dropdown close, text swap, tooltip appear */
+  --duration-fast: 250ms;  /* icon swap, dropdown/modal open, tabs sliding, page slide */
+  --duration-medium: 350ms;  /* panel close, toast close */
+  --duration-slow: 400ms;  /* panel open, skeleton content reveal, input clear */
+  --duration-very-slow: 500ms;  /* emphasis moments, badge appear, text reveal, success check */
+  /* Easings */
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);  /* modal/dropdown/panel open + close, page slide, resize, position change */
+  --ease-in-out: ease-in-out;  /* icon swap, text swap, text reveal, skeleton reveal */
+  --ease-out: ease-out;  /* tooltip open / close */
+  --ease-linear: linear;  /* shimmer, skeleton pulse, spinner */
+  --ease-bounce: cubic-bezier(0.34, 1.36, 0.64, 1);  /* badge pop open */
+  --ease-bounce-strong: cubic-bezier(0.34, 3.85, 0.64, 1);  /* bouncy hover-out (avatar return) */
+  /* Distances */
+  --distance-micro: 4px;  /* text swap */
+  --distance-small: 6px;  /* error shake (small segment) */
+  --distance-base: 8px;  /* badge diagonal reveal, page slide, error shake (large segment) */
+  --distance-medium: 12px;  /* text reveal */
+  --distance-large: 30px;  /* check badge appear */
+  /* Scales */
+  --scale-large: 0.96;  /* modal open / close */
+  --scale-medium: 0.97;  /* dropdown open */
+  --scale-small: 0.98;  /* tooltip open */
+  --scale-tiny: 0.99;  /* dropdown close */
+  /* Blur */
+  --blur-small: 2px;  /* panel reveal, icon swap, text swap, skeleton reveal, number pop-in */
+  --blur-medium: 3px;  /* page slide, text reveal */
+  --blur-large: 8px;  /* success check open */
+
+  /* Menu dropdown tokens */
+  --dropdown-open-dur: var(--duration-fast);
+  --dropdown-close-dur: var(--duration-quick);
+  --dropdown-pre-scale: var(--scale-medium);
+  --dropdown-closing-scale: var(--scale-tiny);
+  --dropdown-ease: var(--ease-smooth-out);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+html, body {
+  height: 100%;
+}
+body {
+  font-family: 'Inter Variable', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  overflow: hidden;
+  background: #0a0d13;
+  -webkit-font-smoothing: antialiased;
+}
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+input {
+  font: inherit;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 8px;
+  background-clip: content-box;
+  background: rgba(128, 140, 160, .55);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 140, 160, .8);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(128, 140, 160, .5) transparent;
+}
+
+/* wallpaper layer feeding the Mica tint */
+.wall {
+  position: fixed;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  transition: opacity var(--duration-very-slow) var(--ease-smooth-out);
+  z-index: 0;
+}
+.wall-l {
+  background-image: radial-gradient(120% 90% at 70% 10%, #dfe9ff 0%, #b9c8f2 60%, #9fb0e0 100%), url('https://image.qwenlm.ai/public_source/f8b303a9-77ab-485f-93d5-3fdeb580f468/1a8b9c754-8b83-494e-807f-fc2a1514f2a7.png');
+  background-blend-mode: soft-light;
+}
+.wall-d {
+  background-image: radial-gradient(120% 90% at 70% 10%, #0d1526 0%, #0a0f1d 60%, #070b16 100%), url('https://image.qwenlm.ai/public_source/f8b303a9-77ab-485f-93d5-3fdeb580f468/12a7d9686-b91d-4041-bb90-1e6420c17317.png');
+  background-blend-mode: soft-light;
+  opacity: 0;
+}
+body[data-wall="dark"] .wall-d {
+  opacity: 1;
+}
+body[data-wall="dark"] .wall-l {
+  opacity: 0;
+}
+
+/* ============ FULL-BLEED FRAME ============ */
+#frame {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+}
+.half {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+.divider {
+  flex: none;
+  width: 1px;
+  background: rgba(127, 127, 127, .4);
+  display: none;
+}
+body.split .divider {
+  display: block;
+}
+body:not(.split) .half.b {
+  display: none;
+}
+
+/* ============ APP — MICA SURFACE ============ */
+.win {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--mica);
+  backdrop-filter: blur(32px) saturate(1.25);
+  --tbh: 44px;
+}
+.win[data-theme="light"] {
+  --mica: rgba(243, 243, 243, .82);
+  --mica-solid: #f3f3f3;
+  --pane: rgba(251, 251, 251, .55);
+  --pane-ed: rgba(252, 252, 252, .78);
+  --pane-brd: rgba(0, 0, 0, .06);
+  --card: #ffffff;
+  --card-h: #f4f6f8;
+  --card-sel: #eef5fc;
+  --card-brd: rgba(0, 0, 0, .0578);
+  --text1: #1a1a1a;
+  --text2: rgba(26, 26, 26, .72);
+  --text3: rgba(26, 26, 26, .45);
+  --accent: #0067c0;
+  --accent-fill: #0067c0;
+  --accent-fill-h: #1a75c7;
+  --accent-on: #ffffff;
+  --accent-soft: rgba(0, 103, 192, .10);
+  --accent-brd: rgba(0, 103, 192, .45);
+  --divider: rgba(0, 0, 0, .08);
+  --rv-hi: rgba(0, 0, 0, .055);
+  --nav-h: rgba(0, 0, 0, .045);
+  --acr: rgba(249, 249, 249, .82);
+  --acr-brd: rgba(0, 0, 0, .10);
+  --acr-noise: .035;
+  --input: rgba(255, 255, 255, .7);
+  --sb-thumb: rgba(90, 100, 115, .5);
+  --danger: #c42b1c;
+  --focus: #0067c0;
+  --sh-card: 0 1px 2px rgba(0, 0, 0, .06);
+  --border: rgba(0, 0, 0, 0.08);
+  --bg2: rgba(0, 0, 0, 0.03);
+}
+.win[data-theme="dark"] {
+  --mica: rgba(32, 32, 32, .80);
+  --mica-solid: #202020;
+  --pane: rgba(255, 255, 255, .045);
+  --pane-ed: rgba(255, 255, 255, .065);
+  --pane-brd: rgba(255, 255, 255, .075);
+  --card: #2d2d2d;
+  --card-h: #333333;
+  --card-sel: #31393f;
+  --card-brd: rgba(255, 255, 255, .0693);
+  --text1: #ffffff;
+  --text2: rgba(255, 255, 255, .75);
+  --text3: rgba(255, 255, 255, .45);
+  --accent: #60cdff;
+  --accent-fill: #4cc2ff;
+  --accent-fill-h: #62c9f2;
+  --accent-on: #06262e;
+  --accent-soft: rgba(96, 205, 255, .13);
+  --accent-brd: rgba(96, 205, 255, .5);
+  --divider: rgba(255, 255, 255, .09);
+  --rv-hi: rgba(255, 255, 255, .07);
+  --nav-h: rgba(255, 255, 255, .06);
+  --acr: rgba(44, 44, 44, .80);
+  --acr-brd: rgba(255, 255, 255, .11);
+  --acr-noise: .05;
+  --input: rgba(0, 0, 0, .28);
+  --sb-thumb: rgba(160, 170, 185, .45);
+  --danger: #ff99a4;
+  --focus: #60cdff;
+  --sh-card: 0 1px 2px rgba(0, 0, 0, .3);
+  --border: rgba(255, 255, 255, 0.085);
+  --bg2: rgba(255, 255, 255, 0.045);
+}
+
+/* reveal hover */
+.rv {
+  position: relative;
+}
+.rv::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--duration-quick) var(--ease-smooth-out);
+  background: radial-gradient(110px circle at var(--mx, 50%) var(--my, 50%), var(--rv-hi), transparent 72%);
+}
+.rv:hover::before {
+  opacity: 1;
+}
+
+.ic svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  display: block;
+}
+.ic svg .f {
+  fill: currentColor;
+  stroke: none;
+}

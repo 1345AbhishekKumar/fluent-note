@@ -172,14 +172,14 @@ export const DEFAULT_CLIPS: TransientClip[] = [
 ];
 
 export const winControlsHtml = `
-  <div class="win-controls">
-    <button class="wbtn win-min" title="Minimize">
+  <div class="win-controls [-webkit-app-region:no-drag] flex items-center self-stretch ml-2">
+    <button class="wbtn win-min w-[46px] h-full grid place-items-center text-text2 transition-[background,color] duration-quick ease-smooth-out hover:bg-nav-h hover:text-text1 active:bg-rv-hi" title="Minimize">
       <svg viewBox="0 0 10 10"><path d="M0,4.5h10v1H0z" fill="currentColor"/></svg>
     </button>
-    <button class="wbtn win-max" title="Maximize">
+    <button class="wbtn win-max w-[46px] h-full grid place-items-center text-text2 transition-[background,color] duration-quick ease-smooth-out hover:bg-nav-h hover:text-text1 active:bg-rv-hi" title="Maximize">
       <svg viewBox="0 0 10 10"><path d="M0,0h10v10H0V0zm1,1v8h8V1H1z" fill="currentColor"/></svg>
     </button>
-    <button class="wbtn win-close" title="Close">
+    <button class="wbtn win-close w-[46px] h-full grid place-items-center text-text2 transition-[background,color] duration-quick ease-smooth-out hover:!bg-[#c42b1c] hover:!text-white active:!bg-[#a82014] active:!text-white" title="Close">
       <svg viewBox="0 0 10 10"><path d="M0,0l10,10M10,0L0,10" stroke="currentColor" stroke-width="1.2"/></svg>
     </button>
   </div>

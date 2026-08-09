@@ -10,9 +10,31 @@ export function openMediaFilePrompt(ctx: AppContext, cmdType: string, block: Blo
   else if (cmdType === 'video') input.accept = 'video/*';
   else if (cmdType === 'audio') input.accept = 'audio/*';
   else if (cmdType === 'pdf') input.accept = 'application/pdf';
-  input.onchange = () => {
+  input.onchange = async () => {
     const file = input.files?.[0];
     if (!file) return;
+
+    const filePath = (file as any).path;
+    if (filePath && typeof window !== 'undefined' && window.electronAPI && window.electronAPI.copyAssetToVault) {
+      try {
+        const res = await window.electronAPI.copyAssetToVault(filePath);
+        if (res && res.url) {
+          block.type = cmdType as any;
+          block.url = res.url;
+          block.content = file.name;
+          block.fileName = file.name;
+          rerenderNote(ctx, n);
+          const match = findBlockById(n.blocks, block.id);
+          if (match) {
+            focusNextBlockOrNew(ctx, n, match.index, match.parentList);
+          }
+          return;
+        }
+      } catch (err) {
+        console.error('Error copying asset to vault:', err);
+      }
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       block.type = cmdType as any;

@@ -11,21 +11,21 @@ export function renderReviewInbox(ctx: AppContext) {
   const clusters = Array.from(new Set(activeClips.map(c => c.cluster)));
   
   if (activeClips.length === 0) {
-    clustersEl.innerHTML = `<div style="font-size:12px; color:var(--text3); font-style:italic; padding:12px 4px;">Highlights inbox is empty.</div>`;
+    clustersEl.innerHTML = `<div class="text-xs text-text3 italic py-3 px-1">Highlights inbox is empty.</div>`;
     return;
   }
 
   clustersEl.innerHTML = clusters.map(clusterName => {
     const clusterClips = activeClips.filter(c => c.cluster === clusterName);
     return `
-      <div class="cluster-card" data-cluster="${clusterName}" style="margin-bottom:12px;">
-        <div class="cluster-header">
-          <span class="cluster-title">${esc(clusterName)}</span>
-          <button class="cluster-synth-btn">Synthesize</button>
+      <div class="cluster-card p-2.5 px-3 bg-card border border-card-brd rounded-lg shadow-[var(--sh-card)] flex flex-col gap-2 mb-3" data-cluster="${clusterName}">
+        <div class="cluster-header flex justify-between items-center border-b border-divider pb-1">
+          <span class="cluster-title text-[12.5px] font-semibold text-text1">${esc(clusterName)}</span>
+          <button class="cluster-synth-btn px-1.5 py-0.5 text-[11px] rounded bg-accent-soft text-accent font-semibold cursor-pointer hover:bg-accent hover:text-accent-on">Synthesize</button>
         </div>
-        <div class="cluster-body" style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
+        <div class="cluster-body flex flex-col gap-1.5 mt-2">
           ${clusterClips.map(clip => `
-            <div class="highlight-item" draggable="true" data-id="${clip.id}">${esc(clip.content)}</div>
+            <div class="highlight-item p-1.5 px-2 bg-[rgba(127,127,127,0.05)] rounded text-[11.5px] leading-[1.4] text-text2 cursor-grab select-none border border-dashed border-transparent hover:border-accent-brd hover:bg-accent-soft" draggable="true" data-id="${clip.id}">${esc(clip.content)}</div>
           `).join('')}
         </div>
       </div>

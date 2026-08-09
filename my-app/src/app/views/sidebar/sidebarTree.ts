@@ -83,8 +83,8 @@ export function renderTreeItem(
 
   return `
     <div class="tree-item-group" data-id="${itemId}" data-type="${itemType}">
-      <button class="nav-item rv tree-row ${isSelected ? 'sel' : ''}" ${indentStyle} data-id="${itemId}" data-type="${itemType}" draggable="${itemType !== 'notebook'}">
-        <span class="ni-bar"></span>
+      <button class="nav-item rv tree-row flex items-center gap-3 w-full h-[35px] px-2.5 rounded-md text-[12.5px] font-medium text-text2 transition-[background,transform] duration-quick ease-smooth-out hover:bg-nav-h hover:text-text1 active:scale-small [&.sel]:bg-nav-h [&.sel]:text-text1 [&.sel]:font-semibold [&.sel_.ni-bar]:h-[15px] ${isSelected ? 'sel' : ''}" ${indentStyle} data-id="${itemId}" data-type="${itemType}" draggable="${itemType !== 'notebook'}">
+        <span class="ni-bar absolute left-[1px] top-1/2 -translate-y-1/2 w-[3px] h-0 rounded-[3px] bg-accent transition-[height] duration-fast ease-smooth-out"></span>
         ${chevronHtml}
         <span class="ic" style="color: ${color}">${iconHtml}</span>
         <span class="sb-txt">${label}</span>

@@ -2,6 +2,7 @@ import type { AppContext } from '../context';
 import { TAGS, IC } from '../../constants';
 import { sharedNotebooks as NBS, saveAndSync } from '../../store';
 import { openImportDialog } from '../components/p2p';
+import { openSettings } from './settings';
 
 import { renderTreeItem, initSidebarDragAndDrop } from './sidebar/sidebarTree';
 import { initSidebarContextMenus } from './sidebar/sidebarContextMenus';
@@ -27,7 +28,7 @@ export function renderSidebar(ctx: AppContext) {
 
   ctx.elements.tagsEl.innerHTML = TAGS.map(t => {
     const c = ctx.st.notes.filter(n => n.tags.includes(t.id)).length;
-    return `<button class="tagchip ${ctx.st.tag === t.id ? 'on' : ''}" data-tag="${t.id}" style="--tc:${t.color}"><span class="dot" style="background:${t.color}"></span>${t.name}<span class="cnt">${c}</span></button>`;
+    return `<button class="tagchip flex items-center gap-[6px] px-2.5 py-1 rounded-full text-[11.5px] font-medium text-text2 bg-nav-h border border-transparent transition-[background,color,border-color] duration-quick ease-smooth-out hover:bg-card-h hover:text-text1 [&.on]:bg-[color-mix(in_srgb,var(--tc)_16%,transparent)] [&.on]:border-[color-mix(in_srgb,var(--tc)_45%,transparent)] [&.on]:text-text1 ${ctx.st.tag === t.id ? 'on' : ''}" data-tag="${t.id}" style="--tc:${t.color}"><span class="dot w-2 h-2 rounded-full flex-none" style="background:${t.color}"></span>${t.name}<span class="cnt ml-auto text-[10.5px] text-text3 font-medium">${c}</span></button>`;
   }).join('');
 }
 
@@ -46,53 +47,7 @@ export function initSidebarEvents(ctx: AppContext) {
       return;
     }
     if (target.closest('.sb-set')) {
-      if (window.electronAPI && window.electronAPI.selectVaultFolder) {
-        window.electronAPI.selectVaultFolder().then(newPath => {
-          if (newPath) {
-            import('../../store').then(({ clearVaultCache, sharedNotes, sharedFolders, sharedNotebooks, saveAndSync }) => {
-              clearVaultCache();
-              
-              const newVaultData = window.electronAPI!.loadVaultSync();
-              
-              // Reload notes in-place
-              sharedNotes.length = 0;
-              if (newVaultData && newVaultData.notes) {
-                newVaultData.notes.forEach((n: any) => {
-                  if (!n.blocks || n.blocks.length === 0) {
-                    const { htmlToBlocks } = require('../../utils');
-                    n.blocks = htmlToBlocks(n.body || '');
-                  }
-                  sharedNotes.push(n);
-                });
-              }
-              
-              // Reload folders in-place
-              sharedFolders.length = 0;
-              if (newVaultData && newVaultData.folders) {
-                newVaultData.folders.forEach((f: any) => sharedFolders.push(f));
-              }
-
-              // Reload notebooks in-place
-              sharedNotebooks.length = 0;
-              if (newVaultData && newVaultData.notebooks) {
-                newVaultData.notebooks.forEach((nb: any) => sharedNotebooks.push(nb));
-              }
-              
-              ctx.st.sel = sharedNotes.length ? sharedNotes[0].id : null;
-              ctx.st.folder = null;
-              ctx.st.nb = 'all';
-              ctx.st.tag = null;
-              ctx.st.quick = 'all';
-              ctx.st.expandedFolders = new Set(['design']);
-              
-              saveAndSync();
-              ctx.toast(`Vault directory changed to: ${newPath}`);
-            });
-          }
-        });
-      } else {
-        ctx.toast('Local vault storage requires the desktop app');
-      }
+      openSettings(ctx);
       return;
     }
     if (target.closest('.sb-vault')) {

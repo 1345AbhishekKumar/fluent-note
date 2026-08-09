@@ -54,6 +54,9 @@ export function blocksToMarkdown(blocks: Block[], depth = 0): string {
       case 'bookmark':
         line = `[${block.bookmarkTitle || block.content || 'bookmark'}](${block.url || ''})`;
         break;
+      case 'subpage':
+        line = `[subpage:${block.content || 'Untitled'}](${block.url || ''})`;
+        break;
       case 'callout':
         line = `> [!NOTE] ${block.icon || 'ℹ️'}\n${indent}> ${block.content}`;
         break;
@@ -145,6 +148,19 @@ export function markdownToBlocks(markdown: string): Block[] {
         block = {
           id: 'b-' + Math.random().toString(36).slice(2, 7),
           type: 'image',
+          content: match[1],
+          url: match[2],
+          children: []
+        };
+      } else {
+        block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'paragraph', content: trimmed, children: [] };
+      }
+    } else if (trimmed.startsWith('[subpage:') && trimmed.endsWith(')')) {
+      const match = trimmed.match(/^\[subpage:(.*?)\]\((.*?)\)$/);
+      if (match) {
+        block = {
+          id: 'b-' + Math.random().toString(36).slice(2, 7),
+          type: 'subpage',
           content: match[1],
           url: match[2],
           children: []

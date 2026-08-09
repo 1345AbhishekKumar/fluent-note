@@ -4,7 +4,7 @@ import { htmlToBlocks, blocksToHtml } from './blockRenderer/blockConverters';
 import { renderLinksInContent } from './blockRenderer/inlineParsers';
 import { 
   getDragHandleHtml, renderCodeBlockHtml, renderMediaBlockHtml, renderMathBlockHtml, 
-  renderTocBlockHtml, renderBreadcrumbBlockHtml 
+  renderTocBlockHtml, renderBreadcrumbBlockHtml, renderSubpageBlockHtml 
 } from './blockRenderer/renderBlockGenerators';
 
 export { htmlToBlocks, blocksToHtml, renderLinksInContent };
@@ -32,7 +32,8 @@ export function renderBlockTree(
     const placeholderMap: Partial<Record<BlockType, string>> = {
       heading1: 'Heading 1', heading2: 'Heading 2', heading3: 'Heading 3',
       todo: 'To-do', bullet: 'Bullet item', numbered: 'Numbered item',
-      quote: 'Quote…', toggle: 'Toggle heading…', code: '// code…',
+      quote: 'Quote…', toggle: 'Toggle heading…', toggle_h1: 'Toggle Heading 1…',
+      toggle_h2: 'Toggle Heading 2…', toggle_h3: 'Toggle Heading 3…', code: '// code…',
     };
     const placeholder = placeholderMap[type] ?? 'Start writing…';
     const checkedClass = (type === 'todo' && block.checked) ? 'checked' : '';
@@ -45,6 +46,10 @@ export function renderBlockTree(
         ${dragHandle}
         <hr class="block-divider" />
       </div>`;
+    }
+
+    if (type === 'subpage') {
+      return renderSubpageBlockHtml(block, levelStyle, dragHandle, contextInfo);
     }
 
     if (type === 'code') {
@@ -88,6 +93,7 @@ export function renderBlockTree(
 
     if (type === 'toggle' || type === 'toggle_h1' || type === 'toggle_h2' || type === 'toggle_h3') {
       const isCollapsed = block.collapsed ? 'collapsed' : '';
+      const toggleHeadClass = type === 'toggle_h1' ? 'toggle-h1' : type === 'toggle_h2' ? 'toggle-h2' : type === 'toggle_h3' ? 'toggle-h3' : '';
       const children = (!block.collapsed && block.children && block.children.length > 0)
         ? `<div class="block-children-container block-toggle-children">${renderBlockTree(block.children, level + 1, rootBlocks || blocks, contextInfo)}</div>`
         : (block.children && block.children.length > 0
@@ -100,7 +106,7 @@ export function renderBlockTree(
             <div class="block-list-marker-gutter">
               <button class="toggle-arrow-btn" data-id="${block.id}">▶</button>
             </div>
-            <div class="block-text-field" ${inlineTextStyle} contenteditable="true" spellcheck="false" data-ph="${placeholder}">${renderLinksInContent(block.content)}</div>
+            <div class="block-text-field ${toggleHeadClass}" ${inlineTextStyle} contenteditable="true" spellcheck="false" data-ph="${placeholder}">${renderLinksInContent(block.content)}</div>
             ${commentHtml}
           </div>
         </div>

@@ -5,6 +5,7 @@ import { saveAndSyncContent, saveAndSync } from '../../store';
 import { styleItems, noteItems, nbItems, tagItems } from '../components/flyout';
 import { initEditorDragDrop } from './editorDragDrop';
 import { initEditorKeyEvents } from './editorEvents';
+import { triggerUndo, triggerRedo } from './editorEvents/editorHistory';
 import { IC } from '../../constants';
 
 
@@ -19,19 +20,19 @@ export function renderSubItems(ctx: AppContext, n: Note) {
   panel.style.display = 'block';
 
   if (childFolders.length === 0 && childNotes.length === 0) {
-    list.innerHTML = `<div class="sub-items-empty" style="font-size:12.5px; color:var(--text3); font-style:italic; grid-column: 1 / -1; margin-top: 4px;">No subfolders or subpages. Click the + button to add one.</div>`;
+    list.innerHTML = `<div class="sub-items-empty text-[12.5px] text-text3 italic col-span-full mt-1">No subfolders or subpages. Click the + button to add one.</div>`;
     return;
   }
 
   const foldersHtml = childFolders.map(f => `
-    <button class="sub-item-btn folder-item" data-id="${f.id}" data-type="folder">
+    <button class="sub-item-btn folder-item flex items-center gap-2 px-3 py-2 rounded-md text-[12.5px] font-medium text-text2 bg-nav-h hover:bg-card-h hover:text-text1 transition-colors duration-quick ease-smooth-out" data-id="${f.id}" data-type="folder">
       <span class="ic" style="color:${f.color || '#cccccc'}">${IC.folder}</span>
       <span class="sub-item-title">${esc(f.name)}</span>
     </button>
   `).join('');
 
   const notesHtml = childNotes.map(lnk => `
-    <button class="sub-item-btn note-item" data-id="${lnk.id}" data-type="note">
+    <button class="sub-item-btn note-item flex items-center gap-2 px-3 py-2 rounded-md text-[12.5px] font-medium text-text2 bg-nav-h hover:bg-card-h hover:text-text1 transition-colors duration-quick ease-smooth-out" data-id="${lnk.id}" data-type="note">
       <span class="ic" style="color:#23b8b8">${IC.note}</span>
       <span class="sub-item-title">${esc(lnk.title) || 'Untitled'}</span>
     </button>
@@ -76,12 +77,12 @@ export function renderAcademicAndBacklinks(ctx: AppContext, n: Note) {
     });
     
     if (links.length === 0) {
-      backList.innerHTML = `<div style="font-size:12px; color:var(--text3); font-style:italic;">No backlinks found</div>`;
+      backList.innerHTML = `<div class="text-xs text-text3 italic">No backlinks found</div>`;
     } else {
       backList.innerHTML = links.map(lnk => `
-        <button class="backlink-item" data-id="${lnk.id}">
-          <div style="font-weight:600; font-size:12px; margin-bottom:2px;">${esc(lnk.title) || 'Untitled'}</div>
-          <div style="font-size:11px; color:var(--text2); text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${esc(strip(lnk.body)) || 'No preview available'}</div>
+        <button class="backlink-item text-left w-full p-2 rounded-md bg-nav-h hover:bg-card-h transition-colors duration-quick ease-smooth-out" data-id="${lnk.id}">
+          <div class="font-semibold text-xs mb-0.5 text-text1">${esc(lnk.title) || 'Untitled'}</div>
+          <div class="text-[11px] text-text2 truncate">${esc(strip(lnk.body)) || 'No preview available'}</div>
         </button>
       `).join('');
 
@@ -195,7 +196,13 @@ export function initEditorEvents(ctx: AppContext) {
     if (!cmd) return;
     ctx.elements.edBody.focus();
     try {
-      if (cmd === 'quote') {
+      if (cmd === 'undo') {
+        const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+        if (n) triggerUndo(ctx, n);
+      } else if (cmd === 'redo') {
+        const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+        if (n) triggerRedo(ctx, n);
+      } else if (cmd === 'quote') {
         let cur = 'p';
         try {
           cur = (document.queryCommandValue('formatBlock') || '').toLowerCase();
@@ -271,7 +278,23 @@ export function initEditorEvents(ctx: AppContext) {
   ctx.elements.edTitle.addEventListener('input', () => {
     const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
     if (n) {
-      n.title = ctx.elements.edTitle.textContent || '';
+      const activeId = n.id;
+      const newTitle = ctx.elements.edTitle.textContent || '';
+      n.title = newTitle;
+      ctx.st.notes.forEach(otherNote => {
+        function updateSubpages(blocks: any[]) {
+          for (const b of blocks) {
+            if (b.type === 'subpage' && b.url === activeId) {
+              b.content = newTitle;
+            }
+            if (b.children?.length) updateSubpages(b.children);
+          }
+        }
+        updateSubpages(otherNote.blocks);
+      });
+      document.querySelectorAll(`.block-subpage-card[data-subpageid="${activeId}"] .subpage-card-title`).forEach(el => {
+        el.textContent = newTitle || 'Untitled';
+      });
       saveAndSyncContent();
       ctx.markSaving();
     }

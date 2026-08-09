@@ -4,7 +4,7 @@ export type BlockType =
   | 'quote' | 'divider' | 'code' | 'callout'
   | 'image' | 'video' | 'audio' | 'pdf' | 'bookmark' | 'file'
   | 'equation' | 'math'
-  | 'toc' | 'breadcrumb' | 'template';
+  | 'toc' | 'breadcrumb' | 'template' | 'subpage';
 
 export interface Block {
   id: string;

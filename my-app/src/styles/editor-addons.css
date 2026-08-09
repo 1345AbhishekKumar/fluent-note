@@ -1,0 +1,207 @@
+/* ── KEYBOARD SHORTCUTS AND BLOCK SELECTION MODE STYLES ───────────────── */
+
+/* Selected block highlight */
+.block-wrapper.selected {
+  outline: 2px solid var(--accent, #0078d4) !important;
+  background-color: var(--bg3, rgba(0, 120, 212, 0.08)) !important;
+  border-radius: 4px;
+  position: relative;
+}
+
+/* Fullscreen media lightbox */
+.fullscreen-media-lightbox {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  cursor: zoom-out;
+  animation: fadeIn var(--duration-fast) var(--ease-smooth-out);
+}
+
+.fullscreen-media-lightbox img,
+.fullscreen-media-lightbox video {
+  max-width: 90%;
+  max-height: 90%;
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Autocomplete picker styles */
+.autocomplete-picker {
+  max-height: 280px;
+  overflow-y: auto;
+  min-width: 250px;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
+  background-color: var(--bg-flyout, #ffffff);
+  z-index: 1000;
+}
+
+[data-theme="dark"] .autocomplete-picker {
+  background-color: #202020;
+}
+
+.autocomplete-picker .slash-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text1);
+  font-size: 13px;
+  transition: background-color var(--duration-quick) var(--ease-smooth-out);
+}
+
+.autocomplete-picker .slash-item:hover,
+.autocomplete-picker .slash-item.selected {
+  background-color: var(--bg3, rgba(0, 0, 0, 0.05));
+}
+
+[data-theme="dark"] .autocomplete-picker .slash-item:hover,
+[data-theme="dark"] .autocomplete-picker .slash-item.selected {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.page-search-bar {
+  position: absolute;
+  top: 48px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg-flyout, #ffffff);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  animation: slideDown var(--duration-fast) var(--ease-smooth-out);
+}
+
+[data-theme="dark"] .page-search-bar {
+  background-color: #202020;
+}
+
+@keyframes slideDown {
+  from { transform: translateY(calc(-1 * var(--distance-base))); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.page-search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  color: var(--text1);
+  font-size: 13px;
+  width: 140px;
+}
+
+.page-search-count {
+  font-size: 11px;
+  color: var(--text3);
+  min-width: 32px;
+  text-align: center;
+}
+
+.page-search-btn,
+.page-search-close {
+  background: none;
+  border: none;
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-search-btn:hover,
+.page-search-close:hover {
+  background: var(--nav-h);
+  color: var(--text1);
+}
+
+.search-highlight {
+  background-color: rgba(255, 233, 160, 0.6);
+  color: #000;
+  border-radius: 2px;
+  padding: 1px 0;
+}
+
+.search-highlight.active {
+  background-color: #ff9900;
+  outline: 1px solid #ff9900;
+}
+
+/* Comment badge styling */
+.block-comment-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  cursor: pointer;
+  opacity: 0.65;
+  font-size: 11px;
+  transition: opacity var(--duration-quick) var(--ease-smooth-out);
+  user-select: none;
+}
+
+.block-comment-badge:hover {
+  opacity: 1;
+}
+
+/* Custom styling for blocks with background colors */
+.block-content-container[style*="background-color"] {
+  padding: 6px 10px !important;
+  border-radius: 6px !important;
+  box-sizing: border-box !important;
+}
+
+/* For lists to look perfect with background color */
+.block-content-container[style*="background-color"] .block-list-marker-gutter {
+  margin-top: 2px !important;
+}
+
+/* Also style the code wrap if it has a background color */
+.block-code-wrap[style*="background-color"] {
+  padding: 6px 10px !important;
+  border-radius: 6px !important;
+}
+
+/* Code copy button layout alignment */
+.block-code-wrap[style*="background-color"] .block-code-header {
+  margin-bottom: 6px !important;
+}
+
+/* Ensure inline date and mention badges look premium */
+.date-badge,
+.wiki-link {
+  transition: filter 0.2s ease, transform 0.1s ease;
+}
+
+.date-badge:hover {
+  filter: brightness(0.95);
+  transform: translateY(-0.5px);
+}
+
+.date-badge:active {
+  transform: translateY(0);
+}

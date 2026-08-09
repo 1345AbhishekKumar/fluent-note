@@ -5,7 +5,8 @@ import { saveAndSyncContent } from '../../../store';
 import { rerenderNote } from './pickers/editorPopups';
 
 export const isToggleType = (t: string) => ['toggle', 'toggle_h1', 'toggle_h2', 'toggle_h3'].includes(t);
-export const isNonTextFieldBlock = (t: string) => ['divider', 'image', 'video', 'audio', 'pdf', 'bookmark', 'file', 'toc', 'breadcrumb', 'math', 'equation'].includes(t);
+export const isContainerBlock = (t: string) => ['callout', 'quote', 'toggle', 'toggle_h1', 'toggle_h2', 'toggle_h3'].includes(t);
+export const isNonTextFieldBlock = (t: string) => ['divider', 'image', 'video', 'audio', 'pdf', 'bookmark', 'file', 'subpage', 'toc', 'breadcrumb', 'math', 'equation'].includes(t);
 
 function findParentBlockOfList(currentList: Block[], targetList: Block[], parentBlock: Block): { parentList: Block[], block: Block } | null {
   for (const block of currentList) {
@@ -42,9 +43,10 @@ export function handleBlockEnterKey(
   n: Note,
   match: { parentList: Block[]; index: number; block: Block }
 ) {
+  e.preventDefault();
   const { parentList, index, block: currentBlock } = match;
   const currentType = currentBlock.type;
-  const listLikeTypes: BlockType[] = ['bullet', 'numbered', 'todo', 'quote'];
+  const listLikeTypes: BlockType[] = ['bullet', 'numbered', 'todo'];
   const isListLike = listLikeTypes.includes(currentType);
 
   const sel = window.getSelection();
@@ -70,19 +72,7 @@ export function handleBlockEnterKey(
     return;
   }
 
-  if (isToggleType(currentType)) {
-    currentBlock.content = textBefore;
-    if (currentBlock.collapsed) currentBlock.collapsed = false;
-    if (!currentBlock.children) currentBlock.children = [];
-    const newBlockId = genId();
-    const newBlock: Block = { id: newBlockId, type: 'paragraph', content: textAfter, children: [] };
-    currentBlock.children.unshift(newBlock);
-    rerenderNote(ctx, n);
-    const newField = ctx.elements.edBody.querySelector(`[data-id="${newBlockId}"] .block-text-field`) as HTMLElement;
-    if (newField) newField.focus();
-    return;
-  }
-
+  // Handle empty enter inside a container or nested child -> outdent
   if (parentList !== n.blocks && fullText.trim() === '') {
     let grandparentBlockMatch = null;
     for (const b of n.blocks) {
@@ -107,6 +97,22 @@ export function handleBlockEnterKey(
       if (field) field.focus();
       return;
     }
+  }
+
+  // Handle Enter inside Container Blocks (Toggle, Callout, Quote)
+  if (isContainerBlock(currentType)) {
+    currentBlock.content = textBefore;
+    if (isToggleType(currentType) && currentBlock.collapsed) {
+      currentBlock.collapsed = false;
+    }
+    if (!currentBlock.children) currentBlock.children = [];
+    const newBlockId = genId();
+    const newBlock: Block = { id: newBlockId, type: 'paragraph', content: textAfter, children: [] };
+    currentBlock.children.unshift(newBlock);
+    rerenderNote(ctx, n);
+    const newField = ctx.elements.edBody.querySelector(`[data-id="${newBlockId}"] .block-text-field`) as HTMLElement;
+    if (newField) newField.focus();
+    return;
   }
 
   if (isListLike && fullText.trim() === '') {
@@ -135,6 +141,15 @@ export function handleBlockEnterKey(
   const newField = ctx.elements.edBody.querySelector(`[data-id="${newBlockId}"] .block-text-field`) as HTMLElement;
   if (newField) {
     newField.focus();
+  }
+}
+
+export function selectBlockElement(ctx: AppContext, blockId: string) {
+  document.querySelectorAll('.block-wrapper.selected-block').forEach(el => el.classList.remove('selected-block'));
+  const targetEl = ctx.elements.edBody.querySelector(`[data-id="${blockId}"]`) as HTMLElement;
+  if (targetEl) {
+    targetEl.classList.add('selected-block');
+    (document.activeElement as HTMLElement)?.blur();
   }
 }
 

@@ -56,27 +56,27 @@ export function renderGridView(ctx: AppContext, arr: Note[]) {
   };
 
   ctx.elements.lpScroll.innerHTML = `
-    <table class="grid-table">
+    <table class="grid-table w-full border-collapse text-[12.5px] text-text1 text-left">
       <thead>
         <tr>
-          <th data-col="title">Title${sortInd('title')}</th>
-          <th data-col="notebook">Notebook${sortInd('notebook')}</th>
-          <th data-col="tags">Tags${sortInd('tags')}</th>
-          <th data-col="date">Date${sortInd('date')}</th>
+          <th data-col="title" class="px-2.5 py-2 font-semibold text-text2 border-b border-divider cursor-pointer select-none hover:bg-nav-h">Title${sortInd('title')}</th>
+          <th data-col="notebook" class="px-2.5 py-2 font-semibold text-text2 border-b border-divider cursor-pointer select-none hover:bg-nav-h">Notebook${sortInd('notebook')}</th>
+          <th data-col="tags" class="px-2.5 py-2 font-semibold text-text2 border-b border-divider cursor-pointer select-none hover:bg-nav-h">Tags${sortInd('tags')}</th>
+          <th data-col="date" class="px-2.5 py-2 font-semibold text-text2 border-b border-divider cursor-pointer select-none hover:bg-nav-h">Date${sortInd('date')}</th>
         </tr>
       </thead>
       <tbody>
         ${sorted.map(n => {
           const nb = NBS.find(x => x.id === n.nb);
-          const nbHtml = nb ? `<span class="dot" style="background:${nb.color}; display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:6px;"></span>${nb.name}` : '—';
+          const nbHtml = nb ? `<span class="dot inline-block w-1.5 h-1.5 rounded-full mr-1.5" style="background:${nb.color}"></span>${nb.name}` : '—';
           const tagsText = n.tags.map(t => TAGS.find(x => x.id === t)?.name || t).join(', ');
-          const selClass = n.id === ctx.st.sel ? 'sel' : '';
+          const selClass = n.id === ctx.st.sel ? 'sel bg-card-sel' : '';
           return `
-            <tr class="${selClass}" data-id="${n.id}">
-              <td>${esc(n.title) || 'Untitled'}</td>
-              <td>${nbHtml}</td>
-              <td>${esc(tagsText) || '—'}</td>
-              <td>${n.date}</td>
+            <tr class="${selClass} cursor-pointer hover:bg-card-h" data-id="${n.id}">
+              <td class="px-2.5 py-2 border-b border-[rgba(127,127,127,0.08)] whitespace-nowrap overflow-hidden truncate max-w-[150px]">${esc(n.title) || 'Untitled'}</td>
+              <td class="px-2.5 py-2 border-b border-[rgba(127,127,127,0.08)] whitespace-nowrap overflow-hidden truncate max-w-[150px]">${nbHtml}</td>
+              <td class="px-2.5 py-2 border-b border-[rgba(127,127,127,0.08)] whitespace-nowrap overflow-hidden truncate max-w-[150px]">${esc(tagsText) || '—'}</td>
+              <td class="px-2.5 py-2 border-b border-[rgba(127,127,127,0.08)] whitespace-nowrap overflow-hidden truncate max-w-[150px]">${n.date}</td>
             </tr>
           `;
         }).join('')}
@@ -297,7 +297,7 @@ export function renderList(ctx: AppContext) {
   ctx.elements.actFilter.classList.toggle('on', !!ctx.st.tag);
 
   if (!arr.length) {
-    ctx.elements.lpScroll.innerHTML = `<div class="lp-empty">No notes here.${ctx.st.q || ctx.st.tag ? '<br><button data-clear="1">Clear filters</button>' : ''}</div>`;
+    ctx.elements.lpScroll.innerHTML = `<div class="lp-empty py-7 px-3 text-center text-text3 text-xs">No notes here.${ctx.st.q || ctx.st.tag ? '<br><button class="mt-2.5 px-3 py-1.25 rounded-md bg-accent-soft text-accent font-semibold text-xs" data-clear="1">Clear filters</button>' : ''}</div>`;
     return;
   }
 
@@ -308,12 +308,13 @@ export function renderList(ctx: AppContext) {
   } else {
     ctx.elements.lpScroll.innerHTML = arr.map(n => {
       const nb = NBS.find(x => x.id === n.nb);
-      const nbHtml = nb ? `<span class="nc-nb"><span class="dot" style="background:${nb.color}"></span>${nb.name}</span>` : '';
+      const nbHtml = nb ? `<span class="nc-nb flex items-center gap-1.25"><span class="dot w-1.5 h-1.5 rounded-full shrink-0" style="background:${nb.color}"></span>${nb.name}</span>` : '';
       const tg = TAGS.find(x => x.id === n.tags[0]);
-      return `<button class="note-card rv ${n.id === ctx.st.sel ? 'sel' : ''}" data-id="${n.id}">
-        <div class="nc-top"><span class="nc-title">${esc(n.title) || 'Untitled'}</span>${n.pinned ? `<span class="nc-pin ic">${IC.pin}</span>` : ''}</div>
-        <div class="nc-snip">${esc(strip(n.body)) || 'No additional text'}</div>
-        <div class="nc-meta"><span>${n.date}</span>${nbHtml}${tg ? `<span class="nc-tag"><span class="dot" style="background:${tg.color}"></span>${tg.name}</span>` : ''}</div>
+      const selClass = n.id === ctx.st.sel ? 'sel !bg-card-sel !border-accent-brd' : '';
+      return `<button class="note-card rv ${selClass} text-left w-full rounded-lg bg-card border border-card-brd px-3 py-2.5 transition-all duration-quick ease-smooth-out shadow-[var(--sh-card)] flex-none hover:bg-card-h active:scale-[var(--scale-small)]" data-id="${n.id}">
+        <div class="nc-top flex items-center gap-1.5"><span class="nc-title text-[13px] font-semibold text-text1 tracking-[-0.01em] flex-1 truncate">${esc(n.title) || 'Untitled'}</span>${n.pinned ? `<span class="nc-pin ic text-accent">${IC.pin}</span>` : ''}</div>
+        <div class="nc-snip text-[11.5px] leading-[1.45] text-text2 mt-0.5 line-clamp-2 overflow-hidden">${esc(strip(n.body)) || 'No additional text'}</div>
+        <div class="nc-meta flex items-center gap-2 mt-1.75 text-[10.5px] text-text3"><span>${n.date}</span>${nbHtml}${tg ? `<span class="nc-tag flex items-center gap-1.25"><span class="dot w-1.5 h-1.5 rounded-full shrink-0" style="background:${tg.color}"></span>${tg.name}</span>` : ''}</div>
       </button>`;
     }).join('');
   }

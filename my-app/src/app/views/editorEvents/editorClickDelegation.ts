@@ -3,13 +3,14 @@ import type { Block, Note, FlyoutItem } from '../../../types';
 import { findBlockById, flattenVisibleBlocks, resolveNoteId, genId } from '../../../utils';
 import { saveAndSyncContent, saveAndSync } from '../../../store';
 import { 
-  rerenderNote, rerenderSelectionStyles, closeLanguagePicker, openCalendarPicker, 
+  rerenderNote, rerenderSelectionStyles, closeLanguagePicker, openLanguagePicker, openCalendarPicker, 
   openMathPopupEditor, openCalloutEmojiPicker, openMediaFilePrompt, openUrlPopupEditor,
   openMentionPicker, openDatePicker, openTexPrompt, openEmojiPicker 
 } from './pickers/editorPopups';
 import { closeSlashMenu } from './pickers/editorSlashMenu';
 import { handleDragHandleClick } from './editorDragFlyout';
 import { duplicateBlocksWithNewIds } from './editorHelpers';
+import { openMediaSidebar } from '../mediaSidebar';
 
 export function handleCheckboxChange(ctx: AppContext, e: Event) {
   const target = e.target as HTMLInputElement;
@@ -248,21 +249,39 @@ export function handleEditorBodyClick(ctx: AppContext, e: MouseEvent) {
     return;
   }
 
-  const langLabel = target.closest('.code-lang-label') as HTMLElement;
-  if (langLabel) {
-    const blockEl = langLabel.closest('.block-wrapper') as HTMLElement;
-    const bId = blockEl?.dataset.id!;
-    const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
-    if (!n) return;
-    const match = findBlockById(n.blocks, bId);
-    if (match) {
-      const newLang = prompt('Enter code language:', match.block.language || 'plaintext');
-      if (newLang !== null) {
-        match.block.language = newLang.trim() || 'plaintext';
-        rerenderNote(ctx, n);
-      }
+  const subpageCard = target.closest('.block-subpage-card') as HTMLElement;
+  if (subpageCard) {
+    const subpageId = subpageCard.dataset.subpageid;
+    if (subpageId) {
+      ctx.selectNote(subpageId);
     }
     return;
+  }
+
+  const langContainer = target.closest('.code-lang-container') as HTMLElement;
+  if (langContainer) {
+    const blockEl = langContainer.closest('.block-wrapper') as HTMLElement;
+    const bId = blockEl?.dataset.id!;
+    if (bId) {
+      openLanguagePicker(ctx, langContainer, bId);
+    }
+    return;
+  }
+
+  const mediaPdf = target.closest('.block-media-pdf, .block-media-img, .block-media-video, .block-media-audio, .block-file-link') as HTMLElement;
+  if (mediaPdf) {
+    const blockEl = mediaPdf.closest('.block-wrapper') as HTMLElement;
+    const bId = blockEl?.dataset.id!;
+    const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+    if (n) {
+      const match = findBlockById(n.blocks, bId);
+      if (match && match.block.url) {
+        e.preventDefault();
+        e.stopPropagation();
+        openMediaSidebar(ctx, match.block.content || match.block.fileName || 'Media Viewer', match.block.url, match.block.type as any);
+        return;
+      }
+    }
   }
 
   const mathBlock = target.closest('.block-math') as HTMLElement;

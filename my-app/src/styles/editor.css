@@ -1,0 +1,232 @@
+/* editor */
+.ed-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--divider);
+}
+.ed-back {
+  display: none;
+}
+.ed-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ed-tools::-webkit-scrollbar {
+  display: none;
+}
+.sep {
+  width: 1px;
+  height: 18px;
+  background: var(--divider);
+  margin: 0 5px;
+  flex: none;
+}
+.tb-chr {
+  font-size: 12.5px;
+}
+.chr {
+  font-family: Georgia, 'Times New Roman', serif;
+}
+.chr.b {
+  font-weight: 800;
+  font-family: inherit;
+}
+.chr.i {
+  font-style: italic;
+}
+.chr.u {
+  text-decoration: underline;
+}
+.chr.s {
+  text-decoration: line-through;
+}
+.ib.toggled {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.style-btn {
+  width: auto;
+  padding: 0 8px;
+  gap: 6px;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 500;
+}
+.style-btn .ic svg {
+  width: 13px;
+  height: 13px;
+}
+.pin-btn.on {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.ed-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+.ed-inner {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 26px 34px 60px;
+  transition: opacity var(--duration-quick) var(--ease-in-out), transform var(--duration-quick) var(--ease-in-out);
+  position: relative;
+}
+.ed-inner.swap {
+  opacity: 0;
+  transform: translateY(var(--distance-micro));
+}
+.ed-title {
+  font-size: 27px;
+  font-weight: 700;
+  letter-spacing: -.022em;
+  line-height: 1.15;
+  color: var(--text1);
+  outline: none;
+  min-height: 1.2em;
+  word-break: break-word;
+}
+.ed-title:empty::before {
+  content: "Untitled";
+  color: var(--text3);
+}
+.ed-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--divider);
+}
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text2);
+  background: var(--nav-h);
+  transition: background var(--duration-quick) var(--ease-smooth-out);
+}
+.pill:hover {
+  background: var(--card-h);
+  color: var(--text1);
+}
+.pill .ic svg {
+  width: 12px;
+  height: 12px;
+}
+.meta-date {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text3);
+}
+.meta-date .ic svg {
+  width: 13px;
+  height: 13px;
+}
+.ed-body {
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--text1);
+  outline: none;
+  min-height: 60px;
+  caret-color: var(--accent);
+}
+.ed-body:empty::before {
+  content: attr(data-ph);
+  color: var(--text3);
+}
+.ed-body p {
+  margin: 0 0 10px;
+}
+.ed-body h2 {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -.015em;
+  margin: 20px 0 8px;
+}
+.ed-body h3 {
+  font-size: 15.5px;
+  font-weight: 600;
+  margin: 16px 0 6px;
+}
+.ed-body ul, .ed-body ol {
+  margin: 0 0 10px;
+  padding-left: 24px;
+}
+.ed-body li {
+  margin: 3px 0;
+  display: flex;
+  align-items: baseline;
+}
+.ed-body blockquote {
+  margin: 14px 0;
+  padding: 10px 16px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+  color: var(--text2);
+}
+.ed-body a {
+  color: var(--accent);
+}
+.ed-body ::selection, .search::selection {
+  background: var(--accent-soft);
+}
+.ed-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 70px 20px;
+  color: var(--text3);
+  font-size: 13px;
+}
+.ed-empty .ic svg {
+  width: 34px;
+  height: 34px;
+  stroke-width: 1.2;
+  opacity: .5;
+}
+.ed-status {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+  padding: 0 14px;
+  border-top: 1px solid var(--divider);
+  font-size: 11px;
+  color: var(--text3);
+}
+.save {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: color var(--duration-fast) var(--ease-in-out);
+}
+.save .ic svg {
+  width: 12px;
+  height: 12px;
+}
+.save.busy {
+  color: var(--text3);
+}
+.save.ok {
+  color: var(--accent);
+}

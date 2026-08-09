@@ -104,14 +104,23 @@ function readMdFilesRecursively(dir: string, baseDir: string): string[] {
   return results;
 }
 
-function getFolderPathById(folders: any[], notebooks: any[], folderId: string): string {
-  const f = folders.find(x => x.id === folderId);
-  if (!f) {
-    const nb = notebooks.find(x => x.id === folderId);
-    return nb ? sanitizeFilename(nb.name) : '';
+function getFolderPathById(folders: any[], notebooks: any[], notes: any[], parentId: string): string {
+  if (!parentId) return '';
+  const f = folders.find(x => x.id === parentId);
+  if (f) {
+    const parentPath = getFolderPathById(folders, notebooks, notes, f.parentId);
+    return path.join(parentPath, sanitizeFilename(f.name));
   }
-  const parentPath = getFolderPathById(folders, notebooks, f.parentId);
-  return path.join(parentPath, sanitizeFilename(f.name));
+  const nb = notebooks.find(x => x.id === parentId);
+  if (nb) {
+    return sanitizeFilename(nb.name);
+  }
+  const parentNote = notes ? notes.find(x => x.id === parentId) : null;
+  if (parentNote) {
+    const parentPath = getFolderPathById(folders, notebooks, notes, parentNote.parentId || parentNote.nb);
+    return path.join(parentPath, sanitizeFilename(parentNote.title || 'Untitled'));
+  }
+  return '';
 }
 
 function removeEmptyDirsRecursively(dir: string, isRoot = false) {
@@ -432,7 +441,7 @@ export function initVaultManager() {
       });
 
       data.folders.forEach(f => {
-        const dir = getFolderPathById(data.folders, data.notebooks, f.id);
+        const dir = getFolderPathById(data.folders, data.notebooks, data.notes, f.id);
         const dirPath = path.join(vaultPath, dir);
         if (!fs.existsSync(dirPath)) {
           fs.mkdirSync(dirPath, { recursive: true });
@@ -445,7 +454,7 @@ export function initVaultManager() {
 
       data.notes.forEach(note => {
         const parentId = note.parentId || note.nb;
-        const dir = parentId ? getFolderPathById(data.folders, data.notebooks, parentId) : '';
+        const dir = parentId ? getFolderPathById(data.folders, data.notebooks, data.notes, parentId) : '';
         const sanitizedTitle = sanitizeFilename(note.title) || 'Untitled';
         
         let relativePath = path.join(dir, `${sanitizedTitle}.md`);
@@ -496,5 +505,29 @@ export function initVaultManager() {
       console.error('Error saving vault:', err);
       return { success: false, error: err.message || err };
     }
+  });
+
+  ipcMain.handle('copy-asset-to-vault', async (event, srcPath: string) => {
+    const vaultPath = getVaultPath();
+    if (!vaultPath || !fs.existsSync(srcPath)) return null;
+    const assetsDir = path.join(vaultPath, 'assets');
+    if (!fs.existsSync(assetsDir)) {
+      fs.mkdirSync(assetsDir, { recursive: true });
+    }
+    const ext = path.extname(srcPath);
+    const baseName = sanitizeFilename(path.basename(srcPath, ext)) || 'file';
+    let destFileName = `${baseName}${ext}`;
+    let destPath = path.join(assetsDir, destFileName);
+    let count = 1;
+    while (fs.existsSync(destPath)) {
+      destFileName = `${baseName}_${count}${ext}`;
+      destPath = path.join(assetsDir, destFileName);
+      count++;
+    }
+    fs.copyFileSync(srcPath, destPath);
+    return {
+      url: `fluent-file://assets/${destFileName}`,
+      fileName: destFileName
+    };
   });
 }

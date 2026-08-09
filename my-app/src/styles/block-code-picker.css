@@ -1,0 +1,180 @@
+/* ── Code block ──────────────────────────────────────────────────────────── */
+.block-code-wrapper { padding: 0; }
+.block-code-wrap {
+  position: relative;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  width: 100%;
+}
+.block-code-header-premium {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 10;
+  pointer-events: auto;
+}
+.code-lang-container {
+  display: flex;
+  align-items: center;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 8px;
+  cursor: pointer;
+  position: relative;
+  height: 24px;
+  box-sizing: border-box;
+  transition: background var(--duration-quick) var(--ease-smooth-out);
+}
+.code-lang-container:hover {
+  background: var(--bg3);
+}
+.code-lang-select-label {
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  cursor: pointer;
+  outline: none;
+  padding: 0 12px 0 0;
+  margin: 0;
+  text-transform: uppercase;
+  user-select: none;
+}
+.code-lang-arrow {
+  position: absolute;
+  right: 6px;
+  font-size: 7px;
+  color: var(--text3);
+  pointer-events: none;
+}
+
+/* Custom Language Picker Popup */
+.language-picker-popup {
+  position: absolute;
+  background: var(--bg-nav);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  width: 220px;
+  max-height: 320px;
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  overflow: hidden;
+  animation: scale-up 0.15s var(--ease-smooth-out);
+}
+.lang-search-wrapper {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+}
+.lang-search-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--text1);
+  outline: none;
+  box-sizing: border-box;
+}
+.lang-search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.lang-list-container {
+  overflow-y: auto;
+  flex: 1;
+  padding: 4px;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lang-picker-item {
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--text1);
+  border-radius: 4px;
+  cursor: pointer;
+  display: block;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+.lang-picker-item:hover,
+.lang-picker-item.active {
+  background: var(--nav-h);
+  color: var(--text1);
+}
+.code-controls-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.code-copy-btn-premium,
+.code-more-btn-premium {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color var(--duration-quick), color var(--duration-quick);
+}
+.code-copy-btn-premium:hover,
+.code-more-btn-premium:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.block-code-field {
+  padding: 40px 12px 12px 12px !important;
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 12.5px;
+  line-height: 1.7;
+  white-space: pre;
+  overflow-x: auto;
+  color: var(--text1);
+  min-height: 60px;
+}
+
+/* Code block layout adjustments */
+.block-code-wrapper.full-width .block-code-wrap {
+  width: calc(100% + 68px) !important;
+  margin-left: -34px !important;
+  border-radius: 0 !important;
+  max-width: none !important;
+}
+
+@media (max-width: 800px) {
+  .block-code-wrapper.full-width .block-code-wrap {
+    width: calc(100% + 40px) !important;
+    margin-left: -20px !important;
+  }
+}
+
+.block-code-wrapper.wrap-text .block-code-field {
+  white-space: pre-wrap !important;
+  word-break: break-all !important;
+}
+
+.code-wrap-btn.active, .code-fullwidth-btn.active {
+  background: var(--accent-soft) !important;
+  color: var(--accent) !important;
+  border-color: var(--accent) !important;
+}

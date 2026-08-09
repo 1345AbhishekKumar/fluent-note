@@ -285,3 +285,32 @@ export function renderBreadcrumbBlockHtml(
     <nav class="block-breadcrumb" style="font-size: 12.5px; background: var(--bg2); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);">${crumbHtml}</nav>
   </div>`;
 }
+
+export function renderSubpageBlockHtml(
+  block: Block,
+  levelStyle: string,
+  dragHandle: string,
+  contextInfo?: { note: Note; allNotes: Note[] }
+): string {
+  const childNoteId = block.url || '';
+  const childNote = contextInfo?.allNotes.find(n => n.id === childNoteId);
+  const title = childNote ? childNote.title : (block.content || 'Untitled');
+  
+  let pathText = 'Subpage';
+  if (contextInfo && childNote) {
+    const parentNote = contextInfo.allNotes.find(n => n.id === childNote.parentId);
+    pathText = parentNote ? `Under ${parentNote.title || 'Untitled'}` : 'Nested note';
+  }
+
+  return `<div class="block-wrapper" data-id="${block.id}" data-type="subpage" ${levelStyle}>
+    ${dragHandle}
+    <div class="block-subpage-card" data-subpageid="${childNoteId}">
+      <span class="subpage-card-icon">📄</span>
+      <div class="subpage-card-body">
+        <span class="subpage-card-title">${esc(title || 'Untitled')}</span>
+        <span class="subpage-card-path">${esc(pathText)}</span>
+      </div>
+      <span class="subpage-card-arrow">➔</span>
+    </div>
+  </div>`;
+}

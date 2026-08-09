@@ -20,7 +20,7 @@ const REDUCED = (typeof matchMedia !== 'undefined') ? matchMedia('(prefers-reduc
 
 export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstance {
   const root = document.createElement('div');
-  root.className = 'win';
+  root.className = 'win relative flex-1 flex flex-col overflow-hidden bg-mica backdrop-blur-3xl backdrop-saturate-[1.25]';
   root.dataset.theme = theme;
   root.innerHTML = renderAppLayout(theme, IC, TAGS, winControlsHtml);
   host.appendChild(root);
@@ -329,12 +329,16 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
     openVaultSwitcher(ctx);
   });
 
-  // Escape to close vault overlay
+  // Escape to close overlays
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      const overlay = document.getElementById('vaultOverlay');
-      if (overlay && overlay.style.display === 'flex') {
-        overlay.style.display = 'none';
+      const vaultOverlay = document.getElementById('vaultOverlay');
+      if (vaultOverlay && vaultOverlay.style.display === 'flex') {
+        vaultOverlay.style.display = 'none';
+      }
+      const settingsOverlay = document.getElementById('settingsOverlay');
+      if (settingsOverlay && settingsOverlay.style.display === 'flex') {
+        settingsOverlay.style.display = 'none';
       }
     }
   });

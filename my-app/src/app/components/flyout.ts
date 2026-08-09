@@ -28,18 +28,18 @@ export function initFlyout(ctx: AppContext) {
 
     flyItems = filtered;
     ctx.elements.fly.innerHTML = filtered.map((it, i) => {
-      if (it.sep) return '<div class="fly-sep"></div>';
-      if (it.head) return `<div class="fly-head">${it.head}</div>`;
+      if (it.sep) return '<div class="fly-sep h-px bg-divider my-1 mx-2"></div>';
+      if (it.head) return `<div class="fly-head text-[11px] font-semibold tracking-wider text-text3 px-2.5 py-2">${it.head}</div>`;
       
-      const dotHtml = it.dot ? `<span class="dot" style="background:${it.dot}"></span>` : '';
+      const dotHtml = it.dot ? `<span class="dot w-2 h-2 rounded-full flex-none" style="background:${it.dot}"></span>` : '';
       const iconHtml = it.icon ? `<span class="ic">${it.icon}</span>` : '';
-      const kbdHtml = it.kbd ? `<span class="kbd">${it.kbd}</span>` : '';
-      const chkHtml = it.checked ? `<span class="ic fly-chk">${IC.check}</span>` : '';
-      const dangerClass = it.danger ? 'danger' : '';
+      const kbdHtml = it.kbd ? `<span class="kbd text-[10px] font-mono text-text3">${it.kbd}</span>` : '';
+      const chkHtml = it.checked ? `<span class="ic fly-chk text-accent">${IC.check}</span>` : '';
+      const dangerClass = it.danger ? 'danger text-danger [&_.ic_svg]:text-danger' : '';
       
-      return `<button class="fly-item rv ${dangerClass}" data-i="${i}">
+      return `<button class="fly-item fm-item rv relative flex items-center gap-[10px] w-full px-2.5 py-[7px] rounded-[5px] text-[12.5px] text-text1 text-left hover:bg-nav-h active:scale-[0.98] transition-all duration-quick ease-smooth-out [&_.ic_svg]:w-[15px] [&_.ic_svg]:h-[15px] [&_.ic_svg]:text-text2 ${dangerClass}" data-i="${i}">
         ${dotHtml || iconHtml}
-        <span class="fly-lbl">${it.label || ''}</span>
+        <span class="fly-lbl flex-1 whitespace-nowrap overflow-hidden text-ellipsis">${it.label || ''}</span>
         ${kbdHtml || chkHtml}
       </button>`;
     }).join('');

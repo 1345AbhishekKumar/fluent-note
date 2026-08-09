@@ -125,20 +125,20 @@ export function showSlashMenu(ctx: AppContext, blockEl: HTMLElement, textField: 
   if (filtered.filter(i => !i.group).length === 0) return;
 
   const menu = document.createElement('div');
-  menu.className = 'slash-menu';
+  menu.className = 'slash-menu absolute z-[1000] bg-acr border border-acr-brd rounded-xl shadow-lg backdrop-blur-md w-[260px] max-h-[340px] overflow-y-auto py-1.5 flex flex-col';
 
   let realIndex = 0;
   menu.innerHTML = filtered.map(item => {
     if (item.group) {
-      return `<div class="slash-menu-group">${item.group}</div>`;
+      return `<div class="slash-menu-group text-[10px] font-semibold uppercase tracking-wider text-text3 px-3 pt-2 pb-1">${item.group}</div>`;
     }
     const i = realIndex++;
-    const dangerCls = item.danger ? ' danger' : '';
-    return `<button class="slash-item${dangerCls} ${i === selectedSlashItemIndex ? 'selected' : ''}" data-index="${i}">
-      <span class="slash-item-icon">${item.icon}</span>
-      <div class="slash-item-info">
-        <span class="slash-item-label">${item.label}</span>
-        <span class="slash-item-desc">${item.desc || ''}</span>
+    const dangerCls = item.danger ? ' danger text-[#e05555] hover:bg-[rgba(220,50,50,0.1)] hover:text-[#e03333] [&.selected]:bg-[rgba(220,50,50,0.1)] [&.selected]:text-[#e03333]' : '';
+    return `<button class="slash-item flex items-center gap-[10px] px-3 py-1.5 text-[13px] text-text1 bg-transparent border-none text-left cursor-pointer w-full rounded-none hover:bg-accent-soft hover:text-accent [&.selected]:bg-accent-soft [&.selected]:text-accent transition-colors duration-quick ease-smooth-out ${dangerCls} ${i === selectedSlashItemIndex ? 'selected' : ''}" data-index="${i}">
+      <span class="slash-item-icon text-[14px] opacity-85 min-w-[18px] text-center font-mono">${item.icon}</span>
+      <div class="slash-item-info flex flex-col gap-[1px]">
+        <span class="slash-item-label text-[13px] font-medium leading-[1.3]">${item.label}</span>
+        <span class="slash-item-desc text-[11px] text-text3 leading-[1.2]">${item.desc || ''}</span>
       </div>
     </button>`;
   }).join('');
@@ -202,22 +202,46 @@ export function executeSlashCommand(ctx: AppContext, realIndex: number) {
   const blockId = match.block.id;
 
   switch (cmdType) {
-    case 'subpage':
+    case 'subpage': {
+      const newId = 'n-' + Math.random().toString(36).slice(2, 7);
+      const newNote: Note = {
+        id: newId,
+        nb: n.nb,
+        tags: [],
+        pinned: false,
+        date: 'Just now',
+        title: 'Untitled',
+        body: '<h2>Untitled</h2><p></p>',
+        blocks: [{ id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'paragraph', content: '', children: [] }],
+        ord: 0,
+        parentId: n.id
+      };
+      ctx.st.notes.unshift(newNote);
+      match.block.type = 'subpage';
+      match.block.content = 'Untitled';
+      match.block.url = newId;
       rerenderNote(ctx, n);
-      ctx.newSubNote(n.id);
+      ctx.selectNote(newId, true);
       return;
+    }
     case 'subfolder':
       rerenderNote(ctx, n);
       ctx.newSubFolder(n.id);
       return;
 
     case 'paragraph':
-    case 'callout':
     case 'heading1': case 'heading2': case 'heading3':
     case 'bullet': case 'numbered':
+      match.block.type = cmdType as BlockType;
+      break;
+
+    case 'callout':
     case 'quote': case 'toggle': case 'toggle_h1': case 'toggle_h2': case 'toggle_h3':
       match.block.type = cmdType as BlockType;
       if (cmdType === 'callout') match.block.icon = '💡';
+      if (!match.block.children || match.block.children.length === 0) {
+        match.block.children = [{ id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'paragraph', content: '', children: [] }];
+      }
       break;
 
     case 'todo':

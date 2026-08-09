@@ -3,7 +3,13 @@ import type { Block, Note } from '../../../../types';
 import { moveCaret } from '../../../../utils';
 import { rerenderNote } from './editorPopupUtils';
 
-export const EMOJI_LIST = ['😀','😂','🥰','😎','🤔','😢','🎉','🔥','💡','✅','❌','⭐','🚀','🌿','🎵','📚','💻','🔗','📝','🗑','⚡','🌈','🎨','🏆','📌','🔒','🌍','⚙️','🧠','💬'];
+export const EMOJI_LIST = [
+  '😀','😂','🥰','😎','🤔','😢','🎉','🔥','💡','✅','❌','⭐','🚀','🌿','🎵','📚',
+  '💻','🔗','📝','🗑','⚡','🌈','🎨','🏆','📌','🔒','🌍','⚙️','🧠','💬','❤️','👍',
+  '👎','🙌','👏','🙏','💪','✨','🎯','🔮','💎','🧿','📍','🚩','🔔','🎁','🎈','🛒',
+  '☕','🍕','🍔','🍟','🍉','🍎','🍓','🎂','🍻','🥂','⚽','🏀','🎮','🎲','♟️','✈️',
+  '🚗','🛵','🏠','🏖️','⛰️','🌙','☀️','☁️','☔','❄️','🔍','🔑','📁','📂','📊','📈'
+];
 
 export function openEmojiPicker(ctx: AppContext, block: Block, n: Note, blockId: string) {
   ctx.root.querySelector('.emoji-picker')?.remove();

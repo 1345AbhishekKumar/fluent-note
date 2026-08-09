@@ -164,38 +164,38 @@ export function startP2PShare(
   const encryptedPayload = `RESEARCHER_SHARE_${base64Payload}`;
 
   const modal = document.createElement('div');
-  modal.className = 'p2p-modal-overlay';
+  modal.className = 'p2p-modal-overlay fixed inset-0 bg-black/0 flex items-center justify-center z-[99999] backdrop-blur-none opacity-0 pointer-events-none transition-all duration-quick ease-smooth-out [&.show]:opacity-100 [&.show]:pointer-events-auto [&.show]:bg-black/40 [&.show]:backdrop-blur-sm';
   
   modal.innerHTML = `
-    <div class="p2p-card" style="width: 400px; max-width: 90vw; padding: 20px;">
-      <div class="p2p-title" style="font-weight: 600; font-size: 16px; color:var(--text);">Share Sub-graph Closure</div>
-      <div class="p2p-closure-info" style="font-size: 13px; line-height: 1.4; color:var(--text2);">
+    <div class="p2p-card bg-card border border-card-brd rounded-lg w-[400px] max-w-[90vw] p-5 shadow-2xl flex flex-col gap-3 scale-[0.96] opacity-0 transition-all duration-quick ease-smooth-out [.show_&]:scale-100 [.show_&]:opacity-100">
+      <div class="p2p-title font-semibold text-base text-text1">Share Sub-graph Closure</div>
+      <div class="p2p-closure-info text-xs leading-relaxed text-text2">
         <strong>Sharing:</strong> ${esc(sharingName)}<br>
         <strong>Sub-graph closure:</strong> ${closureCount} note(s) in selection.<br>
         ${closureSet.truncatedIds.size > 0 
-          ? `<span style="color:#ff5f56; font-weight:600;">⚠️ ${closureSet.truncatedIds.size} external references will be truncated.</span>` 
-          : '<span style="color:#6ccb5f; font-weight:600;">✔️ All connected notes are inside boundary.</span>'}
+          ? `<span class="text-[#ff5f56] font-semibold">⚠️ ${closureSet.truncatedIds.size} external references will be truncated.</span>` 
+          : '<span class="text-[#6ccb5f] font-semibold">✔️ All connected notes are inside boundary.</span>'}
       </div>
       
       ${renderBoundaryGraph(closureSet.sharedIds, closureSet.truncatedIds, ctx.st.notes)}
       
       <div>
-        <label style="font-size: 11px; font-weight: 600; display: block; margin-bottom: 4px; color: var(--text2);">Simulated \`.researcher-share\` Payload:</label>
-        <textarea readonly class="p2p-payload-box" style="width: 100%; height: 60px; font-family: monospace; font-size: 10px; background: var(--bg3); color: var(--text); border: 1px solid var(--divider); border-radius: 4px; padding: 6px; resize: none; word-break: break-all; outline:none;">${encryptedPayload}</textarea>
+        <label class="text-[11px] font-semibold block mb-1 text-text2">Simulated \`.researcher-share\` Payload:</label>
+        <textarea readonly class="p2p-payload-box w-full h-[60px] font-mono text-[10px] bg-bg2 text-text1 border border-divider rounded p-[6px] resize-none break-all outline-none">${encryptedPayload}</textarea>
       </div>
       
-      <div class="p2p-progress-track" style="width:100%; height:4px; background:var(--divider); border-radius:2px; display:none; overflow:hidden;">
-        <div class="p2p-progress-bar" style="width:0%; height:100%; background:var(--accent); transition:width 1.5s var(--ease-linear);"></div>
+      <div class="p2p-progress-track w-full h-1 bg-divider rounded-sm hidden overflow-hidden">
+        <div class="p2p-progress-bar w-0 h-full bg-accent transition-[width] duration-1500 ease-linear"></div>
       </div>
       
-      <div style="display: flex; gap: 8px;">
-        <button class="p2p-copy-btn" style="flex: 1; padding: 8px; border-radius: 4px; background: var(--accent); color: white; border: none; font-weight: 600; cursor: pointer;">Copy Payload</button>
-        <button class="p2p-sim-btn" style="flex: 1; padding: 8px; border-radius: 4px; background: var(--bg3); color: var(--text); border: 1px solid var(--divider); font-weight: 600; cursor: pointer;">P2P Transfer</button>
+      <div class="flex gap-2">
+        <button class="p2p-copy-btn flex-1 p-2 rounded bg-accent text-white border-none font-semibold cursor-pointer hover:bg-accent-fill-h active:scale-[0.97] transition-all duration-quick">Copy Payload</button>
+        <button class="p2p-sim-btn flex-1 p-2 rounded bg-bg2 text-text1 border border-divider font-semibold cursor-pointer hover:bg-nav-h active:scale-[0.97] transition-all duration-quick">P2P Transfer</button>
       </div>
       
-      <div class="p2p-status" style="font-size: 11px; color: var(--text2); text-align: center; min-height: 16px;">Ready to copy or transfer.</div>
+      <div class="p2p-status text-[11px] text-text2 text-center min-h-[16px]">Ready to copy or transfer.</div>
       
-      <button class="p2p-close-btn" style="width: 100%; padding: 8px; border-radius: 4px; background: var(--bg3); border: 1px solid var(--divider); color: var(--text); font-weight: 600; cursor: pointer;">Close</button>
+      <button class="p2p-close-btn w-full p-2 rounded bg-bg2 border border-divider text-text1 font-semibold cursor-pointer hover:bg-nav-h active:scale-[0.97] transition-all duration-quick">Close</button>
     </div>
   `;
 
@@ -257,21 +257,21 @@ export function startP2PShare(
 
 export function openImportDialog(ctx: AppContext) {
   const modal = document.createElement('div');
-  modal.className = 'p2p-modal-overlay';
+  modal.className = 'p2p-modal-overlay fixed inset-0 bg-black/0 flex items-center justify-center z-[99999] backdrop-blur-none opacity-0 pointer-events-none transition-all duration-quick ease-smooth-out [&.show]:opacity-100 [&.show]:pointer-events-auto [&.show]:bg-black/40 [&.show]:backdrop-blur-sm';
 
   modal.innerHTML = `
-    <div class="p2p-card" style="width: 400px; max-width: 90vw; padding: 20px;">
-      <div class="p2p-title" style="font-weight: 600; font-size: 16px; color:var(--text);">Import Sub-graph Share</div>
+    <div class="p2p-card bg-card border border-card-brd rounded-lg w-[400px] max-w-[90vw] p-5 shadow-2xl flex flex-col gap-3 scale-[0.96] opacity-0 transition-all duration-quick ease-smooth-out [.show_&]:scale-100 [.show_&]:opacity-100">
+      <div class="p2p-title font-semibold text-base text-text1">Import Sub-graph Share</div>
       <div>
-        <label style="font-size: 11px; font-weight: 600; display: block; margin-bottom: 4px; color: var(--text2);">Paste \`.researcher-share\` Payload:</label>
-        <textarea class="p2p-import-box" placeholder="RESEARCHER_SHARE_..." style="width: 100%; height: 100px; font-family: monospace; font-size: 10px; background: var(--bg3); color: var(--text); border: 1px solid var(--divider); border-radius: 4px; padding: 6px; resize: none; word-break: break-all; outline:none;"></textarea>
+        <label class="text-[11px] font-semibold block mb-1 text-text2">Paste \`.researcher-share\` Payload:</label>
+        <textarea class="p2p-import-box w-full h-[100px] font-mono text-[10px] bg-bg2 text-text1 border border-divider rounded p-[6px] resize-none break-all outline-none" placeholder="RESEARCHER_SHARE_..."></textarea>
       </div>
       
-      <div class="p2p-import-status" style="font-size: 11px; color: #ff5f56; min-height: 16px;"></div>
+      <div class="p2p-import-status text-[11px] text-[#ff5f56] min-h-[16px]"></div>
       
-      <div style="display: flex; gap: 8px;">
-        <button class="p2p-merge-btn" style="flex: 1; padding: 8px; border-radius: 4px; background: var(--accent); color: white; border: none; font-weight: 600; cursor: pointer;">Merge into Vault</button>
-        <button class="p2p-cancel-btn" style="flex: 1; padding: 8px; border-radius: 4px; background: var(--bg3); color: var(--text); border: 1px solid var(--divider); font-weight: 600; cursor: pointer;">Cancel</button>
+      <div class="flex gap-2">
+        <button class="p2p-merge-btn flex-1 p-2 rounded bg-accent text-white border-none font-semibold cursor-pointer hover:bg-accent-fill-h active:scale-[0.97] transition-all duration-quick">Merge into Vault</button>
+        <button class="p2p-cancel-btn flex-1 p-2 rounded bg-bg2 text-text1 border border-divider font-semibold cursor-pointer hover:bg-nav-h active:scale-[0.97] transition-all duration-quick">Cancel</button>
       </div>
     </div>
   `;

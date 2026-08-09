@@ -1,0 +1,126 @@
+/* ============ RESPONSIVE (container-driven) ============ */
+.win.l .sidebar {
+  width: 62px;
+}
+.win.l .listpane {
+  width: 298px;
+}
+.win.sb-user .sidebar {
+  width: 62px;
+}
+.win.l .sb-txt, .win.sb-user .sb-txt, .win.l .sb-label, .win.sb-user .sb-label, .win.l .sb-tags, .win.sb-user .sb-tags {
+  display: none;
+}
+.win.l .sb-new, .win.sb-user .sb-new {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  margin: 0 auto 10px;
+  justify-content: center;
+}
+.win.l .nav-item, .win.sb-user .nav-item {
+  justify-content: center;
+  padding: 0;
+  gap: 0;
+}
+.win.l .sb-scroll, .win.sb-user .sb-scroll {
+  padding: 10px 10px 8px;
+}
+.win.m .listpane {
+  width: 268px;
+}
+.win.m .sidebar, .win.s .sidebar {
+  position: absolute;
+  left: 8px;
+  top: 0;
+  bottom: 8px;
+  width: 262px;
+  z-index: 30;
+  transform: translateX(calc(-100% - 14px));
+  box-shadow: 0 16px 50px rgba(0, 0, 0, .35);
+  background: var(--mica-solid);
+}
+.win.m.sb-open .sidebar, .win.s.sb-open .sidebar {
+  transform: none;
+}
+.win.m.sb-open .scrim, .win.s.sb-open .scrim {
+  opacity: 1;
+  pointer-events: auto;
+}
+.win.m .sidebar .sb-txt, .win.s .sidebar .sb-txt, .win.m .sidebar .sb-label, .win.s .sidebar .sb-label, .win.m .sidebar .sb-tags, .win.s .sidebar .sb-tags {
+  display: revert;
+}
+.win.m .sidebar .sb-new, .win.s .sidebar .sb-new {
+  width: 100%;
+  height: 34px;
+  padding: 0 13px;
+  margin: 0 0 12px;
+  justify-content: flex-start;
+}
+.win.m .sidebar .nav-item, .win.s .sidebar .nav-item {
+  justify-content: flex-start;
+  padding: 0 10px;
+  gap: 12px;
+}
+.win.s .listpane {
+  width: auto;
+  flex: 1;
+}
+.win.s .editorpane {
+  position: absolute;
+  inset: 0 8px 8px;
+  z-index: 20;
+  transform: translateX(var(--distance-base));
+  opacity: 0;
+  pointer-events: none;
+  transition: transform var(--duration-fast) var(--ease-smooth-out), opacity var(--duration-fast) var(--ease-smooth-out);
+}
+.win.s.show-editor .editorpane {
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+}
+.win.s.show-editor .listpane {
+  opacity: 0;
+  transform: translateX(calc(-1 * var(--distance-base)));
+  pointer-events: none;
+}
+.win.s .ed-back {
+  display: grid;
+}
+.win.s .s-kbd {
+  display: none;
+}
+.win.h-sm {
+  --tbh: 40px;
+}
+.win.h-sm .ed-meta {
+  display: none;
+}
+.win.h-sm .ed-title {
+  font-size: 22px;
+}
+.win.h-sm .nc-snip {
+  -webkit-line-clamp: 1;
+}
+.win.h-sm .ed-inner {
+  padding: 18px 24px 40px;
+}
+.win.h-sm .app-name {
+  display: none;
+}
+.win.h-xs .ed-status {
+  display: none;
+}
+.win.h-xs .lp-sub {
+  display: none;
+}
+.win.h-xs .nc-meta {
+  display: none;
+}
+.win.h-xs .sb-foot {
+  display: none;
+}
+.win.no-snip .nc-snip {
+  display: none;
+}

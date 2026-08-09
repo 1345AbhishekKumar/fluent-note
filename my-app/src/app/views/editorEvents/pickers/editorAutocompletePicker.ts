@@ -59,7 +59,7 @@ export function showAutocompletePicker(ctx: AppContext, block: Block, textField:
   activePickerBlockId = block.id;
 
   const picker = document.createElement('div');
-  picker.className = 'slash-menu autocomplete-picker';
+  picker.className = 'slash-menu autocomplete-picker absolute z-[1000] bg-card dark:bg-[#202020] border border-border rounded-xl shadow-xl max-h-[280px] min-w-[250px] overflow-y-auto py-1.5 flex flex-col';
 
   let items: { label: string; desc?: string; icon: string; action: () => void }[] = [];
   
@@ -211,11 +211,11 @@ export function showAutocompletePicker(ctx: AppContext, block: Block, textField:
   visiblePickerItems = items;
 
   picker.innerHTML = items.map((item, idx) => `
-    <button class="slash-item ${idx === selectedPickerIndex ? 'selected' : ''}" data-index="${idx}">
-      <span class="slash-item-icon">${item.icon}</span>
-      <div class="slash-item-info">
-        <span class="slash-item-label">${item.label}</span>
-        <span class="slash-item-desc">${item.desc || ''}</span>
+    <button class="slash-item flex items-center gap-2 px-3 py-2 text-[13px] text-text1 bg-transparent border-none text-left cursor-pointer w-full hover:bg-bg2 dark:hover:bg-white/10 [&.selected]:bg-bg2 dark:[&.selected]:bg-white/10 transition-colors duration-quick ease-smooth-out ${idx === selectedPickerIndex ? 'selected' : ''}" data-index="${idx}">
+      <span class="slash-item-icon text-[14px] opacity-85 min-w-[18px] text-center font-mono">${item.icon}</span>
+      <div class="slash-item-info flex flex-col gap-[1px]">
+        <span class="slash-item-label text-[13px] font-medium leading-[1.3]">${item.label}</span>
+        <span class="slash-item-desc text-[11px] text-text3 leading-[1.2]">${item.desc || ''}</span>
       </div>
     </button>
   `).join('');

@@ -1,0 +1,220 @@
+/* ============ BLOCK EDITOR STYLES ============ */
+.block-wrapper {
+  position: relative;
+  margin: 2px 0;
+  display: block;
+}
+.block-main-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  position: relative;
+}
+.block-actions-container {
+  position: absolute;
+  left: -40px;
+  top: 3px;
+  width: 40px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-quick) var(--ease-smooth-out);
+  z-index: 10;
+  user-select: none;
+}
+
+.block-wrapper:hover > .block-main-row > .block-actions-container,
+.block-wrapper:hover > .block-actions-container,
+.block-actions-container:hover {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+/* Hide parent block's icons when hovering over one of its nested children */
+.block-wrapper:hover:has(.block-wrapper:hover) > .block-main-row > .block-actions-container,
+.block-wrapper:hover:has(.block-wrapper:hover) > .block-actions-container {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+.block-add-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  padding: 0;
+  transition: background var(--duration-quick) var(--ease-smooth-out), color var(--duration-quick) var(--ease-smooth-out);
+}
+.block-add-btn:hover {
+  background: rgba(127,127,127,0.15);
+  color: var(--text1);
+}
+.block-add-btn svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  fill: none;
+}
+.block-drag-handle {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text3);
+  cursor: grab;
+  border-radius: 3px;
+  transition: background var(--duration-quick) var(--ease-smooth-out), color var(--duration-quick) var(--ease-smooth-out);
+}
+.block-drag-handle:hover {
+  background: rgba(127,127,127,0.15);
+  color: var(--text1);
+}
+.block-drag-handle svg {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
+.block-content-container {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.block-text-field {
+  flex: 1;
+  min-width: 0;
+  outline: none;
+  border: none;
+  color: var(--text1);
+  word-break: break-word;
+  padding: 1px 0;
+  caret-color: var(--accent);
+}
+.block-text-field:empty::before {
+  content: attr(data-ph);
+  color: var(--text3);
+  pointer-events: none;
+}
+
+/* Block styles & Contextual Spacing */
+.block-wrapper[data-type="heading1"] {
+  margin-top: 16px;
+  margin-bottom: 4px;
+}
+.block-wrapper[data-type="heading1"] .block-text-field {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -.015em;
+}
+
+.block-wrapper[data-type="heading2"] {
+  margin-top: 12px;
+  margin-bottom: 4px;
+}
+.block-wrapper[data-type="heading2"] .block-text-field {
+  font-size: 15.5px;
+  font-weight: 600;
+}
+
+.block-wrapper[data-type="heading3"] {
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+.block-wrapper[data-type="heading3"] .block-text-field {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* Rich Structural Blocks Spacing */
+.block-wrapper[data-type="callout"],
+.block-wrapper[data-type="quote"],
+.block-wrapper[data-type="code"],
+.block-wrapper[data-type="pdf"],
+.block-wrapper[data-type="bookmark"],
+.block-wrapper[data-type="subpage"] {
+  margin-top: 14px;
+  margin-bottom: 14px;
+}
+
+/* Tight Grouping for Consecutive Items */
+.block-wrapper[data-type="paragraph"] + .block-wrapper[data-type="paragraph"],
+.block-wrapper[data-type="bullet"] + .block-wrapper[data-type="bullet"],
+.block-wrapper[data-type="numbered"] + .block-wrapper[data-type="numbered"],
+.block-wrapper[data-type="todo"] + .block-wrapper[data-type="todo"] {
+  margin-top: 1.5px;
+  margin-bottom: 1.5px;
+}
+
+.block-wrapper[data-type="todo"] .block-todo-checkbox {
+  margin: 0;
+  vertical-align: middle;
+  align-self: flex-start;
+  margin-top: 0.35em;
+  cursor: pointer;
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.block-wrapper[data-type="todo"].checked .block-text-field {
+  text-decoration: line-through;
+  color: var(--text3);
+}
+
+.block-children-container {
+  margin-left: 24px;
+  border-left: 1px dashed rgba(127, 127, 127, 0.15);
+  padding-left: 4px;
+}
+.block-children-container > .block-wrapper {
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+.block-children-container > .block-wrapper[data-type="heading1"] {
+  margin-top: 8px;
+  margin-bottom: 2px;
+}
+.block-children-container > .block-wrapper[data-type="heading2"] {
+  margin-top: 6px;
+  margin-bottom: 2px;
+}
+.block-children-container > .block-wrapper[data-type="heading3"] {
+  margin-top: 4px;
+  margin-bottom: 2px;
+}
+
+/* Drag indicator for reordering */
+.block-wrapper.drag-over-top::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--accent);
+  z-index: 20;
+}
+.block-wrapper.drag-over-bottom::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--accent);
+  z-index: 20;
+}
+.block-wrapper.dragging {
+  opacity: 0.4;
+}

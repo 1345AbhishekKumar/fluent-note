@@ -15,6 +15,8 @@ import {
 } from './editorBlockKeyActions';
 import { handleFieldShortcuts, handleDocumentBlockSelectionKeydown } from './editorSelectionHotkeys';
 
+import { pushToUndo, pushToUndoDebounced, triggerUndo, triggerRedo } from './editorHistory';
+
 export function initEditorKeyHandlers(ctx: AppContext) {
   ctx.elements.edTitle.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
@@ -41,6 +43,8 @@ export function initEditorKeyHandlers(ctx: AppContext) {
     if (match) {
       const text = target.textContent || '';
       match.block.content = text;
+
+      pushToUndoDebounced(ctx, n);
 
       if (tryMarkdownShortcut(ctx, n, match.block, match.index, match.parentList, text)) {
         return;
@@ -175,11 +179,13 @@ export function initEditorKeyHandlers(ctx: AppContext) {
     if (!match) return;
 
     if (e.key === 'Enter') {
+      pushToUndo(ctx, n);
       handleBlockEnterKey(ctx, e, target, n, match);
       return;
     }
     
     if (e.key === 'Backspace') {
+      pushToUndo(ctx, n);
       handleBlockBackspaceKey(ctx, e, target, n, match, blockId);
       return;
     }
@@ -195,12 +201,38 @@ export function initEditorKeyHandlers(ctx: AppContext) {
     }
     
     if (e.key === 'Tab') {
+      pushToUndo(ctx, n);
       handleBlockTabKey(ctx, e, n, match, blockId);
       return;
     }
   });
 
   document.addEventListener('keydown', e => {
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const ctrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
+
+    if (ctrlOrCmd && e.key.toLowerCase() === 'z') {
+      const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+      if (n) {
+        e.preventDefault();
+        if (e.shiftKey) {
+          triggerRedo(ctx, n);
+        } else {
+          triggerUndo(ctx, n);
+        }
+        return;
+      }
+    }
+
+    if (ctrlOrCmd && e.key.toLowerCase() === 'y') {
+      const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+      if (n) {
+        e.preventDefault();
+        triggerRedo(ctx, n);
+        return;
+      }
+    }
+
     handleDocumentBlockSelectionKeydown(ctx, e);
   });
 }
