@@ -13,6 +13,7 @@
 @import "./styles/block-code-prism.css";
 @import "./styles/block-media-bookmark.css";
 @import "./styles/block-extras.css";
+@import "./styles/block-mermaid.css";
 @import "./styles/views-lenses.css";
 @import "./styles/sharing-subpages.css";
 @import "./styles/list-alignment.css";

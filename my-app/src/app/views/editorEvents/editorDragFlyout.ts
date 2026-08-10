@@ -6,6 +6,7 @@ import {
   rerenderNote, rerenderSelectionStyles, openMediaFilePrompt, openUrlPopupEditor,
   openMentionPicker, openDatePicker, openTexPrompt, openEmojiPicker 
 } from './pickers/editorPopups';
+import { pushToUndo } from './editorHistory';
 
 export function handleDragHandleClick(ctx: AppContext, e: MouseEvent, dragHandle: HTMLElement) {
   e.preventDefault();
@@ -22,6 +23,7 @@ export function handleDragHandleClick(ctx: AppContext, e: MouseEvent, dragHandle
     
     const menuItems: FlyoutItem[] = [
       { label: 'Duplicate', icon: '⧉', action: () => {
+        pushToUndo(ctx, n);
         const clone = duplicateBlockWithNewIds(match.block);
         match.parentList.splice(match.index + 1, 0, clone);
         rerenderNote(ctx, n);
@@ -44,6 +46,7 @@ export function handleDragHandleClick(ctx: AppContext, e: MouseEvent, dragHandle
         ctx.elements.edInner.appendChild(picker);
         picker.querySelectorAll('.slash-item').forEach((btn, i) => {
           btn.addEventListener('click', () => {
+            pushToUndo(ctx, n);
             const target = targets[i];
             const blockCopy = duplicateBlockWithNewIds(match.block);
             target.blocks.push(blockCopy);
@@ -62,26 +65,27 @@ export function handleDragHandleClick(ctx: AppContext, e: MouseEvent, dragHandle
         }, 0);
       }},
       { label: 'Delete', icon: '🗑', danger: true, action: () => {
+        pushToUndo(ctx, n);
         match.parentList.splice(match.index, 1);
         if (n.blocks.length === 0) n.blocks.push({ id: genId(), type: 'paragraph', content: '', children: [] });
         rerenderNote(ctx, n);
       }},
       { sep: true },
       { head: 'Turn into' },
-      { label: 'Text', icon: '¶', action: () => { match.block.type = 'paragraph'; rerenderNote(ctx, n); } },
-      { label: 'Heading 1', icon: 'H1', action: () => { match.block.type = 'heading1'; rerenderNote(ctx, n); } },
-      { label: 'Heading 2', icon: 'H2', action: () => { match.block.type = 'heading2'; rerenderNote(ctx, n); } },
-      { label: 'Heading 3', icon: 'H3', action: () => { match.block.type = 'heading3'; rerenderNote(ctx, n); } },
-      { label: 'Bullet list', icon: '•', action: () => { match.block.type = 'bullet'; rerenderNote(ctx, n); } },
-      { label: 'Numbered list', icon: '1.', action: () => { match.block.type = 'numbered'; rerenderNote(ctx, n); } },
-      { label: 'To-do list', icon: '☑', action: () => { match.block.type = 'todo'; match.block.checked = false; rerenderNote(ctx, n); } },
-      { label: 'Toggle list', icon: '▶', action: () => { match.block.type = 'toggle'; rerenderNote(ctx, n); } },
-      { label: 'Toggle heading 1', icon: '▶1', action: () => { match.block.type = 'toggle_h1'; rerenderNote(ctx, n); } },
-      { label: 'Toggle heading 2', icon: '▶2', action: () => { match.block.type = 'toggle_h2'; rerenderNote(ctx, n); } },
-      { label: 'Toggle heading 3', icon: '▶3', action: () => { match.block.type = 'toggle_h3'; rerenderNote(ctx, n); } },
-      { label: 'Quote', icon: '❝', action: () => { match.block.type = 'quote'; rerenderNote(ctx, n); } },
-      { label: 'Divider', icon: '—', action: () => { match.block.type = 'divider'; match.block.content = ''; rerenderNote(ctx, n); } },
-      { label: 'Callout', icon: '💡', action: () => { match.block.type = 'callout'; match.block.icon = '💡'; rerenderNote(ctx, n); } },
+      { label: 'Text', icon: '¶', action: () => { pushToUndo(ctx, n); match.block.type = 'paragraph'; rerenderNote(ctx, n); } },
+      { label: 'Heading 1', icon: 'H1', action: () => { pushToUndo(ctx, n); match.block.type = 'heading1'; rerenderNote(ctx, n); } },
+      { label: 'Heading 2', icon: 'H2', action: () => { pushToUndo(ctx, n); match.block.type = 'heading2'; rerenderNote(ctx, n); } },
+      { label: 'Heading 3', icon: 'H3', action: () => { pushToUndo(ctx, n); match.block.type = 'heading3'; rerenderNote(ctx, n); } },
+      { label: 'Bullet list', icon: '•', action: () => { pushToUndo(ctx, n); match.block.type = 'bullet'; rerenderNote(ctx, n); } },
+      { label: 'Numbered list', icon: '1.', action: () => { pushToUndo(ctx, n); match.block.type = 'numbered'; rerenderNote(ctx, n); } },
+      { label: 'To-do list', icon: '☑', action: () => { pushToUndo(ctx, n); match.block.type = 'todo'; match.block.checked = false; rerenderNote(ctx, n); } },
+      { label: 'Toggle list', icon: '▶', action: () => { pushToUndo(ctx, n); match.block.type = 'toggle'; rerenderNote(ctx, n); } },
+      { label: 'Toggle heading 1', icon: '▶1', action: () => { pushToUndo(ctx, n); match.block.type = 'toggle_h1'; rerenderNote(ctx, n); } },
+      { label: 'Toggle heading 2', icon: '▶2', action: () => { pushToUndo(ctx, n); match.block.type = 'toggle_h2'; rerenderNote(ctx, n); } },
+      { label: 'Toggle heading 3', icon: '▶3', action: () => { pushToUndo(ctx, n); match.block.type = 'toggle_h3'; rerenderNote(ctx, n); } },
+      { label: 'Quote', icon: '❝', action: () => { pushToUndo(ctx, n); match.block.type = 'quote'; rerenderNote(ctx, n); } },
+      { label: 'Divider', icon: '—', action: () => { pushToUndo(ctx, n); match.block.type = 'divider'; match.block.content = ''; rerenderNote(ctx, n); } },
+      { label: 'Callout', icon: '💡', action: () => { pushToUndo(ctx, n); match.block.type = 'callout'; match.block.icon = '💡'; rerenderNote(ctx, n); } },
       { label: 'Page', icon: '📄', action: () => { rerenderNote(ctx, n); ctx.newSubNote(n.id); } },
       { label: 'Subfolder', icon: '📁', action: () => { rerenderNote(ctx, n); ctx.newSubFolder(n.id); } },
       { label: 'Image', icon: '🖼', action: () => { rerenderNote(ctx, n); openMediaFilePrompt(ctx, 'image', match.block, n); } },

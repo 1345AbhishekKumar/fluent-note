@@ -3,6 +3,7 @@ import type { Block, BlockType } from '../../../types';
 import { findBlockById, genId, esc } from '../../../utils';
 import { saveAndSyncContent } from '../../../store';
 import { rerenderNote } from './pickers/editorPopups';
+import { pushToUndo } from './editorHistory';
 
 export function isNonTextFieldBlock(t: string) {
   return ['divider', 'image', 'video', 'audio', 'pdf', 'bookmark', 'file', 'toc', 'breadcrumb', 'math', 'equation'].includes(t);
@@ -23,6 +24,8 @@ export function handleEditorPaste(ctx: AppContext, e: ClipboardEvent) {
     if (!n) return;
     const match = findBlockById(n.blocks, blockId);
     if (!match) return;
+
+    pushToUndo(ctx, n);
 
     const { parentList, index, block: currentBlock } = match;
 

@@ -34,6 +34,18 @@ export function tryMarkdownShortcut(
       { prefix: '" ',   type: 'quote',     strip: 2 },
       { prefix: '| ',   type: 'quote',     strip: 2 },
       { prefix: '--- ', type: 'divider',   strip: text.length },
+      { prefix: '```mermaid ', type: 'mermaid', strip: 11, extra: (b) => {
+        b.mermaidMode = 'split';
+        if (!b.content || b.content.trim() === '') {
+          b.content = `graph TD\n  A[Start] --> B{Is it working?}\n  B -->|Yes| C[Awesome!]\n  B -->|No| D[Debug]`;
+        }
+      }},
+      { prefix: '/mermaid ', type: 'mermaid', strip: 9, extra: (b) => {
+        b.mermaidMode = 'split';
+        if (!b.content || b.content.trim() === '') {
+          b.content = `graph TD\n  A[Start] --> B{Is it working?}\n  B -->|Yes| C[Awesome!]\n  B -->|No| D[Debug]`;
+        }
+      }},
       { prefix: '``` ', type: 'code',      strip: 4, extra: (b) => { b.language = 'plaintext'; } },
     ];
 

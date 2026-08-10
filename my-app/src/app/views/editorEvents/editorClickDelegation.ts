@@ -1,6 +1,6 @@
 import type { AppContext } from '../../context';
 import type { Block, Note, FlyoutItem } from '../../../types';
-import { findBlockById, flattenVisibleBlocks, resolveNoteId, genId } from '../../../utils';
+import { findBlockById, flattenVisibleBlocks, resolveNoteId, genId, moveCaret } from '../../../utils';
 import { saveAndSyncContent, saveAndSync } from '../../../store';
 import { 
   rerenderNote, rerenderSelectionStyles, closeLanguagePicker, openLanguagePicker, openCalendarPicker, 
@@ -11,6 +11,47 @@ import { closeSlashMenu } from './pickers/editorSlashMenu';
 import { handleDragHandleClick } from './editorDragFlyout';
 import { duplicateBlocksWithNewIds } from './editorHelpers';
 import { openMediaSidebar } from '../mediaSidebar';
+import { renderMermaidDiagramsInContainer } from '../../../utils/mermaidRenderer';
+import { pushToUndo } from './editorHistory';
+
+export function focusOrCreateBottomBlock(ctx: AppContext) {
+  const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+  if (!n) return;
+
+  if (!n.blocks || n.blocks.length === 0) {
+    const newBlockId = genId();
+    n.blocks = [{ id: newBlockId, type: 'paragraph', content: '', children: [] }];
+    rerenderNote(ctx, n);
+    const field = ctx.elements.edBody.querySelector(`[data-id="${newBlockId}"] .block-text-field`) as HTMLElement;
+    if (field) field.focus();
+    saveAndSyncContent();
+    ctx.markSaving();
+    return;
+  }
+
+  const flat = flattenVisibleBlocks(n.blocks);
+  const lastBlock = flat[flat.length - 1];
+
+  if (lastBlock && lastBlock.type === 'paragraph' && lastBlock.content.trim() === '') {
+    const field = ctx.elements.edBody.querySelector(`[data-id="${lastBlock.id}"] .block-text-field`) as HTMLElement;
+    if (field) {
+      field.focus();
+      moveCaret(field, false);
+      return;
+    }
+  }
+
+  const newBlockId = genId();
+  const newBlock: Block = { id: newBlockId, type: 'paragraph', content: '', children: [] };
+  n.blocks.push(newBlock);
+  rerenderNote(ctx, n);
+  const newField = ctx.elements.edBody.querySelector(`[data-id="${newBlockId}"] .block-text-field`) as HTMLElement;
+  if (newField) {
+    newField.focus();
+  }
+  saveAndSyncContent();
+  ctx.markSaving();
+}
 
 export function handleCheckboxChange(ctx: AppContext, e: Event) {
   const target = e.target as HTMLInputElement;
@@ -25,6 +66,7 @@ export function handleCheckboxChange(ctx: AppContext, e: Event) {
   
   const match = findBlockById(n.blocks, blockId);
   if (match) {
+    pushToUndo(ctx, n);
     match.block.checked = target.checked;
     blockEl.classList.toggle('checked', target.checked);
     saveAndSyncContent();
@@ -179,6 +221,64 @@ export function handleEditorBodyClick(ctx: AppContext, e: MouseEvent) {
     return;
   }
 
+  const mermaidModeBtn = target.closest('.mermaid-mode-btn') as HTMLElement;
+  if (mermaidModeBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    const bId = mermaidModeBtn.dataset.id!;
+    const mode = mermaidModeBtn.dataset.mode as 'diagram' | 'code' | 'split';
+    const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+    if (!n) return;
+    const match = findBlockById(n.blocks, bId);
+    if (match) {
+      match.block.mermaidMode = mode;
+      rerenderNote(ctx, n);
+      renderMermaidDiagramsInContainer(ctx.elements.edBody, ctx.api.theme);
+      saveAndSyncContent();
+      ctx.markSaving();
+    }
+    return;
+  }
+
+  const mermaidCopyBtn = target.closest('.mermaid-copy-btn') as HTMLElement;
+  if (mermaidCopyBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    const bId = mermaidCopyBtn.dataset.id!;
+    const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+    if (!n) return;
+    const match = findBlockById(n.blocks, bId);
+    if (match) {
+      const flyoutItems: FlyoutItem[] = [
+        {
+          label: 'Copy Mermaid Code',
+          icon: '</>',
+          action: () => {
+            navigator.clipboard.writeText(match.block.content);
+            ctx.toast('Mermaid code copied to clipboard!', '', () => {});
+          }
+        },
+        {
+          label: 'Copy SVG Diagram',
+          icon: '🖼',
+          action: () => {
+            const wrapper = ctx.elements.edBody.querySelector(`[data-id="${bId}"]`);
+            const svgEl = wrapper?.querySelector('.mermaid-render-output svg');
+            if (svgEl) {
+              const svgData = new XMLSerializer().serializeToString(svgEl);
+              navigator.clipboard.writeText(svgData);
+              ctx.toast('Diagram SVG copied to clipboard!', '', () => {});
+            } else {
+              ctx.toast('No rendered SVG diagram found to copy', '', () => {});
+            }
+          }
+        }
+      ];
+      ctx.openFly(mermaidCopyBtn, flyoutItems);
+    }
+    return;
+  }
+
   const copyBtn = target.closest('.code-copy-btn, .code-copy-btn-premium') as HTMLElement;
   if (copyBtn) {
     const bId = copyBtn.dataset.id!;
@@ -249,14 +349,30 @@ export function handleEditorBodyClick(ctx: AppContext, e: MouseEvent) {
     return;
   }
 
-  const subpageCard = target.closest('.block-subpage-card') as HTMLElement;
-  if (subpageCard) {
-    const subpageId = subpageCard.dataset.subpageid;
+  const subpageEl = target.closest('.block-subpage-row, .block-subpage-card') as HTMLElement;
+  if (subpageEl) {
+    const subpageId = subpageEl.dataset.subpageid;
     if (subpageId) {
       ctx.selectNote(subpageId);
     }
     return;
   }
+
+  const subfolderEl = target.closest('.block-subfolder-row') as HTMLElement;
+  if (subfolderEl) {
+    const folderId = subfolderEl.dataset.subfolderid;
+    if (folderId) {
+      ctx.st.folder = folderId;
+      ctx.st.nb = 'all';
+      ctx.st.quick = 'all';
+      ctx.st.tag = null;
+      ctx.st.expandedFolders.add(folderId);
+      ctx.renderSidebar();
+      ctx.renderList();
+    }
+    return;
+  }
+
 
   const langContainer = target.closest('.code-lang-container') as HTMLElement;
   if (langContainer) {

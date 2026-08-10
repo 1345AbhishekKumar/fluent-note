@@ -12,6 +12,19 @@ export function isCaretAtStart(el: HTMLElement): boolean {
   return false;
 }
 
+export function isCaretAtEnd(el: HTMLElement): boolean {
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0) {
+    const range = sel.getRangeAt(0);
+    const postCaretRange = range.cloneRange();
+    postCaretRange.selectNodeContents(el);
+    postCaretRange.setStart(range.endContainer, range.endOffset);
+    return postCaretRange.toString().length === 0;
+  }
+  return false;
+}
+
+
 export function moveCaret(el: HTMLElement, toStart: boolean = false) {
   el.focus();
   const range = document.createRange();
@@ -31,11 +44,11 @@ export function setEdBodyHtml(edBody: HTMLElement, newHtml: string) {
   const temp = document.createElement('div');
   temp.innerHTML = newHtml;
 
-  const newBlocks = Array.from(temp.querySelectorAll('.block-wrapper')) as HTMLElement[];
+  const newBlocks = Array.from(temp.children).filter(el => el.classList.contains('block-wrapper')) as HTMLElement[];
   const oldBlocksMap = new Map<string, HTMLElement>();
   
-  // Build a map of existing block wrappers in edBody
-  edBody.querySelectorAll('.block-wrapper').forEach(node => {
+  // Build a map of existing top-level block wrappers in edBody
+  Array.from(edBody.children).filter(el => el.classList.contains('block-wrapper')).forEach(node => {
     const bEl = node as HTMLElement;
     const id = bEl.dataset.id;
     if (id) oldBlocksMap.set(id, bEl);

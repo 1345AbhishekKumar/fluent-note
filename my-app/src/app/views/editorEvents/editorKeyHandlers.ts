@@ -11,11 +11,12 @@ import {
 } from './pickers/editorSlashMenu';
 import { tryMarkdownShortcut } from './editorMarkdownShortcuts';
 import { 
-  handleBlockEnterKey, handleBlockBackspaceKey, handleBlockArrowUp, handleBlockArrowDown, handleBlockTabKey 
+  handleBlockEnterKey, handleBlockBackspaceKey, handleBlockDeleteKey, handleBlockArrowUp, handleBlockArrowDown, handleBlockTabKey 
 } from './editorBlockKeyActions';
 import { handleFieldShortcuts, handleDocumentBlockSelectionKeydown } from './editorSelectionHotkeys';
 
 import { pushToUndo, pushToUndoDebounced, triggerUndo, triggerRedo } from './editorHistory';
+import { renderMermaidDiagramsInContainer } from '../../../utils/mermaidRenderer';
 
 export function initEditorKeyHandlers(ctx: AppContext) {
   ctx.elements.edTitle.addEventListener('keydown', e => {
@@ -30,6 +31,25 @@ export function initEditorKeyHandlers(ctx: AppContext) {
 
   ctx.elements.edBody.addEventListener('input', e => {
     const target = e.target as HTMLElement;
+
+    if (target.classList.contains('mermaid-code-field')) {
+      const blockEl = target.closest('.block-wrapper') as HTMLElement;
+      if (blockEl) {
+        const blockId = blockEl.dataset.id!;
+        const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+        if (n) {
+          const match = findBlockById(n.blocks, blockId);
+          if (match) {
+            match.block.content = target.textContent || '';
+            renderMermaidDiagramsInContainer(ctx.elements.edBody, ctx.api.theme);
+            saveAndSyncContent();
+            ctx.markSaving();
+          }
+        }
+      }
+      return;
+    }
+
     if (!target.classList.contains('block-text-field')) return;
 
     const blockEl = target.closest('.block-wrapper') as HTMLElement;
@@ -41,10 +61,10 @@ export function initEditorKeyHandlers(ctx: AppContext) {
 
     const match = findBlockById(n.blocks, blockId);
     if (match) {
+      pushToUndoDebounced(ctx, n);
+
       const text = target.textContent || '';
       match.block.content = text;
-
-      pushToUndoDebounced(ctx, n);
 
       if (tryMarkdownShortcut(ctx, n, match.block, match.index, match.parentList, text)) {
         return;
@@ -58,11 +78,7 @@ export function initEditorKeyHandlers(ctx: AppContext) {
 
         if (isValidTrigger) {
           const query = text.slice(slashIdx + 1);
-          if (activeSlashBlockId === blockId) {
-            showSlashMenu(ctx, blockEl, target, query);
-          } else if (query === '' || slashIdx === text.length - 1) {
-            showSlashMenu(ctx, blockEl, target, query);
-          }
+          showSlashMenu(ctx, blockEl, target, query);
         } else if (activeSlashBlockId === blockId) {
           closeSlashMenu(ctx);
         }
@@ -130,6 +146,7 @@ export function initEditorKeyHandlers(ctx: AppContext) {
       }
       if (e.key === 'Enter') {
         e.preventDefault();
+        pushToUndo(ctx, n);
         executePickerCommand(ctx, curIdx);
         return;
       }
@@ -160,6 +177,7 @@ export function initEditorKeyHandlers(ctx: AppContext) {
         }
         if (e.key === 'Enter') {
           e.preventDefault();
+          pushToUndo(ctx, n);
           executeSlashCommand(ctx, curIdx);
           return;
         }
@@ -187,6 +205,12 @@ export function initEditorKeyHandlers(ctx: AppContext) {
     if (e.key === 'Backspace') {
       pushToUndo(ctx, n);
       handleBlockBackspaceKey(ctx, e, target, n, match, blockId);
+      return;
+    }
+    
+    if (e.key === 'Delete') {
+      pushToUndo(ctx, n);
+      handleBlockDeleteKey(ctx, e, target, n, match, blockId);
       return;
     }
     

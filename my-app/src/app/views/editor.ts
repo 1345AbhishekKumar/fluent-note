@@ -5,59 +5,16 @@ import { saveAndSyncContent, saveAndSync } from '../../store';
 import { styleItems, noteItems, nbItems, tagItems } from '../components/flyout';
 import { initEditorDragDrop } from './editorDragDrop';
 import { initEditorKeyEvents } from './editorEvents';
-import { triggerUndo, triggerRedo } from './editorEvents/editorHistory';
+import { initEditorHoverCard } from './editorEvents/editorHoverCard';
+import { triggerUndo, triggerRedo, commitTypingSession } from './editorEvents/editorHistory';
 import { IC } from '../../constants';
-
+import { renderMermaidDiagramsInContainer } from '../../utils/mermaidRenderer';
 
 export function renderSubItems(ctx: AppContext, n: Note) {
-  const panel = ctx.root.querySelector('.sub-items-panel') as HTMLElement;
-  const list = ctx.root.querySelector('.sub-items-list') as HTMLElement;
-  if (!panel || !list) return;
-
-  const childFolders = ctx.st.folders.filter(f => f.parentId === n.id);
-  const childNotes = ctx.st.notes.filter(x => x.parentId === n.id);
-
-  panel.style.display = 'block';
-
-  if (childFolders.length === 0 && childNotes.length === 0) {
-    list.innerHTML = `<div class="sub-items-empty text-[12.5px] text-text3 italic col-span-full mt-1">No subfolders or subpages. Click the + button to add one.</div>`;
-    return;
-  }
-
-  const foldersHtml = childFolders.map(f => `
-    <button class="sub-item-btn folder-item flex items-center gap-2 px-3 py-2 rounded-md text-[12.5px] font-medium text-text2 bg-nav-h hover:bg-card-h hover:text-text1 transition-colors duration-quick ease-smooth-out" data-id="${f.id}" data-type="folder">
-      <span class="ic" style="color:${f.color || '#cccccc'}">${IC.folder}</span>
-      <span class="sub-item-title">${esc(f.name)}</span>
-    </button>
-  `).join('');
-
-  const notesHtml = childNotes.map(lnk => `
-    <button class="sub-item-btn note-item flex items-center gap-2 px-3 py-2 rounded-md text-[12.5px] font-medium text-text2 bg-nav-h hover:bg-card-h hover:text-text1 transition-colors duration-quick ease-smooth-out" data-id="${lnk.id}" data-type="note">
-      <span class="ic" style="color:#23b8b8">${IC.note}</span>
-      <span class="sub-item-title">${esc(lnk.title) || 'Untitled'}</span>
-    </button>
-  `).join('');
-
-  list.innerHTML = foldersHtml + notesHtml;
-
-  list.querySelectorAll('.sub-item-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = (btn as HTMLElement).dataset.id!;
-      const type = (btn as HTMLElement).dataset.type!;
-      if (type === 'note') {
-        ctx.selectNote(id);
-      } else {
-        ctx.st.folder = id;
-        ctx.st.nb = 'all';
-        ctx.st.quick = 'all';
-        ctx.st.tag = null;
-        ctx.st.expandedFolders.add(id);
-        ctx.renderSidebar();
-        ctx.renderList();
-      }
-    });
-  });
+  // Legacy stub - subpages/subfolders are now rendered as inline blocks in the editor body
 }
+
+
 
 export function renderAcademicAndBacklinks(ctx: AppContext, n: Note) {
   const authIn = ctx.root.querySelector('.ac-authors') as HTMLInputElement;
@@ -121,6 +78,7 @@ function flattenBlocks(blocks: Block[]): Block[] {
 }
 
 export function renderEditor(ctx: AppContext) {
+  commitTypingSession();
   const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
   ctx.elements.edEmpty.style.display = n ? 'none' : 'flex';
   ctx.elements.edTitle.style.display = n ? '' : 'none';
@@ -132,13 +90,13 @@ export function renderEditor(ctx: AppContext) {
   const backPane = ctx.root.querySelector('.backlinks-panel') as HTMLElement;
   if (acadMeta) acadMeta.style.display = (n && ctx.st.lens === 'academic') ? 'grid' : 'none';
   if (backPane) backPane.style.display = (n && ctx.st.lens === 'academic') ? 'block' : 'none';
-
   if (!n) return;
   ctx.elements.edTitle.textContent = n.title;
   if (!n.blocks || n.blocks.length === 0) {
     n.blocks = htmlToBlocks(n.body || '');
   }
   setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes }));
+  renderMermaidDiagramsInContainer(ctx.elements.edBody, ctx.api.theme);
   ctx.renderMeta();
   renderSubItems(ctx, n);
   
@@ -316,6 +274,10 @@ export function initEditorEvents(ctx: AppContext) {
   // Init Key, Input, Tab, Slash, Checkbox events
   initEditorKeyEvents(ctx);
 
+  // Init Hover Card Popover events
+  initEditorHoverCard(ctx);
+
   // Init Drag and Drop events
   initEditorDragDrop(ctx);
 }
+

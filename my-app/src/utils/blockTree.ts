@@ -59,3 +59,27 @@ export function getBlocksText(blocks: Block[]): string {
   }
   return text;
 }
+
+export function isParentEligibleBlock(type: Block['type']): boolean {
+  // Standard headings and dividers cannot natively hold children
+  const ineligibleTypes: Block['type'][] = ['heading1', 'heading2', 'heading3', 'divider'];
+  return !ineligibleTypes.includes(type);
+}
+
+export function isInsideToggleBlock(rootBlocks: Block[], targetId: string): boolean {
+  function findAncestors(blocks: Block[], id: string, path: Block[]): Block[] | null {
+    for (const b of blocks) {
+      if (b.id === id) return path;
+      if (b.children && b.children.length > 0) {
+        const found = findAncestors(b.children, id, [...path, b]);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+  const ancestors = findAncestors(rootBlocks, targetId, []);
+  if (!ancestors) return false;
+  const toggleTypes: Block['type'][] = ['toggle', 'toggle_h1', 'toggle_h2', 'toggle_h3'];
+  return ancestors.some(b => toggleTypes.includes(b.type));
+}
+

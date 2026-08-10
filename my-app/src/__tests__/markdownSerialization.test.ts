@@ -6,7 +6,7 @@ import {
   serializeNoteToMarkdown,
   deserializeMarkdownToNote
 } from '../utils/fsUtils';
-import { htmlToBlocks } from '../utils';
+import { htmlToBlocks, blocksToHtml } from '../utils';
 import type { Note, Block } from '../types';
 
 describe('Markdown Serialization & Deserialization', () => {
@@ -251,5 +251,44 @@ title: "Norm"
     const parsedMdNote = deserializeMarkdownToNote(md, 'id');
     expect(parsedMdNote.blocks[0].type).toBe('bookmark');
     expect(parsedMdNote.blocks[0].url).toBe('https://example.com');
+  });
+
+  it('preserves mermaid, math, callout, quote, heading3, and divider block types across blocksToHtml and htmlToBlocks round-trip', () => {
+    const originalBlocks: Block[] = [
+      { id: 'b_m1', type: 'mermaid', mermaidMode: 'split', content: 'graph TD\n A --> B', children: [] },
+      { id: 'b_m2', type: 'math', content: '\\sum_{i=1}^n i', children: [] },
+      { id: 'b_c1', type: 'callout', icon: '⚡', content: 'Important note', children: [] },
+      { id: 'b_q1', type: 'quote', content: 'Wise words', children: [] },
+      { id: 'b_h3', type: 'heading3', content: 'Sub section', children: [] },
+      { id: 'b_d1', type: 'divider', content: '', children: [] }
+    ];
+
+    const html = blocksToHtml(originalBlocks);
+    expect(html).toContain('class="mermaid-block"');
+    expect(html).toContain('class="math-block"');
+    expect(html).toContain('class="callout-block"');
+    expect(html).toContain('<blockquote>Wise words</blockquote>');
+    expect(html).toContain('<h4>Sub section</h4>');
+    expect(html).toContain('<hr />');
+
+    const parsedBlocks = htmlToBlocks(html);
+    expect(parsedBlocks[0].type).toBe('mermaid');
+    expect(parsedBlocks[0].mermaidMode).toBe('split');
+    expect(parsedBlocks[0].content).toContain('graph TD');
+
+    expect(parsedBlocks[1].type).toBe('math');
+    expect(parsedBlocks[1].content).toContain('\\sum');
+
+    expect(parsedBlocks[2].type).toBe('callout');
+    expect(parsedBlocks[2].icon).toBe('⚡');
+    expect(parsedBlocks[2].content).toBe('Important note');
+
+    expect(parsedBlocks[3].type).toBe('quote');
+    expect(parsedBlocks[3].content).toBe('Wise words');
+
+    expect(parsedBlocks[4].type).toBe('heading3');
+    expect(parsedBlocks[4].content).toBe('Sub section');
+
+    expect(parsedBlocks[5].type).toBe('divider');
   });
 });

@@ -6,6 +6,7 @@ import { rerenderNote, rerenderSelectionStyles } from './pickers/editorPopups';
 import { isToggleType } from './editorBlockKeyActions';
 import { showSlashMenu } from './pickers/editorSlashMenu';
 import { duplicateBlockWithNewIds } from './editorHelpers';
+import { pushToUndo } from './editorHistory';
 
 export function handleFieldShortcuts(
   ctx: AppContext,
@@ -243,6 +244,7 @@ export function handleDocumentBlockSelectionKeydown(ctx: AppContext, e: Keyboard
 
     if (e.key === 'Backspace' || e.key === 'Delete') {
       e.preventDefault();
+      pushToUndo(ctx, n);
       for (const bId of selected) {
         const match = findBlockById(n.blocks, bId);
         if (match) {
@@ -258,6 +260,7 @@ export function handleDocumentBlockSelectionKeydown(ctx: AppContext, e: Keyboard
 
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
       e.preventDefault();
+      pushToUndo(ctx, n);
       const copies: string[] = [];
       const flat = flattenVisibleBlocks(n.blocks);
       selected.sort((a, b) => flat.findIndex(x => x.id === a) - flat.findIndex(x => x.id === b));

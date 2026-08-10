@@ -47,23 +47,55 @@ export function htmlToBlocks(html: string): Block[] {
           content: 'PDF',
           children: []
         });
-      } else if (tag === 'pre') {
-        const codeEl = el.querySelector('code');
-        let lang = 'plaintext';
-        if (codeEl) {
-          const classes = Array.from(codeEl.classList);
-          const langClass = classes.find(c => c.startsWith('language-'));
-          if (langClass) {
-            lang = langClass.replace('language-', '');
-          }
-        }
+      } else if (tag === 'h4') {
+        blocks.push({ id: genId(), type: 'heading3', content: el.textContent || '', children: [] });
+      } else if (tag === 'hr') {
+        blocks.push({ id: genId(), type: 'divider', content: '', children: [] });
+      } else if (tag === 'blockquote') {
+        blocks.push({ id: genId(), type: 'quote', content: el.textContent || '', children: [] });
+      } else if (el.classList.contains('callout-block')) {
         blocks.push({
           id: genId(),
-          type: 'code',
+          type: 'callout',
+          icon: el.getAttribute('data-icon') || '💡',
           content: el.textContent || '',
-          language: lang,
           children: []
         });
+      } else if (tag === 'pre' || el.classList.contains('mermaid-block') || el.classList.contains('math-block')) {
+        const codeEl = el.querySelector('code');
+        const contentText = codeEl ? (codeEl.textContent || '') : (el.textContent || '');
+        if (el.classList.contains('mermaid-block') || (codeEl && codeEl.classList.contains('language-mermaid'))) {
+          blocks.push({
+            id: genId(),
+            type: 'mermaid',
+            mermaidMode: (el.getAttribute('data-mermaid-mode') as any) || 'split',
+            content: contentText,
+            children: []
+          });
+        } else if (el.classList.contains('math-block') || (codeEl && codeEl.classList.contains('language-math'))) {
+          blocks.push({
+            id: genId(),
+            type: 'math',
+            content: contentText,
+            children: []
+          });
+        } else {
+          let lang = 'plaintext';
+          if (codeEl) {
+            const classes = Array.from(codeEl.classList);
+            const langClass = classes.find(c => c.startsWith('language-'));
+            if (langClass) {
+              lang = langClass.replace('language-', '');
+            }
+          }
+          blocks.push({
+            id: genId(),
+            type: 'code',
+            content: contentText,
+            language: lang,
+            children: []
+          });
+        }
       } else if (tag === 'a' && el.classList.contains('bookmark-link')) {
         let url = el.getAttribute('href') || '';
         if (url && !/^(https?:\/\/|file:\/\/|mailto:|tel:)/i.test(url)) {
@@ -96,14 +128,20 @@ export function htmlToBlocks(html: string): Block[] {
         if (content.startsWith('[ ]') || content.startsWith('[x]')) {
           content = content.substring(3).trim();
         }
+        const parentTag = el.parentElement?.tagName.toLowerCase();
+        let itemType: any = 'paragraph';
+        if (isTodo) itemType = 'todo';
+        else if (parentTag === 'ul') itemType = 'bullet';
+        else if (parentTag === 'ol') itemType = 'numbered';
+
         blocks.push({
           id: genId(),
-          type: isTodo ? 'todo' : 'paragraph',
+          type: itemType,
           content: content,
           checked: isTodo ? checked : undefined,
           children: []
         });
-      } else if (tag === 'p' || tag === 'blockquote' || tag === 'div') {
+      } else if (tag === 'p' || tag === 'div') {
         if (el.children.length === 0 || (el.children.length === 1 && el.children[0].tagName.toLowerCase() === 'br')) {
           blocks.push({ id: genId(), type: 'paragraph', content: el.textContent || '', children: [] });
         } else {
@@ -144,9 +182,25 @@ export function blocksToHtml(blocks: Block[]): string {
       html += `<h2>${esc(block.content)}</h2>`;
     } else if (block.type === 'heading2') {
       html += `<h3>${esc(block.content)}</h3>`;
+    } else if (block.type === 'heading3') {
+      html += `<h4>${esc(block.content)}</h4>`;
     } else if (block.type === 'todo') {
       const checkedAttr = block.checked ? 'checked' : '';
       html += `<p><input type="checkbox" ${checkedAttr} disabled> ${esc(block.content)}</p>`;
+    } else if (block.type === 'bullet') {
+      html += `<ul><li>${esc(block.content)}</li></ul>`;
+    } else if (block.type === 'numbered') {
+      html += `<ol><li>${esc(block.content)}</li></ol>`;
+    } else if (block.type === 'quote') {
+      html += `<blockquote>${esc(block.content)}</blockquote>`;
+    } else if (block.type === 'divider') {
+      html += `<hr />`;
+    } else if (block.type === 'callout') {
+      html += `<div class="callout-block" data-icon="${esc(block.icon || '💡')}"><p>${esc(block.content)}</p></div>`;
+    } else if (block.type === 'mermaid') {
+      html += `<pre class="mermaid-block" data-mermaid-mode="${block.mermaidMode || 'split'}"><code class="language-mermaid">${esc(block.content || '')}</code></pre>`;
+    } else if (block.type === 'math' || block.type === 'equation') {
+      html += `<pre class="math-block"><code class="language-math">${esc(block.content || '')}</code></pre>`;
     } else if (block.type === 'image') {
       html += `<p><img src="${block.url || ''}" alt="${esc(block.content || 'image')}" /></p>`;
     } else if (block.type === 'video') {

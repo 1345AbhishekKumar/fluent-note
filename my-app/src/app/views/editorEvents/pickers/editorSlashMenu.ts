@@ -56,6 +56,7 @@ export const allSlashItems: SlashItem[] = [
   { type: 'template',   label: 'Template',   desc: 'Reusable block button',   icon: '🔁',  aliases: ['button','template'] },
   { type: 'breadcrumb', label: 'Breadcrumb', desc: 'Page location trail',     icon: '›',   aliases: ['bread','breadcrumb','trail'] },
   { type: 'math',       label: 'Math',       desc: 'Block TeX equation',      icon: '∫',   aliases: ['math','latex','tex'] },
+  { type: 'mermaid',    label: 'Mermaid Diagram', desc: 'Flowchart & UML diagram', icon: '📊',  aliases: ['mermaid','diagram','flowchart','graph','uml'] },
   { group: 'Colors' },
   { type: 'color_blue', label: 'Blue text', icon: '🎨', aliases: ['color blue','blue','text blue'] },
   { type: 'color_red', label: 'Red text', icon: '🎨', aliases: ['color red','red','text red'] },
@@ -259,6 +260,14 @@ export function executeSlashCommand(ctx: AppContext, realIndex: number) {
     case 'code':
       match.block.type = 'code';
       match.block.language = 'plaintext';
+      break;
+
+    case 'mermaid':
+      match.block.type = 'mermaid';
+      match.block.mermaidMode = 'split';
+      if (!match.block.content || match.block.content.trim() === '') {
+        match.block.content = `graph TD\n  A[Start] --> B{Is it working?}\n  B -->|Yes| C[Awesome!]\n  B -->|No| D[Debug]`;
+      }
       break;
 
     case 'image': case 'video': case 'audio': case 'file': {

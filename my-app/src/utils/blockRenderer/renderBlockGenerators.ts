@@ -295,22 +295,73 @@ export function renderSubpageBlockHtml(
   const childNoteId = block.url || '';
   const childNote = contextInfo?.allNotes.find(n => n.id === childNoteId);
   const title = childNote ? childNote.title : (block.content || 'Untitled');
-  
-  let pathText = 'Subpage';
-  if (contextInfo && childNote) {
-    const parentNote = contextInfo.allNotes.find(n => n.id === childNote.parentId);
-    pathText = parentNote ? `Under ${parentNote.title || 'Untitled'}` : 'Nested note';
-  }
 
-  return `<div class="block-wrapper" data-id="${block.id}" data-type="subpage" ${levelStyle}>
+  return `<div class="block-wrapper block-subpage-wrapper" data-id="${block.id}" data-type="subpage" ${levelStyle}>
     ${dragHandle}
-    <div class="block-subpage-card" data-subpageid="${childNoteId}">
-      <span class="subpage-card-icon">📄</span>
-      <div class="subpage-card-body">
-        <span class="subpage-card-title">${esc(title || 'Untitled')}</span>
-        <span class="subpage-card-path">${esc(pathText)}</span>
-      </div>
-      <span class="subpage-card-arrow">➔</span>
+    <div class="block-subpage-row" data-subpageid="${childNoteId}">
+      <span class="subpage-icon">📄</span>
+      <span class="subpage-title">${esc(title || 'Untitled')}</span>
     </div>
   </div>`;
 }
+
+export function renderSubfolderBlockHtml(
+  block: Block,
+  levelStyle: string,
+  dragHandle: string
+): string {
+  const folderId = block.url || '';
+  const folderName = block.content || 'Subfolder';
+
+  return `<div class="block-wrapper block-subfolder-wrapper" data-id="${block.id}" data-type="subfolder" ${levelStyle}>
+    ${dragHandle}
+    <div class="block-subfolder-row" data-subfolderid="${folderId}">
+      <span class="subfolder-icon">📁</span>
+      <span class="subfolder-title">${esc(folderName)}</span>
+    </div>
+  </div>`;
+}
+
+export function renderMermaidBlockHtml(
+  block: Block,
+  levelStyle: string,
+  dragHandle: string
+): string {
+  const mode = block.mermaidMode || 'split';
+  const rawContent = block.content || `graph TD\n  A[Start] --> B{Is it working?}\n  B -->|Yes| C[Awesome!]\n  B -->|No| D[Debug]`;
+  const escContent = esc(rawContent);
+
+  const isDiagramVisible = mode === 'diagram' || mode === 'split';
+  const isCodeVisible = mode === 'code' || mode === 'split';
+
+  const codeDisplay = isCodeVisible ? '' : 'style="display:none;"';
+  const diagramDisplay = isDiagramVisible ? '' : 'style="display:none;"';
+  const splitClass = mode === 'split' ? 'is-split' : '';
+
+  return `<div class="block-wrapper block-mermaid-wrapper ${splitClass}" data-id="${block.id}" data-type="mermaid" ${levelStyle}>
+    ${dragHandle}
+    <div class="mermaid-block-card">
+      <div class="mermaid-header">
+        <div class="mermaid-title"><span class="mermaid-icon">📊</span> Mermaid Diagram</div>
+        <div class="mermaid-mode-toggle" data-id="${block.id}">
+          <button class="mermaid-mode-btn ${mode === 'diagram' ? 'active' : ''}" data-mode="diagram" data-id="${block.id}">Diagram</button>
+          <button class="mermaid-mode-btn ${mode === 'code' ? 'active' : ''}" data-mode="code" data-id="${block.id}">Code</button>
+          <button class="mermaid-mode-btn ${mode === 'split' ? 'active' : ''}" data-mode="split" data-id="${block.id}">Split</button>
+        </div>
+        <div class="mermaid-actions">
+          <button class="mermaid-copy-btn" data-id="${block.id}" title="Copy Code or SVG">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+      <div class="mermaid-body">
+        <div class="block-text-field block-code-field mermaid-code-field" ${codeDisplay} contenteditable="true" spellcheck="false" data-ph="Enter Mermaid syntax...">${escContent}</div>
+        <div class="mermaid-diagram-container" ${diagramDisplay} data-id="${block.id}">
+          <div class="mermaid-render-output" data-id="${block.id}"></div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+

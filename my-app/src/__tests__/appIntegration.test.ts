@@ -3,6 +3,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { createApp } from '../renderer';
 import type { Note } from '../renderer';
 import { renderSubItems } from '../app/views/editor';
+import { renderBlockTree } from '../utils';
+import type { Block } from '../types';
+
 
 describe('Fluent Notes - Store & Parsers', () => {
   describe('Workflow Lenses & Integration', () => {
@@ -46,61 +49,29 @@ describe('Fluent Notes - Store & Parsers', () => {
     });
   });
 
-  describe('renderSubItems', () => {
-    it('renders subfolders and subpages inside the editor panel', () => {
-      const mockEl = document.createElement('div');
-      mockEl.innerHTML = `
-        <div class="sub-items-panel" style="display:none;">
-          <div class="sub-items-list"></div>
-        </div>
-      `;
+  describe('renderBlockTree subitems', () => {
+    it('renders subfolders and subpages as inline document blocks', () => {
+      const blocks: Block[] = [
+        { id: 'b1', type: 'subpage', url: 'n2', content: 'Subpage B' },
+        { id: 'b2', type: 'subfolder', url: 'f1', content: 'Subfolder A' }
+      ];
 
-      const ctx: any = {
-        root: mockEl,
-        st: {
-          folders: [
-            { id: 'f1', name: 'Subfolder A', parentId: 'n1', color: '#ff0000' }
-          ],
-          notes: [
-            {
-              id: 'n1',
-              title: 'Parent Note',
-              body: '',
-              blocks: [],
-              nb: 'default',
-              tags: [],
-              pinned: false,
-              date: '',
-              ord: 0,
-              parentId: null
-            },
-            {
-              id: 'n2',
-              title: 'Subpage B',
-              body: '',
-              blocks: [],
-              nb: 'default',
-              tags: [],
-              pinned: false,
-              date: '',
-              ord: 0,
-              parentId: 'n1'
-            }
-          ]
-        }
-      };
+      const html = renderBlockTree(blocks, 0, undefined, {
+        note: { id: 'n1', title: 'Parent Note', body: '', blocks: [], nb: 'default', tags: [], pinned: false, date: '', ord: 0 },
+        allNotes: [
+          { id: 'n2', title: 'Subpage B', body: '', blocks: [], nb: 'default', tags: [], pinned: false, date: '', ord: 0, parentId: 'n1' }
+        ]
+      });
 
-      renderSubItems(ctx, ctx.st.notes[0]);
-
-      const panel = mockEl.querySelector('.sub-items-panel') as HTMLElement;
-      expect(panel.style.display).toBe('block');
-
-      const buttons = mockEl.querySelectorAll('.sub-item-btn');
-      expect(buttons).toHaveLength(2);
-      expect(buttons[0].textContent).toContain('Subfolder A');
-      expect(buttons[1].textContent).toContain('Subpage B');
+      expect(html).toContain('block-subpage-row');
+      expect(html).toContain('Subpage B');
+      expect(html).toContain('data-subpageid="n2"');
+      expect(html).toContain('block-subfolder-row');
+      expect(html).toContain('Subfolder A');
+      expect(html).toContain('data-subfolderid="f1"');
     });
   });
+
 
   describe('Nesting actions in AppInstance', () => {
     it('creates sub-notes and sub-folders and updates active filters and expanded folders', () => {

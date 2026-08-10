@@ -4,10 +4,22 @@ import { htmlToBlocks, blocksToHtml } from './blockRenderer/blockConverters';
 import { renderLinksInContent } from './blockRenderer/inlineParsers';
 import { 
   getDragHandleHtml, renderCodeBlockHtml, renderMediaBlockHtml, renderMathBlockHtml, 
-  renderTocBlockHtml, renderBreadcrumbBlockHtml, renderSubpageBlockHtml 
+  renderTocBlockHtml, renderBreadcrumbBlockHtml, renderSubpageBlockHtml, renderSubfolderBlockHtml,
+  renderMermaidBlockHtml
 } from './blockRenderer/renderBlockGenerators';
 
 export { htmlToBlocks, blocksToHtml, renderLinksInContent };
+
+export function getPlaceholderForType(type: BlockType): string {
+  const placeholderMap: Partial<Record<BlockType, string>> = {
+    heading1: 'Heading 1', heading2: 'Heading 2', heading3: 'Heading 3',
+    todo: 'To-do', bullet: 'Bullet item', numbered: 'Numbered item',
+    quote: 'Quote…', toggle: 'Toggle heading…', toggle_h1: 'Toggle Heading 1…',
+    toggle_h2: 'Toggle Heading 2…', toggle_h3: 'Toggle Heading 3…', code: '// code…',
+    mermaid: 'Enter Mermaid syntax…'
+  };
+  return placeholderMap[type] ?? 'Start writing…';
+}
 
 export function renderBlockTree(
   blocks: Block[], 
@@ -21,21 +33,12 @@ export function renderBlockTree(
     const commentHtml = block.comment 
       ? `<div class="block-comment-badge" title="${esc(block.comment)}">💬</div>` 
       : '';
-    let textStyle = '';
-    if (block.textColor) textStyle += `color:${block.textColor};`;
-    const inlineTextStyle = textStyle ? `style="${textStyle}"` : '';
+    const contentHtml = renderLinksInContent(block.content || '', contextInfo?.allNotes);
+    const placeholder = getPlaceholderForType(type);
+    
+    let inlineBgStyle = block.bgColor ? `style="background-color: ${block.bgColor};"` : '';
+    let inlineTextStyle = block.textColor ? `style="color: ${block.textColor};"` : '';
 
-    let bgStyle = '';
-    if (block.bgColor) bgStyle += `background-color:${block.bgColor};`;
-    const inlineBgStyle = bgStyle ? `style="${bgStyle}"` : '';
-
-    const placeholderMap: Partial<Record<BlockType, string>> = {
-      heading1: 'Heading 1', heading2: 'Heading 2', heading3: 'Heading 3',
-      todo: 'To-do', bullet: 'Bullet item', numbered: 'Numbered item',
-      quote: 'Quote…', toggle: 'Toggle heading…', toggle_h1: 'Toggle Heading 1…',
-      toggle_h2: 'Toggle Heading 2…', toggle_h3: 'Toggle Heading 3…', code: '// code…',
-    };
-    const placeholder = placeholderMap[type] ?? 'Start writing…';
     const checkedClass = (type === 'todo' && block.checked) ? 'checked' : '';
 
     const dragHandle = getDragHandleHtml(block.id);
@@ -48,8 +51,40 @@ export function renderBlockTree(
       </div>`;
     }
 
+    if (type === 'column_list') {
+      const colsHtml = (block.children && block.children.length > 0)
+        ? renderBlockTree(block.children, level, rootBlocks || blocks, contextInfo)
+        : '';
+      return `<div class="block-wrapper block-column-list-wrapper" data-id="${block.id}" data-type="column_list" ${levelStyle}>
+        <div class="block-main-row">
+          ${dragHandle}
+          <div class="block-column-list-container" style="display: flex; flex-direction: row; gap: 12px; width: 100%; align-items: stretch;">
+            ${colsHtml}
+          </div>
+        </div>
+      </div>`;
+    }
+
+    if (type === 'column') {
+      const colWidthStyle = block.columnWidth ? `flex: ${block.columnWidth};` : 'flex: 1;';
+      const colContentHtml = (block.children && block.children.length > 0)
+        ? renderBlockTree(block.children, level, rootBlocks || blocks, contextInfo)
+        : `<div class="block-children-container empty-column-dropzone" style="min-height: 24px;"></div>`;
+      return `<div class="block-wrapper block-column-item" data-id="${block.id}" data-type="column" style="${colWidthStyle} min-width: 0;" ${levelStyle}>
+        ${colContentHtml}
+      </div>`;
+    }
+
     if (type === 'subpage') {
       return renderSubpageBlockHtml(block, levelStyle, dragHandle, contextInfo);
+    }
+
+    if (type === 'subfolder') {
+      return renderSubfolderBlockHtml(block, levelStyle, dragHandle);
+    }
+
+    if (type === 'mermaid') {
+      return renderMermaidBlockHtml(block, levelStyle, dragHandle);
     }
 
     if (type === 'code') {

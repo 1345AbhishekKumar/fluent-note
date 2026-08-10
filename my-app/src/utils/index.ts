@@ -2,7 +2,7 @@
 // This file preserves backward compatibility for existing imports from '../utils' or '../../utils'
 
 export { genId, esc, strip } from './stringHelpers';
-export { isCaretAtStart, moveCaret, setEdBodyHtml } from './domHelpers';
-export { findBlockById, getBlockLevel, flattenBlocks, flattenVisibleBlocks, getBlocksText } from './blockTree';
+export { isCaretAtStart, isCaretAtEnd, moveCaret, setEdBodyHtml } from './domHelpers';
+export { findBlockById, getBlockLevel, flattenBlocks, flattenVisibleBlocks, getBlocksText, isParentEligibleBlock, isInsideToggleBlock } from './blockTree';
 export { htmlToBlocks, blocksToHtml, renderLinksInContent, renderBlockTree } from './blockRenderer';
 export { extractLinks, resolveNoteId, getReferencedNoteIds, calculateSubGraphClosure, findNotebookForParent } from './noteGraph';

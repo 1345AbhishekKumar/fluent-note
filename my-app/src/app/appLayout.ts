@@ -107,13 +107,7 @@ export function renderAppLayout(theme: string, IC: any, TAGS: any, winControlsHt
           <label>Year <input type="text" class="ac-year" placeholder="Year" spellcheck="false"></label>
         </div>
         <div class="ed-body" spellcheck="false" data-ph="Start writing…"></div>
-        <div class="sub-items-panel">
-          <div class="sub-items-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <h4 style="margin:0;">Subfolders & Subpages</h4>
-            <button class="ib ic sub-items-add-btn" title="Add subfolder or subpage" style="width:24px; height:24px; border-radius:4px; display:flex; align-items:center; justify-content:center; background:transparent; border:none; color:var(--text3); cursor:pointer;">${IC.plus}</button>
-          </div>
-          <div class="sub-items-list"></div>
-        </div>
+
         <div class="backlinks-panel">
           <h4>Backlinks</h4>
           <div class="backlinks-list"></div>

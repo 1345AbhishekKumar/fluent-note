@@ -2,14 +2,21 @@
 
 All AI agents and developers working on this codebase must adhere to the following rules:
 
+> [!CRITICAL]
+> **CRITICAL RULE: DO NOT TOUCH WORKING FEATURES**
+> If a feature is already functioning properly, **DO NOT alter, refactor, or rewrite its logic, implementation, or design** unless the user explicitly requests changes to that specific feature. Otherwise, **LEAVE THAT FEATURE'S CODE UNTOUCHED!**
+
 ## Code Quality & Type Safety
+- **CRITICAL - Preserve Working Features**: If a feature is functioning properly, **DO NOT** alter its logic, implementation, or design unless explicitly requested by the user. Otherwise, **LEAVE THAT FEATURE'S CODE UNTOUCHED**.
 - **No `any` or `unknown` Types**: Always use explicit, precise TypeScript types and interfaces. Avoid using `any` or `unknown`.
 - **File Length Limit**: Keep individual files concise (do not exceed 300 to 400 lines of code per file). Refactor larger files into smaller, modular sub-components or utilities.
+
 
 
 ### Clean Code Principles
 
 #### Core Design & Philosophy
+- **Preserve Working Features**: Do not modify or refactor code for working features unless specifically instructed by the user.
 - **DRY (Don't Repeat Yourself)**: Avoid duplicate logic by extracting shared code into reusable functions, hooks, or components.
 - **KISS (Keep It Simple, Stupid)**: Write straightforward solutions and avoid overcomplicating code with unneeded cleverness.
 - **YAGNI (You Aren't Gonna Need It)**: Build only what is required right now rather than guessing future feature needs.

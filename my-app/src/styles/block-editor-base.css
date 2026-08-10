@@ -174,8 +174,13 @@
 
 .block-children-container {
   margin-left: 24px;
-  border-left: 1px dashed rgba(127, 127, 127, 0.15);
+  border-left: 1.5px solid transparent;
   padding-left: 4px;
+  transition: border-color var(--duration-quick) var(--ease-smooth-out);
+}
+.block-wrapper:hover > .block-children-container,
+.block-children-container:hover {
+  border-left-color: rgba(127, 127, 127, 0.2);
 }
 .block-children-container > .block-wrapper {
   margin-top: 2px;
@@ -194,7 +199,7 @@
   margin-bottom: 2px;
 }
 
-/* Drag indicator for reordering */
+/* Notion-style Drag indicators */
 .block-wrapper.drag-over-top::before {
   content: '';
   position: absolute;
@@ -203,6 +208,7 @@
   right: 0;
   height: 3px;
   background: var(--accent);
+  border-radius: 2px;
   z-index: 20;
 }
 .block-wrapper.drag-over-bottom::after {
@@ -213,8 +219,65 @@
   right: 0;
   height: 3px;
   background: var(--accent);
+  border-radius: 2px;
+  z-index: 20;
+}
+.block-wrapper.drag-over-indent-child::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 28px;
+  right: 0;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+  z-index: 20;
+}
+.block-wrapper.drag-over-col-left::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  width: 4px;
+  background: var(--accent);
+  border-radius: 2px;
+  z-index: 20;
+}
+.block-wrapper.drag-over-col-right::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -3px;
+  width: 4px;
+  background: var(--accent);
+  border-radius: 2px;
   z-index: 20;
 }
 .block-wrapper.dragging {
-  opacity: 0.4;
+  opacity: 0.35;
+}
+
+/* Multi-column layout styles */
+.block-column-list-wrapper {
+  margin: 6px 0;
+  width: 100%;
+}
+.block-column-list-container {
+  display: flex;
+  flex-direction: row;
+  gap: 14px;
+  width: 100%;
+  align-items: stretch;
+}
+.block-column-item {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+.empty-column-dropzone {
+  min-height: 32px;
+  border: 1px dashed rgba(127, 127, 127, 0.2);
+  border-radius: 4px;
 }

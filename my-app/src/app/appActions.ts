@@ -34,6 +34,14 @@ export function expandAncestors(ctx: AppContext, id: string | null) {
 export function selectNote(ctx: AppContext, id: string | null, focusTitle: boolean = false, skipHistory: boolean = false) {
   const { st, elements, root, renderList, renderSidebar, renderEditor } = ctx;
   st.sel = id;
+  if (st.selectedBlockIds) {
+    st.selectedBlockIds.clear();
+  }
+  if ((st as any)._swapTimer) {
+    clearTimeout((st as any)._swapTimer);
+    (st as any)._swapTimer = null;
+  }
+
   if (id) {
     expandAncestors(ctx, id);
     if (!skipHistory) {
@@ -49,12 +57,20 @@ export function selectNote(ctx: AppContext, id: string | null, focusTitle: boole
   }
   renderList();
   renderSidebar();
-  elements.edInner.classList.add('swap');
-  setTimeout(() => {
+
+  if (REDUCED) {
     renderEditor();
-    elements.edInner.classList.remove('swap');
     if (focusTitle) elements.edTitle.focus();
-  }, REDUCED ? 0 : 120);
+  } else {
+    elements.edInner.classList.add('swap');
+    (st as any)._swapTimer = setTimeout(() => {
+      (st as any)._swapTimer = null;
+      renderEditor();
+      elements.edInner.classList.remove('swap');
+      if (focusTitle) elements.edTitle.focus();
+    }, 80);
+  }
+
   if (root.classList.contains('s') && id) {
     root.classList.add('show-editor');
   }

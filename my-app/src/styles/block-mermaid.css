@@ -1,0 +1,157 @@
+/* Mermaid Diagram Block Styles */
+.block-mermaid-wrapper {
+  margin: 14px 0;
+  width: 100%;
+}
+
+.mermaid-block-card {
+  background: var(--card-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mermaid-block-card:hover {
+  border-color: var(--accent-soft, rgba(0, 120, 212, 0.3));
+}
+
+.mermaid-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: var(--nav-bg, rgba(0, 0, 0, 0.15));
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  user-select: none;
+}
+
+.mermaid-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2, #a0a0a0);
+  letter-spacing: 0.01em;
+}
+
+.mermaid-icon {
+  font-size: 14px;
+}
+
+.mermaid-mode-toggle {
+  display: flex;
+  align-items: center;
+  background: var(--card-bg, rgba(0, 0, 0, 0.2));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.mermaid-mode-btn {
+  border: none;
+  background: transparent;
+  color: var(--text3, #808080);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mermaid-mode-btn:hover {
+  color: var(--text1, #ffffff);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.mermaid-mode-btn.active {
+  background: var(--accent, #0078d4);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.mermaid-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mermaid-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  color: var(--text2, #a0a0a0);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mermaid-copy-btn:hover {
+  background: var(--accent-soft, rgba(0, 120, 212, 0.15));
+  color: var(--accent, #0078d4);
+  border-color: var(--accent, #0078d4);
+}
+
+.mermaid-body {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 12px;
+}
+
+.block-mermaid-wrapper.is-split .mermaid-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+}
+
+.mermaid-code-field {
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text1, #e0e0e0);
+  background: var(--code-bg, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+  padding: 12px;
+  white-space: pre-wrap;
+  outline: none;
+  min-height: 100px;
+}
+
+.mermaid-code-field:focus {
+  border-color: var(--accent, #0078d4);
+}
+
+.mermaid-diagram-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card-bg, rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+  border-radius: 8px;
+  padding: 16px;
+  min-height: 120px;
+  overflow-x: auto;
+}
+
+.mermaid-render-output {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.mermaid-render-output svg {
+  max-width: 100%;
+  height: auto !important;
+}

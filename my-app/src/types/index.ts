@@ -3,8 +3,9 @@ export type BlockType =
   | 'todo' | 'bullet' | 'numbered' | 'toggle' | 'toggle_h1' | 'toggle_h2' | 'toggle_h3'
   | 'quote' | 'divider' | 'code' | 'callout'
   | 'image' | 'video' | 'audio' | 'pdf' | 'bookmark' | 'file'
-  | 'equation' | 'math'
-  | 'toc' | 'breadcrumb' | 'template' | 'subpage';
+  | 'equation' | 'math' | 'mermaid'
+  | 'toc' | 'breadcrumb' | 'template' | 'subpage'
+  | 'column_list' | 'column';
 
 export interface Block {
   id: string;
@@ -19,10 +20,12 @@ export interface Block {
   language?: string;   // for code blocks
   codeWrap?: boolean;
   codeFullWidth?: boolean;
+  mermaidMode?: 'diagram' | 'code' | 'split';
   collapsed?: boolean; // for toggle blocks
   textColor?: string;
   bgColor?: string;
   comment?: string;
+  columnWidth?: number; // for multi-column layouts
   // Bookmark details
   bookmarkTitle?: string;
   bookmarkDesc?: string;

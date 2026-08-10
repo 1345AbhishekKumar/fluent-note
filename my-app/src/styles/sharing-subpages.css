@@ -209,7 +209,7 @@
   stroke-linejoin: round;
 }
 
-/* Subpage Block Notion-Style Card */
+/* Subpage Block Notion-Style Inline Row & Card */
 .block-subpage-card {
   display: flex;
   align-items: center;
@@ -263,3 +263,118 @@
   transform: translateX(3px);
   color: var(--accent);
 }
+
+/* Notion-Style Inline Subpage & Subfolder Row Blocks */
+.block-subpage-row,
+.block-subfolder-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  margin: 1px 0;
+  border-radius: 4px;
+  cursor: pointer;
+  width: fit-content;
+  max-width: 100%;
+  transition: background var(--duration-quick) var(--ease-smooth-out);
+}
+
+.block-subpage-row:hover,
+.block-subfolder-row:hover {
+  background: var(--nav-h);
+}
+
+.subpage-icon,
+.subfolder-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.subpage-title,
+.subfolder-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text1);
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.2);
+  text-underline-offset: 3px;
+  transition: text-decoration-color var(--duration-quick);
+}
+
+.block-subpage-row:hover .subpage-title,
+.block-subfolder-row:hover .subfolder-title {
+  text-decoration-color: var(--text1);
+}
+
+/* Notion-Style Hover Popover Card */
+.subpage-hover-popover {
+  position: fixed;
+  z-index: 9999;
+  width: 280px;
+  max-width: calc(100vw - 20px);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  padding: 12px 14px;
+  cursor: pointer;
+  animation: popoverFadeIn 0.15s ease-out;
+}
+
+@keyframes popoverFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hover-popover-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.hover-popover-icon {
+  font-size: 18px;
+  line-height: 1;
+  margin-top: 1px;
+}
+
+.hover-popover-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.hover-popover-breadcrumb {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hover-popover-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hover-popover-body {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text2);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  margin-top: 4px;
+}
+
