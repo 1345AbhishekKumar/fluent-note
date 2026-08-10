@@ -1,26 +1,25 @@
 /* ─── Vault Manager — Full-screen Obsidian-style ─────────────────── */
 
-@keyframes vault-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-@keyframes vault-slide-in {
-  from { transform: translateY(12px) scale(0.98); opacity: 0; }
-  to   { transform: none; opacity: 1; }
-}
-
 .vault-overlay {
   position: fixed;
   inset: 0;
   z-index: 200;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
-  animation: vault-fade-in 0.18s var(--ease-smooth-out);
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  /* overlay sits inside the win so inherits theme */
+  opacity: 0;
+  transition: 
+    display 0.2s var(--ease-smooth-out) allow-discrete, 
+    opacity 0.2s var(--ease-smooth-out),
+    backdrop-filter 0.2s var(--ease-smooth-out);
+}
+
+.vault-overlay[style*="display: flex"] {
+  display: flex !important;
+  opacity: 1;
 }
 
 /* The centered two-column manager */
@@ -35,7 +34,27 @@
   background: var(--mica-solid);
   border: 1px solid var(--pane-brd);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-  animation: vault-slide-in 0.3s var(--ease-smooth-out);
+  
+  transform: translateY(12px) scale(0.98);
+  opacity: 0;
+  transition: 
+    transform 0.2s var(--ease-smooth-out), 
+    opacity 0.2s var(--ease-smooth-out);
+}
+
+.vault-overlay[style*="display: flex"] .vault-manager {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+@starting-style {
+  .vault-overlay[style*="display: flex"] {
+    opacity: 0;
+  }
+  .vault-overlay[style*="display: flex"] .vault-manager {
+    transform: translateY(12px) scale(0.98);
+    opacity: 0;
+  }
 }
 
 /* ── LEFT: vault list ── */

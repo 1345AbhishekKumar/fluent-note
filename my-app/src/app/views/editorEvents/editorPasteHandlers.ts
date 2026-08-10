@@ -10,6 +10,10 @@ export function isNonTextFieldBlock(t: string) {
   return ['divider', 'image', 'video', 'audio', 'pdf', 'bookmark', 'file', 'toc', 'breadcrumb', 'math', 'equation'].includes(t);
 }
 
+export function isContainerBlock(t: string) {
+  return ['callout', 'quote', 'toggle', 'toggle_h1', 'toggle_h2', 'toggle_h3'].includes(t);
+}
+
 export function handleEditorPaste(ctx: AppContext, e: ClipboardEvent) {
   const clipboardData = e.clipboardData;
   if (!clipboardData) return;
@@ -152,9 +156,40 @@ export function handleEditorPaste(ctx: AppContext, e: ClipboardEvent) {
   const textBefore = fullText.slice(0, caretOffset);
   const textAfter = fullText.slice(caretOffset);
 
+  const isContainer = isContainerBlock(currentBlock.type);
   let focusId = '';
 
-  if (!fullText.trim()) {
+  if (pastedBlocks.length === 1 && (pastedBlocks[0].type === 'paragraph' || isContainer)) {
+    // Paste inline for a single paragraph or when inside a container block
+    const textToInsert = pastedBlocks[0].content;
+    document.execCommand('insertText', false, textToInsert);
+    currentBlock.content = target.innerHTML;
+    saveAndSyncContent();
+    ctx.markSaving();
+    return;
+  }
+
+  if (isContainer) {
+    // Pasting multiple blocks inside a container block (Callout, Quote, Toggle)
+    currentBlock.content = textBefore + pastedBlocks[0].content;
+    if (!currentBlock.children) currentBlock.children = [];
+    
+    const restBlocks = pastedBlocks.slice(1);
+    
+    if (textAfter.length > 0) {
+      const postBlock: Block = {
+        id: genId(),
+        type: 'paragraph',
+        content: textAfter,
+        children: []
+      };
+      currentBlock.children.unshift(...restBlocks, postBlock);
+      focusId = postBlock.id;
+    } else {
+      currentBlock.children.unshift(...restBlocks);
+      focusId = restBlocks[restBlocks.length - 1].id;
+    }
+  } else if (!fullText.trim()) {
     // If the active block is empty, replace it with the first block
     const firstBlock = pastedBlocks[0];
     currentBlock.type = firstBlock.type;

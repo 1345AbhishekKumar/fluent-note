@@ -37,6 +37,43 @@ export function moveCaret(el: HTMLElement, toStart: boolean = false) {
   }
 }
 
+export function setCaretAtOffset(el: HTMLElement, offset: number) {
+  el.focus();
+  const sel = window.getSelection();
+  if (!sel) return;
+
+  const range = document.createRange();
+  let currentOffset = 0;
+  let found = false;
+
+  function traverse(node: Node) {
+    if (found) return;
+    if (node.nodeType === Node.TEXT_NODE) {
+      const textLen = node.textContent?.length || 0;
+      if (currentOffset + textLen >= offset) {
+        range.setStart(node, Math.max(0, offset - currentOffset));
+        range.collapse(true);
+        found = true;
+        return;
+      }
+      currentOffset += textLen;
+    } else {
+      for (let i = 0; i < node.childNodes.length; i++) {
+        traverse(node.childNodes[i]);
+        if (found) return;
+      }
+    }
+  }
+
+  traverse(el);
+  if (!found) {
+    range.selectNodeContents(el);
+    range.collapse(false);
+  }
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
 export function setEdBodyHtml(edBody: HTMLElement, newHtml: string) {
   if (!edBody) return;
 

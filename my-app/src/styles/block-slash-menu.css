@@ -35,7 +35,6 @@
   cursor: pointer;
   width: 100%;
   border-radius: 0;
-  transition: background var(--duration-quick) var(--ease-smooth-out);
 }
 .slash-item:hover, .slash-item.selected {
   background: var(--accent-soft);
@@ -84,8 +83,6 @@
 
 /* ── Quote ───────────────────────────────────────────────────────────────── */
 [data-type="quote"] .block-quote {
-  border-left: 3px solid var(--accent);
-  padding-left: 12px;
   width: 100%;
 }
 [data-type="quote"] .block-text-field { color: var(--text2); font-style: italic; }

@@ -33,7 +33,7 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  animation: scale-up 0.15s var(--ease-smooth-out);
+  animation: scale-up var(--duration-fast) var(--ease-smooth-out);
 }
 .bookmark-popup-input {
   width: 100%;
@@ -191,17 +191,39 @@
 }
 
 /* ── Callout Block ── */
+.block-wrapper[data-type="callout"] {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  box-sizing: border-box;
+}
+.block-wrapper[data-type="callout"] > .block-children-container {
+  margin-top: 8px;
+  margin-left: 24px !important;
+  padding-left: 0 !important;
+  border-left: none !important;
+}
+
+/* ── Quote Block Wrapper ── */
+.block-wrapper[data-type="quote"] {
+  border-left: 3px solid var(--accent);
+  padding-left: 14px;
+  margin-left: 4px;
+  box-sizing: border-box;
+}
+.block-wrapper[data-type="quote"] > .block-children-container {
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  border-left: none !important;
+}
 .block-callout-box {
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  padding: 8px 10px;
-  padding-left: 6px;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
   width: 100%;
   box-sizing: border-box;
+  padding-left: 2px;
 }
 .block-callout-box .callout-icon-btn {
   background: none !important;
@@ -269,7 +291,7 @@
   left: 3px;
   width: 2px;
   background: rgba(127, 127, 127, 0.4);
-  transition: background 0.15s ease, width 0.15s ease;
+  transition: background var(--duration-quick) var(--ease-smooth-out), width var(--duration-quick) var(--ease-smooth-out);
 }
 .media-resize-handle:hover::after,
 .media-resize-handle.dragging::after {

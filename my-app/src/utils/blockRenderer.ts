@@ -155,13 +155,13 @@ export function renderBlockTree(
 
     if (type === 'callout') {
       const calloutIcon = block.icon || '💡';
-      return `<div class="block-wrapper" data-id="${block.id}" data-type="callout" ${levelStyle}>
+      return `<div class="block-wrapper" data-id="${block.id}" data-type="callout" ${levelStyle} ${inlineBgStyle}>
         <div class="block-main-row">
           ${dragHandle}
-          <div class="block-content-container" ${inlineBgStyle}>
+          <div class="block-content-container" ${inlineTextStyle}>
             <div class="block-callout-box">
               <button class="callout-icon-btn" data-id="${block.id}" contenteditable="false">${calloutIcon}</button>
-              <div class="block-text-field" ${inlineTextStyle} contenteditable="true" spellcheck="true" data-ph="Callout text...">${renderLinksInContent(block.content)}</div>
+              <div class="block-text-field" contenteditable="true" spellcheck="true" data-ph="Callout text...">${renderLinksInContent(block.content)}</div>
               ${commentHtml}
             </div>
           </div>

@@ -135,7 +135,7 @@ export function showSlashMenu(ctx: AppContext, blockEl: HTMLElement, textField: 
     }
     const i = realIndex++;
     const dangerCls = item.danger ? ' danger text-[#e05555] hover:bg-[rgba(220,50,50,0.1)] hover:text-[#e03333] [&.selected]:bg-[rgba(220,50,50,0.1)] [&.selected]:text-[#e03333]' : '';
-    return `<button class="slash-item flex items-center gap-[10px] px-3 py-1.5 text-[13px] text-text1 bg-transparent border-none text-left cursor-pointer w-full rounded-none hover:bg-accent-soft hover:text-accent [&.selected]:bg-accent-soft [&.selected]:text-accent transition-colors duration-quick ease-smooth-out ${dangerCls} ${i === selectedSlashItemIndex ? 'selected' : ''}" data-index="${i}">
+    return `<button class="slash-item flex items-center gap-[10px] px-3 py-1.5 text-[13px] text-text1 bg-transparent border-none text-left cursor-pointer w-full rounded-none hover:bg-accent-soft hover:text-accent [&.selected]:bg-accent-soft [&.selected]:text-accent ${dangerCls} ${i === selectedSlashItemIndex ? 'selected' : ''}" data-index="${i}">
       <span class="slash-item-icon text-[14px] opacity-85 min-w-[18px] text-center font-mono">${item.icon}</span>
       <div class="slash-item-info flex flex-col gap-[1px]">
         <span class="slash-item-label text-[13px] font-medium leading-[1.3]">${item.label}</span>

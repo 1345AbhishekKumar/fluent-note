@@ -77,9 +77,7 @@ function flattenBlocks(blocks: Block[]): Block[] {
   return flat;
 }
 
-export function renderEditor(ctx: AppContext) {
-  commitTypingSession();
-  const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+export function toggleEditorEmptyState(ctx: AppContext, n: Note | undefined) {
   ctx.elements.edEmpty.style.display = n ? 'none' : 'flex';
   ctx.elements.edTitle.style.display = n ? '' : 'none';
   const edMetaEl = ctx.root.querySelector('.ed-meta') as HTMLElement;
@@ -88,23 +86,33 @@ export function renderEditor(ctx: AppContext) {
   
   const acadMeta = ctx.root.querySelector('.academic-metadata') as HTMLElement;
   const backPane = ctx.root.querySelector('.backlinks-panel') as HTMLElement;
-  if (acadMeta) acadMeta.style.display = (n && ctx.st.lens === 'academic') ? 'grid' : 'none';
-  if (backPane) backPane.style.display = (n && ctx.st.lens === 'academic') ? 'block' : 'none';
+  if (acadMeta) acadMeta.style.display = (n && ctx.state.lens === 'academic') ? 'grid' : 'none';
+  if (backPane) backPane.style.display = (n && ctx.state.lens === 'academic') ? 'block' : 'none';
+}
+
+export function updateWordCount(ctx: AppContext, blocks: Block[]) {
+  const words = getBlocksWordCount(blocks);
+  ctx.elements.wcEl.textContent = words + ' words';
+}
+
+export function renderEditor(ctx: AppContext) {
+  commitTypingSession();
+  const n = ctx.state.notes.find(x => x.id === ctx.state.sel);
+  toggleEditorEmptyState(ctx, n);
   if (!n) return;
+  
   ctx.elements.edTitle.textContent = n.title;
   if (!n.blocks || n.blocks.length === 0) {
     n.blocks = htmlToBlocks(n.body || '');
   }
-  setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes }));
+  setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.state.notes }));
   renderMermaidDiagramsInContainer(ctx.elements.edBody, ctx.api.theme);
   ctx.renderMeta();
   renderSubItems(ctx, n);
   
-  // Update status
-  const words = getBlocksWordCount(n.blocks);
-  ctx.elements.wcEl.textContent = words + ' words';
+  updateWordCount(ctx, n.blocks);
 
-  if (ctx.st.lens === 'academic') {
+  if (ctx.state.lens === 'academic') {
     renderAcademicAndBacklinks(ctx, n);
   }
 }

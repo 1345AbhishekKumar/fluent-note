@@ -2,16 +2,6 @@
    SETTINGS OVERLAY & SIDEBAR FLUENT UI DESIGN SYSTEM
    ========================================================================== */
 
-@keyframes settings-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-@keyframes settings-slide-in {
-  from { transform: translateY(14px) scale(0.97); opacity: 0; }
-  to   { transform: translateY(0) scale(1); opacity: 1; }
-}
-
 .settings-overlay {
   position: fixed;
   inset: 0;
@@ -22,7 +12,16 @@
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  animation: settings-fade-in 0.18s var(--ease-smooth-out);
+  opacity: 0;
+  transition: 
+    display 0.2s var(--ease-smooth-out) allow-discrete, 
+    opacity 0.2s var(--ease-smooth-out),
+    backdrop-filter 0.2s var(--ease-smooth-out);
+}
+
+.settings-overlay[style*="display: flex"] {
+  display: flex !important;
+  opacity: 1;
 }
 
 .settings-container {
@@ -38,7 +37,27 @@
   border: 1px solid var(--pane-brd);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
   position: relative;
-  animation: settings-slide-in 0.25s var(--ease-smooth-out);
+  
+  transform: translateY(14px) scale(0.97);
+  opacity: 0;
+  transition: 
+    transform 0.2s var(--ease-smooth-out), 
+    opacity 0.2s var(--ease-smooth-out);
+}
+
+.settings-overlay[style*="display: flex"] .settings-container {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+@starting-style {
+  .settings-overlay[style*="display: flex"] {
+    opacity: 0;
+  }
+  .settings-overlay[style*="display: flex"] .settings-container {
+    transform: translateY(14px) scale(0.97);
+    opacity: 0;
+  }
 }
 
 /* Sidebar */

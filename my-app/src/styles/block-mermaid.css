@@ -10,7 +10,7 @@
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color var(--duration-quick) var(--ease-smooth-out), box-shadow var(--duration-quick) var(--ease-smooth-out);
 }
 
 .mermaid-block-card:hover {
@@ -60,7 +60,7 @@
   padding: 3px 9px;
   border-radius: 4px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background var(--duration-quick) var(--ease-smooth-out), color var(--duration-quick) var(--ease-smooth-out);
 }
 
 .mermaid-mode-btn:hover {
@@ -93,7 +93,7 @@
   padding: 3px 8px;
   border-radius: 5px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background var(--duration-quick) var(--ease-smooth-out), color var(--duration-quick) var(--ease-smooth-out), border-color var(--duration-quick) var(--ease-smooth-out);
 }
 
 .mermaid-copy-btn:hover {

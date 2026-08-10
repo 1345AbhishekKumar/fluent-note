@@ -119,7 +119,7 @@
       "source": "pbakaus/impeccable",
       "sourceType": "github",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "computedHash": "b120d9315cdca22c5a2de2c57e35dc70362aa2b0050fc97b3e0378a525f5d017"
+      "computedHash": "3b4fbd03377d2f08dbd80e4d414d300a2b04c50719142ad6c34fab63dcc7350b"
     },
     "implement": {
       "source": "./.agents",
@@ -277,6 +277,18 @@
       "source": "./.agents",
       "sourceType": "local",
       "computedHash": "8695824ffe756567f6cf3b758853a094a9c974bf96226cde88b0b6c08099dabc"
+    },
+    "vercel-composition-patterns": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/composition-patterns/SKILL.md",
+      "computedHash": "575757e3e25761c8c562d6e395d29f0b76c98b1273c0bd72d88e6ab1bc9c7d42"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/react-best-practices/SKILL.md",
+      "computedHash": "ca7b0c0c6e5f2750043f7f0cd72d16ac4e2abc48f9b5500d047a4b77a2506212"
     },
     "wayfinder": {
       "source": "./.agents",

@@ -1,13 +1,16 @@
 // Block tree traversal & search utilities extracted from utils/index.ts
 import type { Block } from '../types';
 
-export function findBlockById(blocks: Block[], id: string, parentList: Block[] = []): { block: Block, parentList: Block[], index: number } | null {
+export function findBlockById(blocks: Block[] = [], id: string, parentList: Block[] = []): { block: Block, parentList: Block[], index: number } | null {
+  if (!blocks) return null;
   for (let i = 0; i < blocks.length; i++) {
     if (blocks[i].id === id) {
       return { block: blocks[i], parentList: blocks, index: i };
     }
-    const childMatch = findBlockById(blocks[i].children, id, blocks[i].children);
-    if (childMatch) return childMatch;
+    if (blocks[i].children && blocks[i].children.length > 0) {
+      const childMatch = findBlockById(blocks[i].children, id, blocks[i].children);
+      if (childMatch) return childMatch;
+    }
   }
   return null;
 }

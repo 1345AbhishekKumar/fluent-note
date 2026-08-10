@@ -199,6 +199,38 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
   };
 
   const ctx: AppContext = {
+    // New composition properties
+    state: st,
+    meta: {
+      root,
+      api,
+      elements
+    },
+    actions: {
+      toast,
+      markSaving,
+      selectNote: (id, focusTitle, skipHistory) => selectNote(ctx, id, focusTitle, skipHistory),
+      renderSidebar: () => renderSidebar(ctx),
+      renderList: () => renderList(ctx),
+      renderEditor: () => renderEditor(ctx),
+      renderMeta: () => renderMeta(),
+      renderReviewInbox: () => renderReviewInbox(ctx),
+      switchLens,
+      startP2PShare: (target) => startP2PShare(ctx, target),
+      newNote: () => newNote(ctx),
+      newSubNote: (parentId) => newSubNote(ctx, parentId),
+      newSubFolder: (parentId) => newSubFolder(ctx, parentId),
+      deleteNote: (n) => deleteNote(ctx, n),
+      closeOverlayIf,
+      syncToolbar,
+      showPrompt: (title, placeholder, defaultValue, cb) => showPrompt(ctx, title, placeholder, defaultValue, cb),
+      showFlyout,
+      hideFlyout,
+      openFly: (anchor, items) => ctx.openFly(anchor, items),
+      openFlyAt: (cx, cy, items) => ctx.openFlyAt(cx, cy, items)
+    },
+
+    // Legacy keys
     root,
     api,
     st,

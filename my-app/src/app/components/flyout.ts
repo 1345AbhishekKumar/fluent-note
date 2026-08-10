@@ -37,7 +37,7 @@ export function initFlyout(ctx: AppContext) {
       const chkHtml = it.checked ? `<span class="ic fly-chk text-accent">${IC.check}</span>` : '';
       const dangerClass = it.danger ? 'danger text-danger [&_.ic_svg]:text-danger' : '';
       
-      return `<button class="fly-item fm-item rv relative flex items-center gap-[10px] w-full px-2.5 py-[7px] rounded-[5px] text-[12.5px] text-text1 text-left hover:bg-nav-h active:scale-[0.98] transition-all duration-quick ease-smooth-out [&_.ic_svg]:w-[15px] [&_.ic_svg]:h-[15px] [&_.ic_svg]:text-text2 ${dangerClass}" data-i="${i}">
+      return `<button class="fly-item fm-item rv relative flex items-center gap-[10px] w-full px-2.5 py-[7px] rounded-[5px] text-[12.5px] text-text1 text-left hover:bg-nav-h active:scale-[0.98] transition-[background-color,transform] duration-quick ease-smooth-out [&_.ic_svg]:w-[15px] [&_.ic_svg]:h-[15px] [&_.ic_svg]:text-text2 ${dangerClass}" data-i="${i}">
         ${dotHtml || iconHtml}
         <span class="fly-lbl flex-1 whitespace-nowrap overflow-hidden text-ellipsis">${it.label || ''}</span>
         ${kbdHtml || chkHtml}

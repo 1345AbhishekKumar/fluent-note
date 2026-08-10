@@ -228,7 +228,7 @@
   height: 32px;
   border-radius: 2px;
   background: transparent;
-  transition: background 0.15s ease, height 0.15s ease;
+  transition: background var(--duration-quick) var(--ease-smooth-out), height var(--duration-quick) var(--ease-smooth-out);
 }
 .resize-handle:hover::after,
 .resize-handle.dragging::after {

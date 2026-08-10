@@ -8,8 +8,8 @@
   padding: 4px;
   border-radius: 8px;
   background: var(--acr);
-  backdrop-filter: blur(30px) saturate(1.5);
-  -webkit-backdrop-filter: blur(30px) saturate(1.5);
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
   border: 1px solid var(--acr-brd);
   box-shadow: 0 18px 46px rgba(0, 0, 0, .32), 0 2px 8px rgba(0, 0, 0, .18);
   transform-origin: var(--fo, top left);
@@ -59,12 +59,7 @@
   background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .flyout,
-  .t-dropdown {
-    transition: none !important;
-  }
-}
+
 .fly-head {
   font-size: 11px;
   font-weight: 600;

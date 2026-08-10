@@ -308,4 +308,92 @@ describe('handleEditorPaste block splitting', () => {
 
     document.body.removeChild(edBody);
   });
+
+  it('correctly handles pasting multiple blocks inside a container block (e.g. callout)', () => {
+    const note: Note = {
+      id: 'n1',
+      title: 'Test Note',
+      blocks: [
+        {
+          id: 'b1',
+          type: 'callout',
+          content: 'Hello container',
+          children: []
+        }
+      ],
+      updatedAt: Date.now()
+    };
+
+    const edBody = document.createElement('div');
+    edBody.className = 'ed-body';
+    edBody.innerHTML = `
+      <div class="block-wrapper" data-id="b1" data-type="callout">
+        <div class="block-main-row">
+          <div class="block-text-field" contenteditable="true">Hello container</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(edBody);
+
+    const mockCtx = {
+      elements: {
+        edBody: edBody
+      },
+      st: {
+        notes: [note],
+        sel: 'n1'
+      },
+      api: {
+        theme: 'light'
+      },
+      markSaving: vi.fn(),
+      renderEditor: vi.fn()
+    } as unknown as AppContext;
+
+    const b1Field = edBody.querySelector('.block-text-field') as HTMLElement;
+    
+    // Set caret in the middle of 'Hello container' (index 5)
+    const range = document.createRange();
+    const sel = window.getSelection();
+    if (!b1Field.firstChild) {
+      b1Field.appendChild(document.createTextNode('Hello container'));
+    }
+    range.setStart(b1Field.firstChild!, 5);
+    range.collapse(true);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+
+    const mockDataTransfer = {
+      getData: (format: string) => {
+        if (format === 'text/html') return '';
+        return 'Pasted block 1\n- Pasted block 2';
+      }
+    } as unknown as DataTransfer;
+
+    const mockEvent = {
+      preventDefault: vi.fn(),
+      clipboardData: mockDataTransfer,
+      target: b1Field
+    } as unknown as ClipboardEvent;
+
+    handleEditorPaste(mockCtx, mockEvent);
+
+    expect(mockEvent.preventDefault).toHaveBeenCalled();
+    // After paste inside container:
+    // b1.content should be 'Hello' + 'Pasted block 1' = 'HelloPasted block 1'
+    // b1.children should contain:
+    //   1. type: 'bullet', content: 'Pasted block 2'
+    //   2. type: 'paragraph', content: ' container'
+    expect(note.blocks).toHaveLength(1);
+    const containerBlock = note.blocks[0];
+    expect(containerBlock.type).toBe('callout');
+    expect(containerBlock.content).toBe('HelloPasted block 1');
+    expect(containerBlock.children).toHaveLength(2);
+    expect(containerBlock.children[0].type).toBe('bullet');
+    expect(containerBlock.children[0].content).toBe('Pasted block 2');
+    expect(containerBlock.children[1].type).toBe('paragraph');
+    expect(containerBlock.children[1].content).toBe(' container');
+
+    document.body.removeChild(edBody);
+  });
 });

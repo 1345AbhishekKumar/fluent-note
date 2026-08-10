@@ -7,7 +7,7 @@ import { renderMermaidDiagramsInContainer } from '../../../../utils/mermaidRende
 
 export function rerenderNote(ctx: AppContext, n: Note) {
   setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes }));
-  renderMermaidDiagramsInContainer(ctx.elements.edBody, ctx.api.theme);
+  renderMermaidDiagramsInContainer(ctx.elements.edBody, ctx.api?.theme);
   saveAndSyncContent();
   ctx.markSaving();
 }

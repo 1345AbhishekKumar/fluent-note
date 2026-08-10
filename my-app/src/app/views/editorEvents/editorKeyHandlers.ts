@@ -14,6 +14,7 @@ import {
   handleBlockEnterKey, handleBlockBackspaceKey, handleBlockDeleteKey, handleBlockArrowUp, handleBlockArrowDown, handleBlockTabKey 
 } from './editorBlockKeyActions';
 import { handleFieldShortcuts, handleDocumentBlockSelectionKeydown } from './editorSelectionHotkeys';
+import { handleMultiBlockTextDeletion } from './editorMultiBlockSelection';
 
 import { pushToUndo, pushToUndoDebounced, triggerUndo, triggerRedo } from './editorHistory';
 import { renderMermaidDiagramsInContainer } from '../../../utils/mermaidRenderer';
@@ -203,12 +204,18 @@ export function initEditorKeyHandlers(ctx: AppContext) {
     }
     
     if (e.key === 'Backspace') {
+      if (handleMultiBlockTextDeletion(ctx, e, n)) {
+        return;
+      }
       pushToUndo(ctx, n);
       handleBlockBackspaceKey(ctx, e, target, n, match, blockId);
       return;
     }
     
     if (e.key === 'Delete') {
+      if (handleMultiBlockTextDeletion(ctx, e, n)) {
+        return;
+      }
       pushToUndo(ctx, n);
       handleBlockDeleteKey(ctx, e, target, n, match, blockId);
       return;

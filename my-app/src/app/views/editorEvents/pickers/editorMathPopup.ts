@@ -55,7 +55,7 @@ export function openMathPopupEditor(ctx: AppContext, block: Block, n: Note, anch
     gap: 4px;
     height: 32px;
     white-space: nowrap;
-    transition: background 0.15s;
+    transition: background var(--duration-quick) var(--ease-smooth-out);
   `;
   doneBtn.addEventListener('mouseenter', () => doneBtn.style.background = '#106ebe');
   doneBtn.addEventListener('mouseleave', () => doneBtn.style.background = '#0078d4');

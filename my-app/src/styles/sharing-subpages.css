@@ -319,7 +319,7 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   padding: 12px 14px;
   cursor: pointer;
-  animation: popoverFadeIn 0.15s ease-out;
+  animation: popoverFadeIn var(--duration-quick) var(--ease-out);
 }
 
 @keyframes popoverFadeIn {

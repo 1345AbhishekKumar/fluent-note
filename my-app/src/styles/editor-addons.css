@@ -65,7 +65,6 @@
   cursor: pointer;
   color: var(--text1);
   font-size: 13px;
-  transition: background-color var(--duration-quick) var(--ease-smooth-out);
 }
 
 .autocomplete-picker .slash-item:hover,
@@ -194,7 +193,7 @@
 /* Ensure inline date and mention badges look premium */
 .date-badge,
 .wiki-link {
-  transition: filter 0.2s ease, transform 0.1s ease;
+  transition: filter var(--duration-quick) var(--ease-smooth-out), transform var(--duration-micro) var(--ease-smooth-out);
 }
 
 .date-badge:hover {

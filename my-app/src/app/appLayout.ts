@@ -1,4 +1,4 @@
-export function renderAppLayout(theme: string, IC: any, TAGS: any, winControlsHtml: string): string {
+export function renderTitlebar(theme: string, IC: any, winControlsHtml: string): string {
   return `
   <div class="titlebar">
     <button class="tbtn ic burger" title="Toggle navigation" aria-label="Toggle navigation">${IC.menu}</button>
@@ -20,107 +20,121 @@ export function renderAppLayout(theme: string, IC: any, TAGS: any, winControlsHt
     <button class="tbtn ic split-btn" title="Side-by-side themes">${IC.split}</button>
     <button class="tbtn ic theme-btn" title="Toggle theme">${IC.moon}</button>
     ${winControlsHtml}
-  </div>
-  <div class="app-body">
-    <aside class="pane sidebar">
-      <div class="sb-scroll">
-        <button class="sb-new"><span class="ic">${IC.plus}</span><span class="sb-txt">New note</span></button>
-        <div class="sb-label sb-txt">Quick access</div>
-        <nav class="sb-nav">
-          <button class="nav-item rv" data-q="all"><span class="ni-bar"></span><span class="ic">${IC.home}</span><span class="sb-txt">All notes</span></button>
-          <button class="nav-item rv" data-q="pinned"><span class="ni-bar"></span><span class="ic">${IC.pin}</span><span class="sb-txt">Pinned</span></button>
-        </nav>
-        <div class="sb-label sb-txt">Views</div>
-        <nav class="sb-nav views-nav">
-          <button class="nav-item rv" data-view="list"><span class="ni-bar"></span><span class="ic">${IC.ul}</span><span class="sb-txt">List</span></button>
-          <button class="nav-item rv" data-view="grid"><span class="ni-bar"></span><span class="ic">${IC.grid}</span><span class="sb-txt">Grid</span></button>
-          <button class="nav-item rv" data-view="graph"><span class="ni-bar"></span><span class="ic">${IC.graph}</span><span class="sb-txt">Graph</span></button>
-        </nav>
-        <div class="sb-label sb-txt nb-header">
-          <span>Notebooks</span>
-          <button class="btn-new-nb" title="New notebook">
-            ${IC.plus}
-          </button>
-        </div>
-        <nav class="sb-nav nbs"></nav>
-        <div class="sb-label sb-txt">Tags</div>
-        <div class="sb-tags"></div>
-      </div>
-      <div class="sb-foot">
-        <button class="nav-item rv sb-import"><span class="ic">${IC.link}</span><span class="sb-txt">Import Share</span></button>
-        <button class="nav-item rv sb-set"><span class="ic">${IC.gear}</span><span class="sb-txt">Settings</span></button>
-      </div>
-    </aside>
-    <div class="resize-handle" data-target="sidebar"></div>
-    <section class="pane listpane">
-      <div class="lp-head">
-        <div class="lp-tr">
-          <h2 class="lp-title">All notes</h2>
-          <div class="lp-actions">
-            <button class="ib ic act-filter" title="Filter by tag">${IC.tag}</button>
-            <button class="ib ic act-sort" title="Sort & view">${IC.sortIc}</button>
-            <button class="ib ic new-note" title="New note">${IC.plus}</button>
-          </div>
-        </div>
-        <div class="lp-sub"></div>
-      </div>
-      <div class="lp-scroll"></div>
-    </section>
-    <div class="resize-handle" data-target="listpane"></div>
-    <div class="review-inbox-pane hidden w-[280px] flex-col border-r border-pane-brd bg-pane overflow-y-auto p-3 gap-3">
-      <h3 class="text-[13.5px] font-semibold text-text1 mb-1.5 flex items-center gap-1.5">Transient Highlights</h3>
-      <div class="review-clusters flex flex-col gap-3"></div>
-    </div>
-    <section class="pane editorpane">
-      <div class="ed-bar">
-        <button class="ib ic ed-back" title="Back to list">${IC.back}</button>
-        <div class="ed-tools">
-          <button class="ib ic" data-cmd="undo" title="Undo">${IC.undo}</button>
-          <button class="ib ic" data-cmd="redo" title="Redo">${IC.redo}</button>
-          <span class="sep"></span>
-          <button class="ib style-btn"><span class="style-lbl">Paragraph</span><span class="ic">${IC.chevD}</span></button>
-          <span class="sep"></span>
-          <button class="ib tb-chr" data-cmd="bold" title="Bold (Ctrl+B)"><span class="chr b">B</span></button>
-          <button class="ib tb-chr" data-cmd="italic" title="Italic (Ctrl+I)"><span class="chr i">I</span></button>
-          <button class="ib tb-chr" data-cmd="underline" title="Underline (Ctrl+U)"><span class="chr u">U</span></button>
-          <button class="ib tb-chr" data-cmd="strikeThrough" title="Strikethrough"><span class="chr s">S</span></button>
-          <span class="sep"></span>
-          <button class="ib ic" data-cmd="insertUnorderedList" title="Bulleted list">${IC.ul}</button>
-          <button class="ib ic" data-cmd="insertOrderedList" title="Numbered list">${IC.ol}</button>
-          <button class="ib ic" data-cmd="quote" title="Quote">${IC.quote}</button>
-          <button class="ib ic" data-cmd="hiliteColor" title="Highlight">${IC.hl}</button>
-          <button class="ib ic" data-cmd="link" title="Insert link">${IC.link}</button>
-          <button class="ib tb-chr" data-cmd="math" title="Inline Equation (Ctrl+Shift+E)"><span class="chr" style="font-weight: normal; font-family: 'Cambria Math', 'Times New Roman', serif;">√x</span></button>
-          <span class="sep"></span>
-          <button class="ib ic pin-btn" title="Pin note">${IC.pin}</button>
-          <button class="ib ic ed-more" title="More">${IC.dots}</button>
-        </div>
-      </div>
-      <div class="ed-scroll"><div class="ed-inner">
-        <h1 class="ed-title" contenteditable="true" spellcheck="false"></h1>
-        <div class="ed-meta">
-          <button class="pill meta-nb"><span class="dot"></span><span class="nb-name"></span><span class="ic">${IC.chevD}</span></button>
-          <span class="meta-date"><span class="ic">${IC.clock}</span><span class="md-txt"></span></span>
-          <button class="pill meta-tags"><span class="ic">${IC.tag}</span><span class="mt-txt">Tags</span><span class="ic">${IC.chevD}</span></button>
-        </div>
-        <div class="academic-metadata">
-          <label>Authors <input type="text" class="ac-authors" placeholder="Authors" spellcheck="false"></label>
-          <label>Journal <input type="text" class="ac-journal" placeholder="Journal" spellcheck="false"></label>
-          <label>Year <input type="text" class="ac-year" placeholder="Year" spellcheck="false"></label>
-        </div>
-        <div class="ed-body" spellcheck="false" data-ph="Start writing…"></div>
+  </div>`;
+}
 
-        <div class="backlinks-panel">
-          <h4>Backlinks</h4>
-          <div class="backlinks-list"></div>
+export function renderSidebar(IC: any): string {
+  return `
+  <aside class="pane sidebar">
+    <div class="sb-scroll">
+      <button class="sb-new"><span class="ic">${IC.plus}</span><span class="sb-txt">New note</span></button>
+      <div class="sb-label sb-txt">Quick access</div>
+      <nav class="sb-nav">
+        <button class="nav-item rv" data-q="all"><span class="ni-bar"></span><span class="ic">${IC.home}</span><span class="sb-txt">All notes</span></button>
+        <button class="nav-item rv" data-q="pinned"><span class="ni-bar"></span><span class="ic">${IC.pin}</span><span class="sb-txt">Pinned</span></button>
+      </nav>
+      <div class="sb-label sb-txt">Views</div>
+      <nav class="sb-nav views-nav">
+        <button class="nav-item rv" data-view="list"><span class="ni-bar"></span><span class="ic">${IC.ul}</span><span class="sb-txt">List</span></button>
+        <button class="nav-item rv" data-view="grid"><span class="ni-bar"></span><span class="ic">${IC.grid}</span><span class="sb-txt">Grid</span></button>
+        <button class="nav-item rv" data-view="graph"><span class="ni-bar"></span><span class="ic">${IC.graph}</span><span class="sb-txt">Graph</span></button>
+      </nav>
+      <div class="sb-label sb-txt nb-header">
+        <span>Notebooks</span>
+        <button class="btn-new-nb" title="New notebook">
+          ${IC.plus}
+        </button>
+      </div>
+      <nav class="sb-nav nbs"></nav>
+      <div class="sb-label sb-txt">Tags</div>
+      <div class="sb-tags"></div>
+    </div>
+    <div class="sb-foot">
+      <button class="nav-item rv sb-import"><span class="ic">${IC.link}</span><span class="sb-txt">Import Share</span></button>
+      <button class="nav-item rv sb-set"><span class="ic">${IC.gear}</span><span class="sb-txt">Settings</span></button>
+    </div>
+  </aside>`;
+}
+
+export function renderListpane(IC: any): string {
+  return `
+  <section class="pane listpane">
+    <div class="lp-head">
+      <div class="lp-tr">
+        <h2 class="lp-title">All notes</h2>
+        <div class="lp-actions">
+          <button class="ib ic act-filter" title="Filter by tag">${IC.tag}</button>
+          <button class="ib ic act-sort" title="Sort & view">${IC.sortIc}</button>
+          <button class="ib ic new-note" title="New note">${IC.plus}</button>
         </div>
-        <div class="ed-empty"><span class="ic">${IC.pen}</span>Select a note, or create a new one.</div>
-      </div></div>
-      <div class="ed-status"><span class="wc">0 words</span><span class="save ok"><span class="ic">${IC.check}</span><span class="save-t">Saved</span></span></div>
-    </section>
-    <div class="scrim"></div>
-  </div>
-  <div class="flyout"></div>
+      </div>
+      <div class="lp-sub"></div>
+    </div>
+    <div class="lp-scroll"></div>
+  </section>`;
+}
+
+export function renderReviewInbox(): string {
+  return `
+  <div class="review-inbox-pane hidden w-[280px] flex-col border-r border-pane-brd bg-pane overflow-y-auto p-3 gap-3">
+    <h3 class="text-[13.5px] font-semibold text-text1 mb-1.5 flex items-center gap-1.5">Transient Highlights</h3>
+    <div class="review-clusters flex flex-col gap-3"></div>
+  </div>`;
+}
+
+export function renderEditorpane(IC: any): string {
+  return `
+  <section class="pane editorpane">
+    <div class="ed-bar">
+      <button class="ib ic ed-back" title="Back to list">${IC.back}</button>
+      <div class="ed-tools">
+        <button class="ib ic" data-cmd="undo" title="Undo">${IC.undo}</button>
+        <button class="ib ic" data-cmd="redo" title="Redo">${IC.redo}</button>
+        <span class="sep"></span>
+        <button class="ib style-btn"><span class="style-lbl">Paragraph</span><span class="ic">${IC.chevD}</span></button>
+        <span class="sep"></span>
+        <button class="ib tb-chr" data-cmd="bold" title="Bold (Ctrl+B)"><span class="chr b">B</span></button>
+        <button class="ib tb-chr" data-cmd="italic" title="Italic (Ctrl+I)"><span class="chr i">I</span></button>
+        <button class="ib tb-chr" data-cmd="underline" title="Underline (Ctrl+U)"><span class="chr u">U</span></button>
+        <button class="ib tb-chr" data-cmd="strikeThrough" title="Strikethrough"><span class="chr s">S</span></button>
+        <span class="sep"></span>
+        <button class="ib ic" data-cmd="insertUnorderedList" title="Bulleted list">${IC.ul}</button>
+        <button class="ib ic" data-cmd="insertOrderedList" title="Numbered list">${IC.ol}</button>
+        <button class="ib ic" data-cmd="quote" title="Quote">${IC.quote}</button>
+        <button class="ib ic" data-cmd="hiliteColor" title="Highlight">${IC.hl}</button>
+        <button class="ib ic" data-cmd="link" title="Insert link">${IC.link}</button>
+        <button class="ib tb-chr" data-cmd="math" title="Inline Equation (Ctrl+Shift+E)"><span class="chr" style="font-weight: normal; font-family: 'Cambria Math', 'Times New Roman', serif;">√x</span></button>
+        <span class="sep"></span>
+        <button class="ib ic pin-btn" title="Pin note">${IC.pin}</button>
+        <button class="ib ic ed-more" title="More">${IC.dots}</button>
+      </div>
+    </div>
+    <div class="ed-scroll"><div class="ed-inner">
+      <h1 class="ed-title" contenteditable="true" spellcheck="false"></h1>
+      <div class="ed-meta">
+        <button class="pill meta-nb"><span class="dot"></span><span class="nb-name"></span><span class="ic">${IC.chevD}</span></button>
+        <span class="meta-date"><span class="ic">${IC.clock}</span><span class="md-txt"></span></span>
+        <button class="pill meta-tags"><span class="ic">${IC.tag}</span><span class="mt-txt">Tags</span><span class="ic">${IC.chevD}</span></button>
+      </div>
+      <div class="academic-metadata">
+        <label>Authors <input type="text" class="ac-authors" placeholder="Authors" spellcheck="false"></label>
+        <label>Journal <input type="text" class="ac-journal" placeholder="Journal" spellcheck="false"></label>
+        <label>Year <input type="text" class="ac-year" placeholder="Year" spellcheck="false"></label>
+      </div>
+      <div class="ed-body" spellcheck="false" data-ph="Start writing…"></div>
+
+      <div class="backlinks-panel">
+        <h4>Backlinks</h4>
+        <div class="backlinks-list"></div>
+      </div>
+      <div class="ed-empty"><span class="ic">${IC.pen}</span>Select a note, or create a new one.</div>
+    </div></div>
+    <div class="ed-status"><span class="wc">0 words</span><span class="save ok"><span class="ic">${IC.check}</span><span class="save-t">Saved</span></span></div>
+  </section>`;
+}
+
+export function renderVaultOverlay(IC: any): string {
+  return `
   <div class="vault-overlay" id="vaultOverlay" aria-modal="true" role="dialog" aria-label="Vault Manager" style="display:none;">
     <div class="vault-manager">
       <!-- Left: vault list -->
@@ -159,7 +173,11 @@ export function renderAppLayout(theme: string, IC: any, TAGS: any, winControlsHt
         <button class="vm-close-btn" id="vaultClose" aria-label="Close vault manager">${IC.close}</button>
       </div>
     </div>
-  </div>
+  </div>`;
+}
+
+export function renderSettingsOverlay(IC: any): string {
+  return `
   <div class="settings-overlay" id="settingsOverlay" aria-modal="true" role="dialog" aria-label="Settings">
     <div class="settings-container">
       <!-- Left sidebar -->
@@ -219,6 +237,27 @@ export function renderAppLayout(theme: string, IC: any, TAGS: any, winControlsHt
       <!-- Close button -->
       <button id="settingsClose" class="settings-close-btn rv" aria-label="Close settings">${IC.close}</button>
     </div>
+  </div>`;
+}
+
+export function renderToast(): string {
+  return `<div class="toast"><span class="t-msg"></span><button class="t-act"></button></div>`;
+}
+
+export function renderAppLayout(theme: string, IC: any, TAGS: any, winControlsHtml: string): string {
+  return `
+  ${renderTitlebar(theme, IC, winControlsHtml)}
+  <div class="app-body">
+    ${renderSidebar(IC)}
+    <div class="resize-handle" data-target="sidebar"></div>
+    ${renderListpane(IC)}
+    <div class="resize-handle" data-target="listpane"></div>
+    ${renderReviewInbox()}
+    ${renderEditorpane(IC)}
+    <div class="scrim"></div>
   </div>
-  <div class="toast"><span class="t-msg"></span><button class="t-act"></button></div>`;
+  <div class="flyout"></div>
+  ${renderVaultOverlay(IC)}
+  ${renderSettingsOverlay(IC)}
+  ${renderToast()}`;
 }

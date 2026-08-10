@@ -67,7 +67,7 @@
   flex-direction: column;
   z-index: 1000;
   overflow: hidden;
-  animation: scale-up 0.15s var(--ease-smooth-out);
+  animation: scale-up var(--duration-fast) var(--ease-smooth-out);
 }
 .lang-search-wrapper {
   padding: 8px;

@@ -164,10 +164,10 @@ export function startP2PShare(
   const encryptedPayload = `RESEARCHER_SHARE_${base64Payload}`;
 
   const modal = document.createElement('div');
-  modal.className = 'p2p-modal-overlay fixed inset-0 bg-black/0 flex items-center justify-center z-[99999] backdrop-blur-none opacity-0 pointer-events-none transition-all duration-quick ease-smooth-out [&.show]:opacity-100 [&.show]:pointer-events-auto [&.show]:bg-black/40 [&.show]:backdrop-blur-sm';
+  modal.className = 'p2p-modal-overlay fixed inset-0 bg-black/0 flex items-center justify-center z-[99999] backdrop-blur-none opacity-0 pointer-events-none transition-[opacity,background-color,backdrop-filter] duration-quick ease-smooth-out [&.show]:opacity-100 [&.show]:pointer-events-auto [&.show]:bg-black/40 [&.show]:backdrop-blur-sm';
   
   modal.innerHTML = `
-    <div class="p2p-card bg-card border border-card-brd rounded-lg w-[400px] max-w-[90vw] p-5 shadow-2xl flex flex-col gap-3 scale-[0.96] opacity-0 transition-all duration-quick ease-smooth-out [.show_&]:scale-100 [.show_&]:opacity-100">
+    <div class="p2p-card bg-card border border-card-brd rounded-lg w-[400px] max-w-[90vw] p-5 shadow-2xl flex flex-col gap-3 scale-[0.96] translate-y-2 opacity-0 transition-[transform,opacity] duration-quick ease-smooth-out [.show_&]:scale-100 [.show_&]:translate-y-0 [.show_&]:opacity-100">
       <div class="p2p-title font-semibold text-base text-text1">Share Sub-graph Closure</div>
       <div class="p2p-closure-info text-xs leading-relaxed text-text2">
         <strong>Sharing:</strong> ${esc(sharingName)}<br>
@@ -189,13 +189,13 @@ export function startP2PShare(
       </div>
       
       <div class="flex gap-2">
-        <button class="p2p-copy-btn flex-1 p-2 rounded bg-accent text-white border-none font-semibold cursor-pointer hover:bg-accent-fill-h active:scale-[0.97] transition-all duration-quick">Copy Payload</button>
-        <button class="p2p-sim-btn flex-1 p-2 rounded bg-bg2 text-text1 border border-divider font-semibold cursor-pointer hover:bg-nav-h active:scale-[0.97] transition-all duration-quick">P2P Transfer</button>
+        <button class="p2p-copy-btn flex-1 p-2 rounded bg-accent text-white border-none font-semibold cursor-pointer hover:bg-accent-fill-h active:scale-[0.97] transition-[background-color,transform] duration-quick">Copy Payload</button>
+        <button class="p2p-sim-btn flex-1 p-2 rounded bg-bg2 text-text1 border border-divider font-semibold cursor-pointer hover:bg-nav-h active:scale-[0.97] transition-[background-color,transform] duration-quick">P2P Transfer</button>
       </div>
       
       <div class="p2p-status text-[11px] text-text2 text-center min-h-[16px]">Ready to copy or transfer.</div>
       
-      <button class="p2p-close-btn w-full p-2 rounded bg-bg2 border border-divider text-text1 font-semibold cursor-pointer hover:bg-nav-h active:scale-[0.97] transition-all duration-quick">Close</button>
+      <button class="p2p-close-btn w-full p-2 rounded bg-bg2 border border-divider text-text1 font-semibold cursor-pointer hover:bg-nav-h active:scale-[0.97] transition-[background-color,transform] duration-quick">Close</button>
     </div>
   `;
 
@@ -257,10 +257,10 @@ export function startP2PShare(
 
 export function openImportDialog(ctx: AppContext) {
   const modal = document.createElement('div');
-  modal.className = 'p2p-modal-overlay fixed inset-0 bg-black/0 flex items-center justify-center z-[99999] backdrop-blur-none opacity-0 pointer-events-none transition-all duration-quick ease-smooth-out [&.show]:opacity-100 [&.show]:pointer-events-auto [&.show]:bg-black/40 [&.show]:backdrop-blur-sm';
+  modal.className = 'p2p-modal-overlay fixed inset-0 bg-black/0 flex items-center justify-center z-[99999] backdrop-blur-none opacity-0 pointer-events-none transition-[opacity,background-color,backdrop-filter] duration-quick ease-smooth-out [&.show]:opacity-100 [&.show]:pointer-events-auto [&.show]:bg-black/40 [&.show]:backdrop-blur-sm';
 
   modal.innerHTML = `
-    <div class="p2p-card bg-card border border-card-brd rounded-lg w-[400px] max-w-[90vw] p-5 shadow-2xl flex flex-col gap-3 scale-[0.96] opacity-0 transition-all duration-quick ease-smooth-out [.show_&]:scale-100 [.show_&]:opacity-100">
+    <div class="p2p-card bg-card border border-card-brd rounded-lg w-[400px] max-w-[90vw] p-5 shadow-2xl flex flex-col gap-3 scale-[0.96] translate-y-2 opacity-0 transition-[transform,opacity] duration-quick ease-smooth-out [.show_&]:scale-100 [.show_&]:translate-y-0 [.show_&]:opacity-100">
       <div class="p2p-title font-semibold text-base text-text1">Import Sub-graph Share</div>
       <div>
         <label class="text-[11px] font-semibold block mb-1 text-text2">Paste \`.researcher-share\` Payload:</label>
@@ -270,8 +270,8 @@ export function openImportDialog(ctx: AppContext) {
       <div class="p2p-import-status text-[11px] text-[#ff5f56] min-h-[16px]"></div>
       
       <div class="flex gap-2">
-        <button class="p2p-merge-btn flex-1 p-2 rounded bg-accent text-white border-none font-semibold cursor-pointer hover:bg-accent-fill-h active:scale-[0.97] transition-all duration-quick">Merge into Vault</button>
-        <button class="p2p-cancel-btn flex-1 p-2 rounded bg-bg2 text-text1 border border-divider font-semibold cursor-pointer hover:bg-nav-h active:scale-[0.97] transition-all duration-quick">Cancel</button>
+        <button class="p2p-merge-btn flex-1 p-2 rounded bg-accent text-white border-none font-semibold cursor-pointer hover:bg-accent-fill-h active:scale-[0.97] transition-[background-color,transform] duration-quick">Merge into Vault</button>
+        <button class="p2p-cancel-btn flex-1 p-2 rounded bg-bg2 text-text1 border border-divider font-semibold cursor-pointer hover:bg-nav-h active:scale-[0.97] transition-[background-color,transform] duration-quick">Cancel</button>
       </div>
     </div>
   `;

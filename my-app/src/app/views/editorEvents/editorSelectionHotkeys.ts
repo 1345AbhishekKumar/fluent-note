@@ -7,6 +7,7 @@ import { isToggleType } from './editorBlockKeyActions';
 import { showSlashMenu } from './pickers/editorSlashMenu';
 import { duplicateBlockWithNewIds } from './editorHelpers';
 import { pushToUndo } from './editorHistory';
+import { handleMultiBlockTextDeletion } from './editorMultiBlockSelection';
 
 export function handleFieldShortcuts(
   ctx: AppContext,
@@ -243,6 +244,9 @@ export function handleDocumentBlockSelectionKeydown(ctx: AppContext, e: Keyboard
     }
 
     if (e.key === 'Backspace' || e.key === 'Delete') {
+      if (handleMultiBlockTextDeletion(ctx, e, n)) {
+        return;
+      }
       e.preventDefault();
       pushToUndo(ctx, n);
       for (const bId of selected) {

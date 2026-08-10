@@ -13,7 +13,7 @@
   font-size: 12.5px;
   color: var(--text1);
   background: var(--acr);
-  backdrop-filter: blur(30px) saturate(1.5);
+  backdrop-filter: blur(16px) saturate(1.5);
   border: 1px solid var(--acr-brd);
   box-shadow: 0 14px 40px rgba(0, 0, 0, .3);
   opacity: 0;
@@ -36,8 +36,12 @@
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
-    transition-duration: .01ms !important;
-    animation-duration: .01ms !important;
+    /* Retain color/opacity transitions, but strip transform/movement */
+    transition-property: opacity, color, background-color, border-color, outline-color, box-shadow !important;
+    animation-delay: -1ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    background-attachment: scroll !important;
     scroll-behavior: auto !important;
   }
 }
