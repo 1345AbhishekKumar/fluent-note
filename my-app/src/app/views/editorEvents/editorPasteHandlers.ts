@@ -1,9 +1,10 @@
 import type { AppContext } from '../../context';
 import type { Block, BlockType } from '../../../types';
-import { findBlockById, genId, esc } from '../../../utils';
+import { findBlockById, genId, esc, moveCaret } from '../../../utils';
 import { saveAndSyncContent } from '../../../store';
 import { rerenderNote } from './pickers/editorPopups';
 import { pushToUndo } from './editorHistory';
+import { parseClipboardContent } from './pasteParser';
 
 export function isNonTextFieldBlock(t: string) {
   return ['divider', 'image', 'video', 'audio', 'pdf', 'bookmark', 'file', 'toc', 'breadcrumb', 'math', 'equation'].includes(t);
@@ -111,6 +112,86 @@ export function handleEditorPaste(ctx: AppContext, e: ClipboardEvent) {
           }
         }
       }
+      return;
     }
   }
+
+  // Handle auto-detect format for standard pastes
+  const htmlText = clipboardData.getData('text/html');
+  if (!pastedText.trim() && !htmlText.trim()) return;
+
+  e.preventDefault();
+
+  const target = e.target as HTMLElement;
+  const blockEl = target.closest('.block-wrapper') as HTMLElement;
+  if (!blockEl) return;
+  const blockId = blockEl.dataset.id!;
+  const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+  if (!n) return;
+  const match = findBlockById(n.blocks, blockId);
+  if (!match) return;
+
+  const pastedBlocks = parseClipboardContent(clipboardData);
+  if (pastedBlocks.length === 0) return;
+
+  pushToUndo(ctx, n);
+
+  const { parentList, index, block: currentBlock } = match;
+
+  const sel = window.getSelection();
+  let caretOffset = (target.textContent || '').length;
+  if (sel && sel.rangeCount > 0) {
+    const range = sel.getRangeAt(0);
+    const preRange = document.createRange();
+    preRange.selectNodeContents(target);
+    preRange.setEnd(range.startContainer, range.startOffset);
+    caretOffset = preRange.toString().length;
+  }
+
+  const fullText = currentBlock.content || '';
+  const textBefore = fullText.slice(0, caretOffset);
+  const textAfter = fullText.slice(caretOffset);
+
+  let focusId = '';
+
+  if (!fullText.trim()) {
+    // If the active block is empty, replace it with the first block
+    const firstBlock = pastedBlocks[0];
+    currentBlock.type = firstBlock.type;
+    currentBlock.content = firstBlock.content;
+    if (firstBlock.checked !== undefined) currentBlock.checked = firstBlock.checked;
+    if (firstBlock.url !== undefined) currentBlock.url = firstBlock.url;
+    if (firstBlock.language !== undefined) currentBlock.language = firstBlock.language;
+    if (firstBlock.fileName !== undefined) currentBlock.fileName = firstBlock.fileName;
+    if (firstBlock.mermaidMode !== undefined) currentBlock.mermaidMode = firstBlock.mermaidMode;
+
+    const restBlocks = pastedBlocks.slice(1);
+    if (restBlocks.length > 0) {
+      parentList.splice(index + 1, 0, ...restBlocks);
+    }
+    focusId = pastedBlocks[pastedBlocks.length - 1].id;
+  } else {
+    // Split the current block at caret
+    currentBlock.content = textBefore;
+
+    const postBlock: Block = {
+      id: genId(),
+      type: 'paragraph',
+      content: textAfter,
+      children: []
+    };
+
+    const insertBlocks = [...pastedBlocks, postBlock];
+    parentList.splice(index + 1, 0, ...insertBlocks);
+    focusId = textAfter.length > 0 ? postBlock.id : pastedBlocks[pastedBlocks.length - 1].id;
+  }
+
+  rerenderNote(ctx, n);
+
+  setTimeout(() => {
+    const field = ctx.elements.edBody.querySelector(`[data-id="${focusId}"] .block-text-field`) as HTMLElement;
+    if (field) {
+      moveCaret(field, false);
+    }
+  }, 50);
 }
