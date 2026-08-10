@@ -1,16 +1,29 @@
 import type { AppContext } from '../context';
 import { esc } from '../../utils/stringHelpers';
+import { initMediaResize } from '../appResize';
 
 let wasSplitBeforeMediaOpen = false;
 
 export function openMediaSidebar(ctx: AppContext, title: string, url: string, type: 'pdf' | 'image' | 'video' | 'audio' | 'file') {
   let pane = document.getElementById('pdfPane');
+  let handle = document.getElementById('mediaResizeHandle');
   if (!pane) {
     pane = document.createElement('div');
     pane.id = 'pdfPane';
     pane.className = 'media-sidebar-pane';
+
+    handle = document.createElement('div');
+    handle.id = 'mediaResizeHandle';
+    handle.className = 'media-resize-handle';
+    handle.dataset.target = 'media';
+
     const frame = document.getElementById('frame') || document.body;
+    frame.appendChild(handle);
     frame.appendChild(pane);
+
+    initMediaResize(handle, pane);
+  } else {
+    if (handle) handle.style.display = '';
   }
 
   const isSplit = document.body.classList.contains('split');
@@ -67,6 +80,11 @@ export function closeMediaSidebar(ctx: AppContext) {
   if (pane) {
     pane.style.display = 'none';
     pane.innerHTML = '';
+  }
+
+  const handle = document.getElementById('mediaResizeHandle');
+  if (handle) {
+    handle.style.display = 'none';
   }
 
   if (wasSplitBeforeMediaOpen) {

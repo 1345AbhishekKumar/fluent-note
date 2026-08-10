@@ -51,6 +51,7 @@ export function renderAppLayout(theme: string, IC: any, TAGS: any, winControlsHt
         <button class="nav-item rv sb-set"><span class="ic">${IC.gear}</span><span class="sb-txt">Settings</span></button>
       </div>
     </aside>
+    <div class="resize-handle" data-target="sidebar"></div>
     <section class="pane listpane">
       <div class="lp-head">
         <div class="lp-tr">
@@ -65,6 +66,7 @@ export function renderAppLayout(theme: string, IC: any, TAGS: any, winControlsHt
       </div>
       <div class="lp-scroll"></div>
     </section>
+    <div class="resize-handle" data-target="listpane"></div>
     <div class="review-inbox-pane hidden w-[280px] flex-col border-r border-pane-brd bg-pane overflow-y-auto p-3 gap-3">
       <h3 class="text-[13.5px] font-semibold text-text1 mb-1.5 flex items-center gap-1.5">Transient Highlights</h3>
       <div class="review-clusters flex flex-col gap-3"></div>

@@ -184,12 +184,12 @@
   flex-direction: column;
 }
 .sidebar {
-  width: 262px;
+  width: var(--sidebar-width, 262px);
   flex: none;
   transition: width var(--duration-slow) var(--ease-smooth-out), transform var(--duration-slow) var(--ease-smooth-out);
 }
 .listpane {
-  width: 318px;
+  width: var(--listpane-width, 318px);
   flex: none;
   transition: width var(--duration-slow) var(--ease-smooth-out), transform var(--duration-medium) var(--ease-smooth-out), opacity var(--duration-medium) var(--ease-smooth-out);
 }
@@ -208,3 +208,53 @@
   transition: opacity var(--duration-fast) var(--ease-smooth-out);
   z-index: 24;
 }
+
+/* ============ RESIZE HANDLES ============ */
+.resize-handle {
+  width: 8px;
+  margin: 0 -8px;
+  cursor: col-resize;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  user-select: none;
+  z-index: 99;
+}
+.resize-handle::after {
+  content: "";
+  width: 4px;
+  height: 32px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.15s ease, height 0.15s ease;
+}
+.resize-handle:hover::after,
+.resize-handle.dragging::after {
+  background: var(--accent, #0078d4);
+  height: 48px;
+}
+
+/* Resizing dragging state overrides */
+body.resizing,
+body.resizing * {
+  user-select: none !important;
+  -webkit-user-drag: none !important;
+}
+body.resizing {
+  cursor: col-resize !important;
+}
+body.resizing .sidebar,
+body.resizing .listpane,
+body.resizing .media-sidebar-pane {
+  transition: none !important;
+}
+body.resizing iframe,
+body.resizing .win * {
+  pointer-events: none !important;
+}
+body.resizing .resize-handle {
+  pointer-events: auto !important;
+}
+

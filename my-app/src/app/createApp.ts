@@ -15,6 +15,7 @@ import { renderAppLayout } from './appLayout';
 import { selectNote, navigateNote, deleteNote, newNote, newSubNote, newSubFolder } from './appActions';
 import { initVaultSwitcher } from './appVaultSwitcher';
 import { initResponsive } from './appResponsive';
+import { initResize } from './appResize';
 
 const REDUCED = (typeof matchMedia !== 'undefined') ? matchMedia('(prefers-reduced-motion: reduce)').matches : false;
 
@@ -323,6 +324,7 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
   initSidebarEvents(ctx);
   initListEvents(ctx);
   initEditorEvents(ctx);
+  initResize(ctx);
 
   // Listen for Ctrl+Shift+, shortcut dispatched from sidebar.ts
   document.addEventListener('fluent:open-vault-switcher', () => {

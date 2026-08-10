@@ -238,8 +238,9 @@
 
 /* ── Universal Media Sidebar Pane ── */
 .media-sidebar-pane {
-  flex: 1;
-  min-width: 0;
+  width: var(--media-width, 50%);
+  flex: none;
+  min-width: 300px;
   display: flex;
   flex-direction: column;
   background: var(--pane, #1e1e1e);
@@ -249,6 +250,34 @@
   height: 100%;
   color: var(--text1, #ffffff);
 }
+
+/* Media/File viewer resize handle divider */
+.media-resize-handle {
+  width: 8px;
+  margin: 0 -4px;
+  cursor: col-resize;
+  position: relative;
+  z-index: 100;
+  background: transparent;
+  flex: none;
+}
+.media-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+  background: rgba(127, 127, 127, 0.4);
+  transition: background 0.15s ease, width 0.15s ease;
+}
+.media-resize-handle:hover::after,
+.media-resize-handle.dragging::after {
+  background: var(--accent, #0078d4);
+  width: 4px;
+  left: 2px;
+}
+
 .media-sidebar-header {
   display: flex;
   align-items: center;
