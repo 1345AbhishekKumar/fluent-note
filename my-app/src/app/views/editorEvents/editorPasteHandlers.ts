@@ -14,6 +14,33 @@ export function isContainerBlock(t: string) {
   return ['callout', 'quote', 'toggle', 'toggle_h1', 'toggle_h2', 'toggle_h3'].includes(t);
 }
 
+function insertHtmlAtCaret(html: string) {
+  if (typeof document.execCommand === 'function') {
+    document.execCommand('insertHTML', false, html);
+  } else {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      const el = document.createElement('div');
+      el.innerHTML = html;
+      const frag = document.createDocumentFragment();
+      let node;
+      let lastNode;
+      while ((node = el.firstChild)) {
+        lastNode = frag.appendChild(node);
+      }
+      range.insertNode(frag);
+      if (lastNode) {
+        range.setStartAfter(lastNode);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+  }
+}
+
 export function handleEditorPaste(ctx: AppContext, e: ClipboardEvent) {
   const clipboardData = e.clipboardData;
   if (!clipboardData) return;
@@ -159,36 +186,41 @@ export function handleEditorPaste(ctx: AppContext, e: ClipboardEvent) {
   const isContainer = isContainerBlock(currentBlock.type);
   let focusId = '';
 
-  if (pastedBlocks.length === 1 && (pastedBlocks[0].type === 'paragraph' || isContainer)) {
-    // Paste inline for a single paragraph or when inside a container block
-    const textToInsert = pastedBlocks[0].content;
-    document.execCommand('insertText', false, textToInsert);
+  if (isContainer) {
+    // Paste inline joined by <br> for all blocks inside a container block (Callout, Quote, Toggle)
+    const htmlToInsert = pastedBlocks.map((b, idx) => {
+      let prefix = '';
+      if (b.type === 'bullet') {
+        prefix = '- ';
+      } else if (b.type === 'numbered') {
+        let num = 1;
+        for (let i = idx - 1; i >= 0; i--) {
+          if (pastedBlocks[i].type === 'numbered') num++;
+          else break;
+        }
+        prefix = `${num}. `;
+      } else if (b.type === 'todo') {
+        prefix = b.checked ? '☑ ' : '☐ ';
+      } else if (b.type === 'quote') {
+        prefix = '> ';
+      }
+      return prefix + b.content;
+    }).join('<br>');
+    insertHtmlAtCaret(htmlToInsert);
     currentBlock.content = target.innerHTML;
     saveAndSyncContent();
     ctx.markSaving();
     return;
   }
 
-  if (isContainer) {
-    // Pasting multiple blocks inside a container block (Callout, Quote, Toggle)
-    currentBlock.content = textBefore + pastedBlocks[0].content;
-    if (!currentBlock.children) currentBlock.children = [];
-    
-    const restBlocks = pastedBlocks.slice(1);
-    
-    if (textAfter.length > 0) {
-      const postBlock: Block = {
-        id: genId(),
-        type: 'paragraph',
-        content: textAfter,
-        children: []
-      };
-      currentBlock.children.unshift(...restBlocks, postBlock);
-      focusId = postBlock.id;
-    } else {
-      currentBlock.children.unshift(...restBlocks);
-      focusId = restBlocks[restBlocks.length - 1].id;
-    }
+  if (pastedBlocks.length === 1 && pastedBlocks[0].type === 'paragraph') {
+    // Paste inline for a single paragraph block using insertHTML to preserve formatting
+    const htmlToInsert = pastedBlocks[0].content;
+    insertHtmlAtCaret(htmlToInsert);
+    currentBlock.content = target.innerHTML;
+    saveAndSyncContent();
+    ctx.markSaving();
+    return;
   } else if (!fullText.trim()) {
     // If the active block is empty, replace it with the first block
     const firstBlock = pastedBlocks[0];

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, protocol, net } from 'electron';
+import { app, BrowserWindow, protocol, net, globalShortcut } from 'electron';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import started from 'electron-squirrel-startup';
@@ -9,6 +9,9 @@ import { initVaultManager, getVaultPath } from './main/vaultManager';
 if (started) {
   app.quit();
 }
+
+app.setAppUserModelId('com.abhishek.fluentnotes');
+
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -43,6 +46,25 @@ app.on('ready', () => {
   });
 
   createWindow();
+
+  // Register global shortcuts for Sticky Notes and Progress Tracker
+  try {
+    globalShortcut.register('CommandOrControl+Super+V', () => {
+      console.log('Ctrl+Win+V pressed - Progress Tracker triggered');
+      createWindow('progress-tracker');
+    });
+
+    globalShortcut.register('CommandOrControl+Super+N', () => {
+      console.log('Ctrl+Win+N pressed - Sticky Notes triggered');
+      createWindow('sticky-note');
+    });
+  } catch (e) {
+    console.error('Failed to register global shortcuts:', e);
+  }
+});
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
 });
 
 app.on('window-all-closed', () => {

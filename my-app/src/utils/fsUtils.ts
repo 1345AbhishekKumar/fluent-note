@@ -36,6 +36,9 @@ export function blocksToMarkdown(blocks: Block[], depth = 0): string {
       case 'divider':
         line = '---';
         break;
+      case 'mermaid':
+        line = `\`\`\`mermaid\n${block.content || ''}\n\`\`\``;
+        break;
       case 'code':
         line = `\`\`\`${block.language || 'plaintext'}\n${block.content || ''}\n\`\`\``;
         break;
@@ -58,7 +61,39 @@ export function blocksToMarkdown(blocks: Block[], depth = 0): string {
         line = `[subpage:${block.content || 'Untitled'}](${block.url || ''})`;
         break;
       case 'callout':
-        line = `> [!NOTE] ${block.icon || 'ℹ️'}\n${indent}> ${block.content}`;
+        line = `> [!NOTE] ${block.icon || '💡'} ${block.content || ''}`;
+        break;
+      case 'toggle':
+      case 'toggle_h1':
+      case 'toggle_h2':
+      case 'toggle_h3': {
+        const collapsedTag = block.collapsed ? ' [collapsed]' : '';
+        let prefix = '[!TOGGLE]';
+        if (block.type === 'toggle_h1') prefix = '[!TOGGLE-H1]';
+        else if (block.type === 'toggle_h2') prefix = '[!TOGGLE-H2]';
+        else if (block.type === 'toggle_h3') prefix = '[!TOGGLE-H3]';
+        line = `> ${prefix}${collapsedTag} ${block.content}`;
+        break;
+      }
+      case 'column_list':
+        line = `:::column-list`;
+        break;
+      case 'column': {
+        const widthTag = block.columnWidth ? ` [width:${block.columnWidth}]` : '';
+        line = `:::column${widthTag}`;
+        break;
+      }
+      case 'template':
+        line = `[template:${block.content || ''}]`;
+        break;
+      case 'toc':
+        line = `[toc]`;
+        break;
+      case 'breadcrumb':
+        line = `[breadcrumb]`;
+        break;
+      case 'subfolder':
+        line = `[subfolder:${block.content || ''}](${block.url || ''})`;
         break;
       default:
         line = block.content || '';
@@ -69,6 +104,10 @@ export function blocksToMarkdown(blocks: Block[], depth = 0): string {
 
     if (block.children && block.children.length > 0) {
       md += blocksToMarkdown(block.children, depth + 1);
+    }
+
+    if (block.type === 'column_list' || block.type === 'column') {
+      md += `${indent}:::\n`;
     }
   }
   return md;
@@ -88,11 +127,12 @@ export function markdownToBlocks(markdown: string): Block[] {
 
     if (trimmed.startsWith('```')) {
       if (inCodeBlock) {
+        const blockType: BlockType = codeLang === 'mermaid' ? 'mermaid' : 'code';
         const block: Block = {
           id: 'b-' + Math.random().toString(36).slice(2, 7),
-          type: 'code',
+          type: blockType,
           content: codeContent.join('\n'),
-          language: codeLang,
+          language: blockType === 'code' ? codeLang : undefined,
           children: []
         };
         appendBlock(block, 0);
@@ -114,12 +154,49 @@ export function markdownToBlocks(markdown: string): Block[] {
       continue;
     }
 
+    if (trimmed === ':::') {
+      continue;
+    }
+
     const matchIndent = line.match(/^(\s*)/);
     const indentCount = matchIndent ? matchIndent[1].length : 0;
     const level = Math.floor(indentCount / 2);
 
     let block: Block;
-    if (trimmed.startsWith('# ')) {
+    if (trimmed.startsWith(':::column-list')) {
+      block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'column_list', content: '', children: [] };
+    } else if (trimmed.startsWith(':::column')) {
+      const widthMatch = trimmed.match(/\[width:(\d+)\]/);
+      const columnWidth = widthMatch ? parseInt(widthMatch[1]) : undefined;
+      block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'column', content: '', columnWidth, children: [] };
+    } else if (trimmed.startsWith('> [!TOGGLE')) {
+      const collapsed = trimmed.includes('[collapsed]');
+      let type: BlockType = 'toggle';
+      if (trimmed.startsWith('> [!TOGGLE-H1]')) type = 'toggle_h1';
+      else if (trimmed.startsWith('> [!TOGGLE-H2]')) type = 'toggle_h2';
+      else if (trimmed.startsWith('> [!TOGGLE-H3]')) type = 'toggle_h3';
+      
+      const content = trimmed.replace(/^>\s*\[!TOGGLE(?:-H\d)?\]\s*(?:\[collapsed\])?\s*/, '').trim();
+      block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type, content, collapsed, children: [] };
+    } else if (trimmed === '[toc]' || trimmed === '[[toc]]') {
+      block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'toc', content: '', children: [] };
+    } else if (trimmed === '[breadcrumb]') {
+      block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'breadcrumb', content: '', children: [] };
+    } else if (trimmed.startsWith('[subfolder:') && trimmed.endsWith(')')) {
+      const match = trimmed.match(/^\[subfolder:(.*?)\]\((.*?)\)$/);
+      if (match) {
+        block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'subfolder', content: match[1], url: match[2], children: [] };
+      } else {
+        block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'paragraph', content: trimmed, children: [] };
+      }
+    } else if (trimmed.startsWith('[template:') && trimmed.endsWith(']')) {
+      const match = trimmed.match(/^\[template:(.*?)\]$/);
+      if (match) {
+        block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'template', content: match[1], children: [] };
+      } else {
+        block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'paragraph', content: trimmed, children: [] };
+      }
+    } else if (trimmed.startsWith('# ')) {
       block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'heading1', content: trimmed.slice(2), children: [] };
     } else if (trimmed.startsWith('## ')) {
       block = { id: 'b-' + Math.random().toString(36).slice(3, 8), type: 'heading2', content: trimmed.slice(3), children: [] };
@@ -132,7 +209,18 @@ export function markdownToBlocks(markdown: string): Block[] {
     } else if (trimmed.startsWith('- ')) {
       block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'bullet', content: trimmed.slice(2), children: [] };
     } else if (trimmed.startsWith('> [!NOTE]')) {
-      block = { id: 'b-' + Math.random().toString(36).slice(9, 14), type: 'callout', content: trimmed.replace(/^>\s*\[!NOTE\]\s*/, ''), children: [] };
+      const rest = trimmed.replace(/^>\s*\[!NOTE\]\s*/, '').trim();
+      let icon = '💡';
+      let content = rest;
+      const firstSpace = rest.indexOf(' ');
+      if (firstSpace !== -1 && rest.length > 0 && !rest.startsWith('http')) {
+        const candidateIcon = rest.slice(0, firstSpace).trim();
+        if (candidateIcon.length <= 4) {
+          icon = candidateIcon;
+          content = rest.slice(firstSpace + 1).trim();
+        }
+      }
+      block = { id: 'b-' + Math.random().toString(36).slice(9, 14), type: 'callout', icon, content, children: [] };
     } else if (trimmed.startsWith('> ')) {
       block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'quote', content: trimmed.slice(2), children: [] };
     } else if (trimmed.match(/^\d+\.\s/)) {
@@ -173,10 +261,33 @@ export function markdownToBlocks(markdown: string): Block[] {
       if (match) {
         const content = match[1];
         let url = match[2];
+        const lowerUrl = url.toLowerCase();
+        const lowerContent = content.toLowerCase();
+        
         let blockType: BlockType = 'bookmark';
-        if (content.toLowerCase() === 'video') blockType = 'video';
-        else if (content.toLowerCase() === 'audio') blockType = 'audio';
-        else if (content.toLowerCase() === 'pdf') blockType = 'pdf';
+        let fileName: string | undefined = undefined;
+
+        if (lowerUrl.endsWith('.pdf') || lowerContent.endsWith('.pdf') || lowerUrl.startsWith('data:application/pdf') || lowerContent === 'pdf') {
+          blockType = 'pdf';
+          fileName = content;
+        } else if (
+          /\.(mp4|webm|ogg|mov|mkv)$/i.test(lowerUrl) || 
+          /\.(mp4|webm|ogg|mov|mkv)$/i.test(lowerContent) ||
+          lowerUrl.startsWith('data:video') ||
+          lowerContent === 'video'
+        ) {
+          blockType = 'video';
+        } else if (
+          /\.(mp3|wav|m4a|ogg|aac|flac)$/i.test(lowerUrl) || 
+          /\.(mp3|wav|m4a|ogg|aac|flac)$/i.test(lowerContent) ||
+          lowerUrl.startsWith('data:audio') ||
+          lowerContent === 'audio'
+        ) {
+          blockType = 'audio';
+        } else if (lowerUrl.startsWith('fluent-file://') || lowerUrl.startsWith('data:') || lowerContent === 'file') {
+          blockType = 'file';
+          fileName = content;
+        }
 
         if (blockType === 'bookmark' && url && !/^(https?:\/\/|file:\/\/|mailto:|tel:)/i.test(url)) {
           url = 'https://' + url;
@@ -187,6 +298,7 @@ export function markdownToBlocks(markdown: string): Block[] {
           type: blockType,
           content,
           url,
+          fileName,
           children: []
         };
       } else {
@@ -237,7 +349,6 @@ export function serializeNoteToMarkdown(note: Note): string {
     `archived: ${note.archived || false}`,
     `parentId: ${JSON.stringify(note.parentId || null)}`,
     `ord: ${note.ord}`,
-    `blocks: ${JSON.stringify(note.blocks)}`,
     '---'
   ];
 
@@ -283,7 +394,9 @@ export function deserializeMarkdownToNote(content: string, fallbackId: string): 
 
   const noteId = metadata.id || fallbackId;
   let blocks: Block[] = [];
-  if (metadata.blocks) {
+  if (markdownBody.length > 0) {
+    blocks = markdownToBlocks(markdownBody);
+  } else if (metadata.blocks) {
     if (typeof metadata.blocks === 'string') {
       try {
         blocks = JSON.parse(metadata.blocks);
@@ -293,8 +406,10 @@ export function deserializeMarkdownToNote(content: string, fallbackId: string): 
     } else if (Array.isArray(metadata.blocks)) {
       blocks = metadata.blocks;
     }
-  } else {
-    blocks = markdownToBlocks(markdownBody);
+  }
+
+  if (blocks.length === 0) {
+    blocks = [{ id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'paragraph', content: '', children: [] }];
   }
 
   return {

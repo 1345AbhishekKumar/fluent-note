@@ -4,6 +4,25 @@ import { findBlockById } from '../../../../utils';
 import { rerenderNote, focusNextBlockOrNew } from './editorPopupUtils';
 
 export function openMediaFilePrompt(ctx: AppContext, cmdType: string, block: Block, n: Note) {
+  if (typeof window !== 'undefined' && window.api && window.api.selectFile) {
+    window.api.selectFile(cmdType).then((res) => {
+      if (res && res.url) {
+        block.type = cmdType as any;
+        block.url = res.url;
+        block.content = res.fileName;
+        block.fileName = res.fileName;
+        rerenderNote(ctx, n);
+        const match = findBlockById(n.blocks, block.id);
+        if (match) {
+          focusNextBlockOrNew(ctx, n, match.index, match.parentList);
+        }
+      }
+    }).catch((err) => {
+      console.error('Error selecting file via native dialog:', err);
+    });
+    return;
+  }
+
   const input = document.createElement('input');
   input.type = 'file';
   if (cmdType === 'image') input.accept = 'image/*';

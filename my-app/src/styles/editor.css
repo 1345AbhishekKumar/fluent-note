@@ -4,8 +4,9 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 7px 10px;
+  padding: 8px 16px;
   border-bottom: 1px solid var(--divider);
+  background: transparent;
 }
 .ed-back {
   display: none;
@@ -20,6 +21,9 @@
 }
 .ed-tools::-webkit-scrollbar {
   display: none;
+}
+.tb-spacer {
+  flex: 1;
 }
 .sep {
   width: 1px;
@@ -74,9 +78,9 @@
   min-height: 0;
 }
 .ed-inner {
-  max-width: 760px;
+  max-width: 900px;
   margin: 0 auto;
-  padding: 26px 34px 60px;
+  padding: 48px 64px 96px;
   transition: opacity var(--duration-quick) var(--ease-in-out), transform var(--duration-quick) var(--ease-in-out);
   position: relative;
 }
@@ -85,10 +89,10 @@
   transform: translateY(var(--distance-micro));
 }
 .ed-title {
-  font-size: 27px;
+  font-size: 32px;
   font-weight: 700;
-  letter-spacing: -.022em;
-  line-height: 1.15;
+  letter-spacing: -.025em;
+  line-height: 1.2;
   color: var(--text1);
   outline: none;
   min-height: 1.2em;
@@ -102,10 +106,8 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 12px 0 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--divider);
+  gap: 16px;
+  margin: 12px 0 24px;
 }
 .pill {
   display: flex;
@@ -139,8 +141,8 @@
   height: 13px;
 }
 .ed-body {
-  font-size: 14.5px;
-  line-height: 1.5;
+  font-size: 15px;
+  line-height: 1.6;
   color: var(--text1);
   outline: none;
   min-height: 60px;
@@ -155,13 +157,14 @@
 }
 .ed-body h2 {
   font-size: 19px;
-  font-weight: 700;
+  font-weight: 650;
   letter-spacing: -.015em;
   margin: 20px 0 8px;
 }
 .ed-body h3 {
-  font-size: 15.5px;
+  font-size: 16px;
   font-weight: 600;
+  letter-spacing: -.01em;
   margin: 16px 0 6px;
 }
 .ed-body ul, .ed-body ol {
@@ -186,7 +189,11 @@
   color: var(--accent);
 }
 .ed-body ::selection, .search::selection {
-  background: var(--accent-soft);
+  background: rgba(0, 103, 192, 0.2);
+}
+.win[data-theme="dark"] .ed-body ::selection,
+.win[data-theme="dark"] .search::selection {
+  background: rgba(96, 205, 255, 0.25);
 }
 .ed-empty {
   display: flex;

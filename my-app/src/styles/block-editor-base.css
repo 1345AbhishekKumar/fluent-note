@@ -7,24 +7,25 @@
 .block-main-row {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
+  gap: 0; /* Gap is defined inside containers for alignment precision */
   position: relative;
+  width: 100%;
 }
 .block-actions-container {
-  position: absolute;
-  left: -40px;
-  top: 3px;
-  width: 40px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--duration-quick) var(--ease-smooth-out);
-  z-index: 10;
-  user-select: none;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  width: 40px !important;
+  flex-shrink: 0 !important;
+  position: absolute !important;
+  left: -44px !important;
+  top: 2px !important;
+  height: 24px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity var(--duration-quick) var(--ease-smooth-out) !important;
+  z-index: 10 !important;
+  user-select: none !important;
 }
 
 .block-wrapper:hover > .block-main-row > .block-actions-container,
@@ -39,19 +40,21 @@
   opacity: 0 !important;
   pointer-events: none !important;
 }
+
 .block-add-btn {
   background: none;
   border: none;
   cursor: pointer;
   color: var(--text3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 20px !important;
+  height: 20px !important;
   border-radius: 3px;
   padding: 0;
   transition: background var(--duration-quick) var(--ease-smooth-out), color var(--duration-quick) var(--ease-smooth-out);
+  flex-shrink: 0 !important;
 }
 .block-add-btn:hover {
   background: rgba(127,127,127,0.15);
@@ -65,15 +68,17 @@
   fill: none;
 }
 .block-drag-handle {
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 20px !important;
+  height: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   color: var(--text3);
   cursor: grab;
   border-radius: 3px;
   transition: background var(--duration-quick) var(--ease-smooth-out), color var(--duration-quick) var(--ease-smooth-out);
+  flex-shrink: 0 !important;
+  margin-left: 4px !important;
 }
 .block-drag-handle:hover {
   background: rgba(127,127,127,0.15);
@@ -85,9 +90,6 @@
   fill: currentColor;
 }
 .block-content-container {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
   flex: 1;
   min-width: 0;
 }
@@ -109,31 +111,33 @@
 
 /* Block styles & Contextual Spacing */
 .block-wrapper[data-type="heading1"] {
-  margin-top: 16px;
-  margin-bottom: 4px;
+  margin-top: 22px;
+  margin-bottom: 6px;
 }
 .block-wrapper[data-type="heading1"] .block-text-field {
-  font-size: 19px;
+  font-size: 24px;
   font-weight: 700;
-  letter-spacing: -.015em;
+  letter-spacing: -.02em;
 }
 
 .block-wrapper[data-type="heading2"] {
-  margin-top: 12px;
+  margin-top: 18px;
   margin-bottom: 4px;
 }
 .block-wrapper[data-type="heading2"] .block-text-field {
-  font-size: 15.5px;
-  font-weight: 600;
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -.015em;
 }
 
 .block-wrapper[data-type="heading3"] {
-  margin-top: 8px;
+  margin-top: 14px;
   margin-bottom: 4px;
 }
 .block-wrapper[data-type="heading3"] .block-text-field {
-  font-size: 1.1rem;
+  font-size: 16px;
   font-weight: 600;
+  letter-spacing: -.01em;
 }
 
 /* Rich Structural Blocks Spacing */
@@ -211,6 +215,17 @@
   border-radius: 2px;
   z-index: 20;
 }
+.block-wrapper.drag-over-top::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 7px;
+  height: 7px;
+  background: var(--accent);
+  border-radius: 50%;
+  z-index: 21;
+}
 .block-wrapper.drag-over-bottom::after {
   content: '';
   position: absolute;
@@ -222,6 +237,17 @@
   border-radius: 2px;
   z-index: 20;
 }
+.block-wrapper.drag-over-bottom::before {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: -4px;
+  width: 7px;
+  height: 7px;
+  background: var(--accent);
+  border-radius: 50%;
+  z-index: 21;
+}
 .block-wrapper.drag-over-indent-child::after {
   content: '';
   position: absolute;
@@ -232,6 +258,17 @@
   background: var(--accent);
   border-radius: 2px;
   z-index: 20;
+}
+.block-wrapper.drag-over-indent-child::before {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 24px;
+  width: 7px;
+  height: 7px;
+  background: var(--accent);
+  border-radius: 50%;
+  z-index: 21;
 }
 .block-wrapper.drag-over-col-left::before {
   content: '';
@@ -280,4 +317,48 @@
   min-height: 32px;
   border: 1px dashed rgba(127, 127, 127, 0.2);
   border-radius: 4px;
+}
+
+/* Layout row alignment for wrappers that do not use block-main-row */
+.block-wrapper[data-type="code"],
+.block-wrapper[data-type="mermaid"],
+.block-wrapper[data-type="subpage"],
+.block-wrapper[data-type="subfolder"],
+.block-wrapper[data-type="divider"],
+.block-wrapper[data-type="image"],
+.block-wrapper[data-type="video"],
+.block-wrapper[data-type="audio"],
+.block-wrapper[data-type="pdf"],
+.block-wrapper[data-type="bookmark"],
+.block-wrapper[data-type="file"],
+.block-wrapper[data-type="equation"],
+.block-wrapper[data-type="math"],
+.block-wrapper[data-type="toc"],
+.block-wrapper[data-type="breadcrumb"] {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+}
+
+.block-wrapper[data-type="code"] > :not(.block-actions-container),
+.block-wrapper[data-type="mermaid"] > :not(.block-actions-container),
+.block-wrapper[data-type="subpage"] > :not(.block-actions-container),
+.block-wrapper[data-type="subfolder"] > :not(.block-actions-container),
+.block-wrapper[data-type="divider"] > :not(.block-actions-container),
+.block-wrapper[data-type="image"] > :not(.block-actions-container),
+.block-wrapper[data-type="video"] > :not(.block-actions-container),
+.block-wrapper[data-type="audio"] > :not(.block-actions-container),
+.block-wrapper[data-type="pdf"] > :not(.block-actions-container),
+.block-wrapper[data-type="bookmark"] > :not(.block-actions-container),
+.block-wrapper[data-type="file"] > :not(.block-actions-container),
+.block-wrapper[data-type="equation"] > :not(.block-actions-container),
+.block-wrapper[data-type="math"] > :not(.block-actions-container),
+.block-wrapper[data-type="toc"] > :not(.block-actions-container),
+.block-wrapper[data-type="breadcrumb"] > :not(.block-actions-container) {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.block-children-container {
+  margin-left: 24px !important; /* Hierarchical indent per nesting level */
 }

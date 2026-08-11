@@ -52,8 +52,8 @@ describe('Fluent Notes - Store & Parsers', () => {
   describe('renderBlockTree subitems', () => {
     it('renders subfolders and subpages as inline document blocks', () => {
       const blocks: Block[] = [
-        { id: 'b1', type: 'subpage', url: 'n2', content: 'Subpage B' },
-        { id: 'b2', type: 'subfolder', url: 'f1', content: 'Subfolder A' }
+        { id: 'b1', type: 'subpage', url: 'n2', content: 'Subpage B', children: [] },
+        { id: 'b2', type: 'subfolder' as any, url: 'f1', content: 'Subfolder A', children: [] }
       ];
 
       const html = renderBlockTree(blocks, 0, undefined, {

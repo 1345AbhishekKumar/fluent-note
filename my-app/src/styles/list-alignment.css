@@ -1,131 +1,129 @@
-/* ============ UNIVERSAL LIST ITEM ALIGNMENT FIXED ============ */
-/* Targets all list items, task checkboxes, bullet points, and collapse toggles globally */
+/* ============ UNIVERSAL LIST ITEM & TEXT ALIGNMENT ============ */
 
-/* 1. Force ALL list items to be a flex container aligned to the top (first line) */
-li, 
-.list-item, 
-.task-list-item, 
-.markdown-preview-view li, 
-.cm-line,
-.block-content-container,
+/* 1. Shared Editor Layout Grid for Content Containers
+   This defines the layout of the marker and text column for standard text block types.
+*/
+[data-type="paragraph"] .block-content-container,
+[data-type="todo"] .block-content-container,
 [data-type="bullet"] .block-content-container,
 [data-type="numbered"] .block-content-container,
 [data-type^="toggle"] .block-content-container,
-[data-type="todo"] .block-content-container {
-  display: flex !important;
-  align-items: flex-start !important; /* Align markers/checkboxes to the top (first line) */
+[data-type^="heading"] .block-content-container {
+  display: grid !important;
+  grid-template-columns: 24px 1fr auto !important;
+  column-gap: 0 !important;
+  row-gap: 0 !important;
+  align-items: flex-start !important; /* Top aligned relative to the container */
   justify-content: flex-start !important;
-  gap: 6px !important; /* Adjusts the spacing between the icon and text to perfect 6px gap */
+  flex: 1 !important;
+  min-width: 0 !important;
 }
 
-/* 2. Force block display on the text wrapper inside the list item for proper wrapping */
-li > div, 
-.list-item > div, 
-.cm-line > div,
+/* 2. Force text fields to always occupy the second column of the grid.
+   This guarantees that whether a block has a marker gutter or not (like paragraphs or headings),
+   its text starts at exactly the same X coordinate.
+*/
 .block-text-field {
-  display: block !important; /* Change from flex to block to allow natural multiline text flow */
+  grid-column: 2 !important;
+  display: block !important;
   align-self: flex-start !important;
-  width: 100% !important; /* Allows the text to still wrap correctly */
+  width: 100% !important;
   flex: 1 !important;
   min-width: 0 !important;
   white-space: pre-wrap !important;
   word-break: break-word !important;
+  line-height: 1.6 !important;
 }
 
-/* 3. Shared marker gutter wrapper (fixed width 22px) used by checklist, numbered, and bullet list items */
+/* 3. Shared Marker Gutter Wrapper (Column 3)
+   Perfectly centers checkboxes, bullets, list numbers, or toggle arrows.
+   Default height matches paragraph line-height (15px * 1.6 = 24px).
+*/
 .block-list-marker-gutter {
-  width: 22px !important;
+  grid-column: 1 !important;
+  width: 24px !important;
+  height: 24px !important;
   flex-shrink: 0 !important;
   display: flex !important;
-  align-items: flex-start !important;
-  justify-content: flex-start !important;
+  align-items: center !important;
+  justify-content: center !important;
   margin: 0 !important;
   padding: 0 !important;
+  align-self: flex-start !important;
 }
 
-/* 4. Reset the checkbox to align with the first line of text, start at left margin, and be 14px */
-input[type="checkbox"],
+/* 4. Heading Line-Height Gutter Adapters
+   Ensures that hover controls and marker gutters scale their height to match the larger line-height of headings.
+*/
+[data-type="heading1"] .block-list-marker-gutter,
+[data-type="toggle_h1"] .block-list-marker-gutter {
+  height: 38.4px !important; /* 24px * 1.6 */
+}
+[data-type="heading2"] .block-list-marker-gutter,
+[data-type="toggle_h2"] .block-list-marker-gutter {
+  height: 30.4px !important; /* 19px * 1.6 */
+}
+[data-type="heading3"] .block-list-marker-gutter,
+[data-type="toggle_h3"] .block-list-marker-gutter {
+  height: 25.6px !important; /* 16px * 1.6 */
+}
+
+/* 5. Todo Checkbox Styles
+   Sets consistent sizing and aligns it with the first line of text.
+*/
 .block-todo-checkbox {
-  margin: 0px !important;
-  top: 0px !important;
-  vertical-align: baseline !important;
-  align-self: flex-start !important;
-  margin-top: calc(2px + (1.65em - 14px) / 2) !important; /* Vertically center relative to first line of text */
-  transform: translateY(0) !important;
+  width: 15px !important;
+  height: 15px !important;
+  margin: 0 !important;
+  margin-top: 4.5px !important; /* Visual vertical alignment with first line of text */
+  padding: 0 !important;
   flex-shrink: 0 !important;
-  width: 14px !important;
-  height: 14px !important;
+  cursor: pointer !important;
+  accent-color: var(--accent) !important;
+  border-radius: 4px !important;
+  align-self: flex-start !important;
 }
 
-/* 5. Force bullets to align with the first line and anchor to the left edge of the gutter */
+/* 6. Controlled Custom Bullet Marker
+   Circular 6px dot aligned with the first line of text.
+*/
 .block-bullet-marker {
-  font-size: 1.1em !important;
-  line-height: 1 !important;
-  height: 14px !important;
-  width: 14px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  margin: 0 !important;
-  margin-top: calc(2px + (1.65em - 14px) / 2) !important; /* Vertically center relative to first line of text */
-  align-self: flex-start !important;
-  flex-shrink: 0 !important;
-  color: var(--accent) !important;
-  text-align: left !important;
-  user-select: none;
-}
-
-/* 6. Force numbered lists to align with the first line, anchor to the left, and disable right alignment */
-.block-numbered-marker {
-  font-size: 0.9em !important;
-  line-height: 1 !important;
-  height: 14px !important;
-  width: auto !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  margin: 0 !important;
-  margin-top: calc(2px + (1.65em - 14px) / 2) !important; /* Vertically center relative to first line of text */
-  align-self: flex-start !important;
-  flex-shrink: 0 !important;
-  color: var(--text2) !important;
-  text-align: left !important;
-  font-variant-numeric: tabular-nums !important;
-  user-select: none;
-}
-
-/* 7. Align general list items (li) to first line */
-::marker,
-li::before,
-li::marker {
-  vertical-align: baseline !important;
-  align-self: flex-start !important;
-  width: 20px !important;
-  text-align: center !important;
-  margin: 0px !important;
-  margin-right: 8px !important;
-  margin-top: 2px !important;
-}
-
-/* 5. Perfect alignment for toggle arrow buttons / summaries in collapsible lists */
-.toggle-arrow-btn,
-.block-content-container button,
-li button,
-details > summary::before {
-  align-self: flex-start !important; /* Align to the first line of text */
-  margin: 0px !important;
-  margin-right: 4px !important;
-  margin-top: 3px !important; /* Vertical offset for alignment with first line */
-  vertical-align: middle !important;
-  flex-shrink: 0 !important;
-}
-
-/* 6. Override specific elements that hold the text to prevent them from taking over the height */
-li > p, 
-.list-item > p, 
-.cm-line > p,
-.block-text-field p {
-  margin: 0 !important;
+  width: 6px !important;
+  height: 6px !important;
+  min-width: 6px !important;
+  background-color: var(--accent) !important;
+  border-radius: 50% !important;
   display: inline-block !important;
-  vertical-align: middle !important;
+  flex-shrink: 0 !important;
+  font-size: 0 !important; /* Hide any legacy dot characters */
+  color: transparent !important;
+  margin-top: 9px !important; /* Visual vertical alignment with first line of text */
+  align-self: flex-start !important;
+}
+
+/* 7. Numbered List Marker Alignment */
+.block-numbered-marker {
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: var(--text2) !important;
+  line-height: 24px !important; /* Match text line-height for exact alignment */
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  align-self: flex-start !important;
+  margin: 0 !important;
+  user-select: none !important;
+}
+
+/* 8. Toggle Arrow Button Centering */
+.toggle-arrow-btn {
+  width: 20px !important;
+  height: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  margin-top: 2px !important; /* Visual vertical alignment with first line of text */
+  padding: 0 !important;
+  align-self: flex-start !important;
 }

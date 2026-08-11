@@ -85,6 +85,7 @@ export function handleDragHandleClick(ctx: AppContext, e: MouseEvent, dragHandle
       { label: 'Toggle heading 3', icon: '▶3', action: () => { pushToUndo(ctx, n); match.block.type = 'toggle_h3'; rerenderNote(ctx, n); } },
       { label: 'Quote', icon: '❝', action: () => { pushToUndo(ctx, n); match.block.type = 'quote'; rerenderNote(ctx, n); } },
       { label: 'Divider', icon: '—', action: () => { pushToUndo(ctx, n); match.block.type = 'divider'; match.block.content = ''; rerenderNote(ctx, n); } },
+      { label: 'Table', icon: '田', action: () => { pushToUndo(ctx, n); match.block.type = 'table'; match.block.content = JSON.stringify([['Header 1', 'Header 2'], ['', ''], ['', '']]); rerenderNote(ctx, n); } },
       { label: 'Callout', icon: '💡', action: () => { pushToUndo(ctx, n); match.block.type = 'callout'; match.block.icon = '💡'; rerenderNote(ctx, n); } },
       { label: 'Page', icon: '📄', action: () => { rerenderNote(ctx, n); ctx.newSubNote(n.id); } },
       { label: 'Subfolder', icon: '📁', action: () => { rerenderNote(ctx, n); ctx.newSubFolder(n.id); } },

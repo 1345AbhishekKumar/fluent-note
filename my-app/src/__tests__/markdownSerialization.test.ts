@@ -82,7 +82,7 @@ describe('Markdown Serialization & Deserialization', () => {
     expect(serialized).toContain('archived: false');
     expect(serialized).toContain('parentId: "parent-folder-1"');
     expect(serialized).toContain('ord: 5');
-    expect(serialized).toContain('blocks: [');
+    expect(serialized).not.toContain('blocks: [');
     expect(serialized).toContain('# Header Title');
     expect(serialized).toContain('Body paragraph text.');
   });
@@ -290,5 +290,93 @@ title: "Norm"
     expect(parsedBlocks[4].content).toBe('Sub section');
 
     expect(parsedBlocks[5].type).toBe('divider');
+  });
+
+  it('serializes and deserializes toggles, columns, templates, TOC and breadcrumbs correctly', () => {
+    const originalBlocks: Block[] = [
+      { id: 'b_t1', type: 'toggle', content: 'Main Topic', collapsed: true, children: [
+        { id: 'b_t1_c1', type: 'paragraph', content: 'Nested under toggle', children: [] }
+      ] },
+      { id: 'b_t2', type: 'toggle_h1', content: 'Header Toggle', collapsed: false, children: [] },
+      { id: 'b_cl', type: 'column_list', content: '', children: [
+        { id: 'b_c1', type: 'column', columnWidth: 50, content: '', children: [
+          { id: 'b_c1_p', type: 'paragraph', content: 'Col 1 Content', children: [] }
+        ] },
+        { id: 'b_c2', type: 'column', columnWidth: 50, content: '', children: [
+          { id: 'b_c2_p', type: 'paragraph', content: 'Col 2 Content', children: [] }
+        ] }
+      ] },
+      { id: 'b_tmp', type: 'template', content: 'My Button', children: [
+        { id: 'b_tmp_p', type: 'paragraph', content: 'Template Content', children: [] }
+      ] },
+      { id: 'b_toc', type: 'toc', content: '', children: [] },
+      { id: 'b_bc', type: 'breadcrumb', content: '', children: [] }
+    ];
+
+    // Verify Markdown serialization
+    const md = blocksToMarkdown(originalBlocks);
+    expect(md).toContain('> [!TOGGLE] [collapsed] Main Topic');
+    expect(md).toContain('  Nested under toggle');
+    expect(md).toContain('> [!TOGGLE-H1] Header Toggle');
+    expect(md).toContain(':::column-list');
+    expect(md).toContain('  :::column [width:50]');
+    expect(md).toContain('    Col 1 Content');
+    expect(md).toContain('  :::');
+    expect(md).toContain(':::');
+    expect(md).toContain('[template:My Button]');
+    expect(md).toContain('[toc]');
+    expect(md).toContain('[breadcrumb]');
+
+    // Verify Markdown deserialization
+    const parsedBlocks = markdownToBlocks(md);
+    expect(parsedBlocks[0].type).toBe('toggle');
+    expect(parsedBlocks[0].content).toBe('Main Topic');
+    expect(parsedBlocks[0].collapsed).toBe(true);
+    expect(parsedBlocks[0].children?.[0].content).toBe('Nested under toggle');
+
+    expect(parsedBlocks[1].type).toBe('toggle_h1');
+    expect(parsedBlocks[1].content).toBe('Header Toggle');
+    expect(parsedBlocks[1].collapsed).toBe(false);
+
+    expect(parsedBlocks[2].type).toBe('column_list');
+    expect(parsedBlocks[2].children?.[0].type).toBe('column');
+    expect(parsedBlocks[2].children?.[0].columnWidth).toBe(50);
+    expect(parsedBlocks[2].children?.[0].children?.[0].content).toBe('Col 1 Content');
+
+    expect(parsedBlocks[3].type).toBe('template');
+    expect(parsedBlocks[3].content).toBe('My Button');
+    expect(parsedBlocks[3].children?.[0].content).toBe('Template Content');
+
+    expect(parsedBlocks[4].type).toBe('toc');
+    expect(parsedBlocks[5].type).toBe('breadcrumb');
+
+    // Verify HTML Conversion round-trip
+    const html = blocksToHtml(originalBlocks);
+    expect(html).toContain('class="toggle-block"');
+    expect(html).toContain('data-type="toggle_h1"');
+    expect(html).toContain('class="column-list-block"');
+    expect(html).toContain('class="column-block"');
+    expect(html).toContain('data-width="50"');
+    expect(html).toContain('class="template-block"');
+    expect(html).toContain('class="toc-block"');
+    expect(html).toContain('class="breadcrumb-block"');
+
+    const parsedHtmlBlocks = htmlToBlocks(html);
+    expect(parsedHtmlBlocks[0].type).toBe('toggle');
+    expect(parsedHtmlBlocks[0].content).toBe('Main Topic');
+    expect(parsedHtmlBlocks[0].collapsed).toBe(true);
+    expect(parsedHtmlBlocks[0].children?.[0].content).toBe('Nested under toggle');
+
+    expect(parsedHtmlBlocks[2].type).toBe('column_list');
+    expect(parsedHtmlBlocks[2].children?.[0].type).toBe('column');
+    expect(parsedHtmlBlocks[2].children?.[0].columnWidth).toBe(50);
+    expect(parsedHtmlBlocks[2].children?.[0].children?.[0].content).toBe('Col 1 Content');
+
+    expect(parsedHtmlBlocks[3].type).toBe('template');
+    expect(parsedHtmlBlocks[3].content).toBe('My Button');
+    expect(parsedHtmlBlocks[3].children?.[0].content).toBe('Template Content');
+
+    expect(parsedHtmlBlocks[4].type).toBe('toc');
+    expect(parsedHtmlBlocks[5].type).toBe('breadcrumb');
   });
 });

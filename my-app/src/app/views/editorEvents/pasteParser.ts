@@ -1,5 +1,37 @@
 import type { Block, BlockType } from '../../../types';
-import { genId } from '../../../utils';
+import { genId, esc } from '../../../utils';
+
+export function sanitizeInlineHtml(html: string): string {
+  const temp = document.createElement('div');
+  temp.innerHTML = html;
+  
+  function clean(node: Node): string {
+    let result = '';
+    for (const child of Array.from(node.childNodes)) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        result += esc(child.textContent || '');
+      } else if (child.nodeType === Node.ELEMENT_NODE) {
+        const el = child as HTMLElement;
+        const tag = el.tagName.toLowerCase();
+        const safeTags = ['b', 'strong', 'i', 'em', 'u', 'strike', 's', 'del', 'mark', 'code', 'a'];
+        if (safeTags.includes(tag)) {
+          const innerContent = clean(el);
+          if (tag === 'a') {
+            const href = el.getAttribute('href') || '';
+            result += `<a href="${esc(href)}" target="_blank">${innerContent}</a>`;
+          } else {
+            result += `<${tag}>${innerContent}</${tag}>`;
+          }
+        } else {
+          result += clean(el);
+        }
+      }
+    }
+    return result;
+  }
+  
+  return clean(temp);
+}
 
 export function detectMermaidSyntax(text: string): boolean {
   const trimmed = text.trim();
@@ -263,8 +295,26 @@ export function parseHtmlToBlocks(html: string): Block[] {
         
         if (!hasBlockChildren && el.textContent?.trim()) {
           const text = el.textContent.trim();
-          const parsed = parseTextToBlocks(text);
-          blocks.push(...parsed);
+          const matchesMarkdown = 
+            text.startsWith('#') || 
+            text.startsWith('>') || 
+            text.startsWith('-') || 
+            text.startsWith('*') || 
+            text.startsWith('+') || 
+            /^\d+[\.\)]/.test(text) || 
+            text === '---';
+          
+          if (matchesMarkdown) {
+            const parsed = parseTextToBlocks(text);
+            blocks.push(...parsed);
+          } else {
+            blocks.push({
+              id: genId(),
+              type: 'paragraph',
+              content: sanitizeInlineHtml(el.innerHTML),
+              children: []
+            });
+          }
         } else {
           Array.from(node.childNodes).forEach(child => walk(child));
         }

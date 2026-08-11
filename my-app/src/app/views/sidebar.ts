@@ -178,6 +178,13 @@ export function initSidebarEvents(ctx: AppContext) {
     ctx.closeOverlayIf();
   });
 
+  if (ctx.elements.searchIn) {
+    ctx.elements.searchIn.addEventListener('input', () => {
+      ctx.st.q = ctx.elements.searchIn.value.trim().toLowerCase();
+      ctx.renderList();
+    });
+  }
+
   initSidebarContextMenus(ctx);
   initSidebarDragAndDrop(ctx);
 }

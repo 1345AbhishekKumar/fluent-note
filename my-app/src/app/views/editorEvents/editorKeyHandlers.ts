@@ -1,5 +1,5 @@
 import type { AppContext } from '../../context';
-import { findBlockById } from '../../../utils';
+import { findBlockById, cleanBadgeHtml, moveCaret } from '../../../utils';
 import { saveAndSyncContent } from '../../../store';
 import { 
   showAutocompletePicker, closeAutocompletePicker, updatePickerSelection, executePickerCommand,
@@ -9,7 +9,7 @@ import {
   showSlashMenu, closeSlashMenu, updateSlashMenuSelection, executeSlashCommand,
   getActiveSlashBlockId, getSelectedSlashItemIndex, setSelectedSlashItemIndex, getVisibleSlashItems
 } from './pickers/editorSlashMenu';
-import { tryMarkdownShortcut } from './editorMarkdownShortcuts';
+import { tryMarkdownShortcut, tryInlineMarkdown } from './editorMarkdownShortcuts';
 import { 
   handleBlockEnterKey, handleBlockBackspaceKey, handleBlockDeleteKey, handleBlockArrowUp, handleBlockArrowDown, handleBlockTabKey 
 } from './editorBlockKeyActions';
@@ -51,6 +51,33 @@ export function initEditorKeyHandlers(ctx: AppContext) {
       return;
     }
 
+    if (target.classList.contains('table-cell-field')) {
+      const blockEl = target.closest('.block-wrapper') as HTMLElement;
+      if (blockEl) {
+        const blockId = blockEl.dataset.id!;
+        const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+        if (n) {
+          const match = findBlockById(n.blocks, blockId);
+          if (match && match.block.type === 'table') {
+            pushToUndoDebounced(ctx, n);
+            const trs = blockEl.querySelectorAll('tbody tr');
+            const grid: string[][] = [];
+            trs.forEach(tr => {
+              const row: string[] = [];
+              tr.querySelectorAll('.table-cell-field').forEach(td => {
+                row.push(td.innerHTML);
+              });
+              grid.push(row);
+            });
+            match.block.content = JSON.stringify(grid);
+            saveAndSyncContent();
+            ctx.markSaving();
+          }
+        }
+      }
+      return;
+    }
+
     if (!target.classList.contains('block-text-field')) return;
 
     const blockEl = target.closest('.block-wrapper') as HTMLElement;
@@ -65,7 +92,13 @@ export function initEditorKeyHandlers(ctx: AppContext) {
       pushToUndoDebounced(ctx, n);
 
       const text = target.textContent || '';
-      match.block.content = text;
+      if (tryInlineMarkdown(ctx, target)) {
+        match.block.content = cleanBadgeHtml(target);
+        saveAndSyncContent();
+        ctx.markSaving();
+        return;
+      }
+      match.block.content = cleanBadgeHtml(target);
 
       if (tryMarkdownShortcut(ctx, n, match.block, match.index, match.parentList, text)) {
         return;
@@ -120,6 +153,51 @@ export function initEditorKeyHandlers(ctx: AppContext) {
 
   ctx.elements.edBody.addEventListener('keydown', e => {
     const target = e.target as HTMLElement;
+    if (target.classList.contains('table-cell-field')) {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const td = target.closest('td') as HTMLTableCellElement;
+        if (td) {
+          let nextTd = (e.shiftKey ? td.previousElementSibling : td.nextElementSibling) as HTMLTableCellElement;
+          if (!nextTd) {
+            const tr = td.closest('tr') as HTMLTableRowElement;
+            const nextTr = (e.shiftKey ? tr.previousElementSibling : tr.nextElementSibling) as HTMLTableRowElement;
+            if (nextTr) {
+              const cells = nextTr.querySelectorAll('td');
+              nextTd = (e.shiftKey ? cells[cells.length - 1] : cells[0]) as HTMLTableCellElement;
+            }
+          }
+          if (nextTd) {
+            const field = nextTd.querySelector('.table-cell-field') as HTMLElement;
+            if (field) {
+              field.focus();
+              moveCaret(field);
+            }
+          }
+        }
+        return;
+      }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const td = target.closest('td') as HTMLTableCellElement;
+        if (td && td.dataset.col) {
+          const colIdx = parseInt(td.dataset.col);
+          const tr = td.closest('tr') as HTMLTableRowElement;
+          const nextTr = tr.nextElementSibling as HTMLTableRowElement;
+          if (nextTr) {
+            const nextTd = nextTr.querySelector(`td[data-col="${colIdx}"]`) as HTMLTableCellElement;
+            const field = nextTd?.querySelector('.table-cell-field') as HTMLElement;
+            if (field) {
+              field.focus();
+              moveCaret(field);
+            }
+          }
+        }
+        return;
+      }
+      return;
+    }
+
     if (!target.classList.contains('block-text-field')) return;
     
     const blockEl = target.closest('.block-wrapper') as HTMLElement;

@@ -12,12 +12,13 @@ describe('handleMultiBlockTextDeletion', () => {
     document.body.innerHTML = '';
     sampleNote = {
       id: 'note-1',
+      nb: 'default',
       title: 'Test Note',
       body: '',
       blocks: [
-        { id: 'b1', type: 'paragraph', content: 'Hello World' },
-        { id: 'b2', type: 'paragraph', content: 'Middle Block' },
-        { id: 'b3', type: 'paragraph', content: 'Testing Notion Style' }
+        { id: 'b1', type: 'paragraph', content: 'Hello World', children: [] },
+        { id: 'b2', type: 'paragraph', content: 'Middle Block', children: [] },
+        { id: 'b3', type: 'paragraph', content: 'Testing Notion Style', children: [] }
       ],
       tags: [],
       pinned: false,

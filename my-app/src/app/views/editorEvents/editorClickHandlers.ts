@@ -20,7 +20,7 @@ export function initEditorClickHandlers(ctx: AppContext) {
     handleCodeBlockControlsClick(ctx, e, e.target as HTMLElement);
   });
 
-  const handleEmptyClick = (e: MouseEvent) => {
+  const handleEmptyClick = (e: Event) => {
     const target = e.target as HTMLElement;
     if (!target.closest('.block-wrapper') && 
         !target.closest('.ed-title') && 

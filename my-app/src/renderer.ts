@@ -92,6 +92,53 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let matches: HTMLElement[] = [];
         let activeMatchIdx = -1;
+        
+        const highlightTextNodes = (el: Node, query: string): HTMLElement[] => {
+          const highlights: HTMLElement[] = [];
+          const queryLower = query.toLowerCase();
+
+          const walk = (node: Node) => {
+            if (node.nodeType === Node.TEXT_NODE) {
+              const text = node.nodeValue || '';
+              const textLower = text.toLowerCase();
+              const idx = textLower.indexOf(queryLower);
+              if (idx !== -1) {
+                const matchText = text.substring(idx, idx + query.length);
+                const remainingText = text.substring(idx + query.length);
+                
+                node.nodeValue = text.substring(0, idx);
+                
+                const span = document.createElement('span');
+                span.className = 'search-highlight';
+                span.textContent = matchText;
+                
+                const nextTextNode = document.createTextNode(remainingText);
+                
+                const parent = node.parentNode;
+                if (parent) {
+                  const nextSibling = node.nextSibling;
+                  parent.insertBefore(span, nextSibling);
+                  parent.insertBefore(nextTextNode, nextSibling);
+                  highlights.push(span);
+                  
+                  // Walk the newly created text node for any remaining matches
+                  walk(nextTextNode);
+                }
+              }
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+              if ((node as HTMLElement).classList.contains('search-highlight')) {
+                return;
+              }
+              const children = Array.from(node.childNodes);
+              for (const child of children) {
+                walk(child);
+              }
+            }
+          };
+
+          walk(el);
+          return highlights;
+        };
 
         const performSearch = () => {
           const query = input.value.trim().toLowerCase();
@@ -112,12 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           const fields = app.root.querySelectorAll('.editorpane .block-text-field');
           fields.forEach((field: any) => {
-            const text = field.textContent || '';
-            const idx = text.toLowerCase().indexOf(query);
-            if (idx !== -1) {
-              const regex = new RegExp(`(${query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
-              field.innerHTML = field.innerHTML.replace(regex, `<span class="search-highlight">$1</span>`);
-            }
+            highlightTextNodes(field, query);
           });
 
           matches = Array.from(app.root.querySelectorAll('.search-highlight')) as HTMLElement[];

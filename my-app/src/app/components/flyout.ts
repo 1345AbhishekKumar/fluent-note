@@ -231,7 +231,14 @@ export const styleItems = (ctx: AppContext) => {
     ['paragraph', 'Paragraph'],
     ['heading1', 'Heading 1'],
     ['heading2', 'Heading 2'],
-    ['todo', 'To-do']
+    ['heading3', 'Heading 3'],
+    ['todo', 'To-do list'],
+    ['bullet', 'Bulleted list'],
+    ['numbered', 'Numbered list'],
+    ['toggle', 'Toggle list'],
+    ['quote', 'Blockquote'],
+    ['code', 'Code block'],
+    ['callout', 'Callout']
   ].map(([b, l]) => ({
     label: l,
     checked: curType === b,
@@ -239,6 +246,8 @@ export const styleItems = (ctx: AppContext) => {
       if (n && activeMatch) {
         activeMatch.block.type = b as BlockType;
         if (b === 'todo') activeMatch.block.checked = false;
+        if (b === 'code' && !activeMatch.block.language) activeMatch.block.language = 'plaintext';
+        if (b === 'callout' && !activeMatch.block.icon) activeMatch.block.icon = '💡';
         setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes }));
         const field = ctx.elements.edBody.querySelector(`[data-id="${activeMatch.block.id}"] .block-text-field`) as HTMLElement;
         if (field) {

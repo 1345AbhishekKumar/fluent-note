@@ -100,6 +100,123 @@ export function handleDocumentMouseDown(ctx: AppContext, e: MouseEvent) {
 export function handleEditorBodyClick(ctx: AppContext, e: MouseEvent) {
   const target = e.target as HTMLElement;
 
+  // Table Add Row
+  const addRowBtn = target.closest('.add-row-btn') as HTMLElement;
+  if (addRowBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    const bId = addRowBtn.dataset.id!;
+    const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+    if (n) {
+      const match = findBlockById(n.blocks, bId);
+      if (match && match.block.type === 'table') {
+        pushToUndo(ctx, n);
+        let rows: string[][] = [];
+        try { rows = JSON.parse(match.block.content); } catch (ex) { rows = [['', ''], ['', '']]; }
+        const colCount = rows.length > 0 ? rows[0].length : 2;
+        rows.push(Array(colCount).fill(''));
+        match.block.content = JSON.stringify(rows);
+        rerenderNote(ctx, n);
+        saveAndSyncContent();
+        ctx.markSaving();
+      }
+    }
+    return;
+  }
+
+  // Table Add Column
+  const addColBtn = target.closest('.add-col-btn') as HTMLElement;
+  if (addColBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    const bId = addColBtn.dataset.id!;
+    const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+    if (n) {
+      const match = findBlockById(n.blocks, bId);
+      if (match && match.block.type === 'table') {
+        pushToUndo(ctx, n);
+        let rows: string[][] = [];
+        try { rows = JSON.parse(match.block.content); } catch (ex) { rows = [['', ''], ['', '']]; }
+        rows.forEach(r => r.push(''));
+        match.block.content = JSON.stringify(rows);
+        rerenderNote(ctx, n);
+        saveAndSyncContent();
+        ctx.markSaving();
+      }
+    }
+    return;
+  }
+
+  // Table Delete Row
+  const delRowBtn = target.closest('.del-row-btn') as HTMLElement;
+  if (delRowBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    const bId = delRowBtn.dataset.id!;
+    const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+    if (n) {
+      const match = findBlockById(n.blocks, bId);
+      if (match && match.block.type === 'table') {
+        pushToUndo(ctx, n);
+        let rows: string[][] = [];
+        try { rows = JSON.parse(match.block.content); } catch (ex) { rows = [['', ''], ['', '']]; }
+        if (rows.length > 1) {
+          const activeCell = document.activeElement as HTMLElement;
+          let rowToDelete = rows.length - 1;
+          if (activeCell && activeCell.classList.contains('table-cell-field')) {
+            const td = activeCell.closest('td') as HTMLElement;
+            if (td && td.dataset.row) {
+              rowToDelete = parseInt(td.dataset.row);
+            }
+          }
+          rows.splice(rowToDelete, 1);
+          match.block.content = JSON.stringify(rows);
+          rerenderNote(ctx, n);
+          saveAndSyncContent();
+          ctx.markSaving();
+        } else {
+          ctx.toast('Table must have at least 1 row');
+        }
+      }
+    }
+    return;
+  }
+
+  // Table Delete Column
+  const delColBtn = target.closest('.del-col-btn') as HTMLElement;
+  if (delColBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    const bId = delColBtn.dataset.id!;
+    const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+    if (n) {
+      const match = findBlockById(n.blocks, bId);
+      if (match && match.block.type === 'table') {
+        pushToUndo(ctx, n);
+        let rows: string[][] = [];
+        try { rows = JSON.parse(match.block.content); } catch (ex) { rows = [['', ''], ['', '']]; }
+        if (rows.length > 0 && rows[0].length > 1) {
+          const activeCell = document.activeElement as HTMLElement;
+          let colToDelete = rows[0].length - 1;
+          if (activeCell && activeCell.classList.contains('table-cell-field')) {
+            const td = activeCell.closest('td') as HTMLElement;
+            if (td && td.dataset.col) {
+              colToDelete = parseInt(td.dataset.col);
+            }
+          }
+          rows.forEach(r => r.splice(colToDelete, 1));
+          match.block.content = JSON.stringify(rows);
+          rerenderNote(ctx, n);
+          saveAndSyncContent();
+          ctx.markSaving();
+        } else {
+          ctx.toast('Table must have at least 1 column');
+        }
+      }
+    }
+    return;
+  }
+
   const addBtn = target.closest('.block-add-btn') as HTMLElement;
   if (addBtn) {
     e.preventDefault();
@@ -373,6 +490,40 @@ export function handleEditorBodyClick(ctx: AppContext, e: MouseEvent) {
     return;
   }
 
+
+  const imgTbBtn = target.closest('.image-tb-btn') as HTMLElement;
+  if (imgTbBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    const bId = imgTbBtn.dataset.id!;
+    const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+    if (!n) return;
+    const match = findBlockById(n.blocks, bId);
+    if (!match) return;
+
+    if (imgTbBtn.classList.contains('img-align-left')) {
+      match.block.columnWidth = 50;
+      rerenderNote(ctx, n);
+      saveAndSyncContent();
+    } else if (imgTbBtn.classList.contains('img-align-center')) {
+      match.block.columnWidth = 75;
+      rerenderNote(ctx, n);
+      saveAndSyncContent();
+    } else if (imgTbBtn.classList.contains('img-align-right')) {
+      match.block.columnWidth = 100;
+      rerenderNote(ctx, n);
+      saveAndSyncContent();
+    } else if (imgTbBtn.classList.contains('img-replace')) {
+      openMediaFilePrompt(ctx, 'image', match.block, n);
+    } else if (imgTbBtn.classList.contains('img-delete')) {
+      pushToUndo(ctx, n);
+      const idx = match.parentList.indexOf(match.block);
+      if (idx !== -1) match.parentList.splice(idx, 1);
+      rerenderNote(ctx, n);
+      saveAndSyncContent();
+    }
+    return;
+  }
 
   const langContainer = target.closest('.code-lang-container') as HTMLElement;
   if (langContainer) {

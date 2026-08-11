@@ -1,6 +1,6 @@
 import type { AppContext } from '../context';
 import type { Block, Note } from '../../types';
-import { esc, strip, htmlToBlocks, renderBlockTree, setEdBodyHtml, findBlockById } from '../../utils';
+import { esc, strip, htmlToBlocks, renderBlockTree, setEdBodyHtml, findBlockById, cleanBadgeHtml } from '../../utils';
 import { saveAndSyncContent, saveAndSync } from '../../store';
 import { styleItems, noteItems, nbItems, tagItems } from '../components/flyout';
 import { initEditorDragDrop } from './editorDragDrop';
@@ -10,11 +10,26 @@ import { triggerUndo, triggerRedo, commitTypingSession } from './editorEvents/ed
 import { IC } from '../../constants';
 import { renderMermaidDiagramsInContainer } from '../../utils/mermaidRenderer';
 
+export function syncFocusedBlockContent(ctx: AppContext) {
+  const activeEl = document.activeElement as HTMLElement;
+  if (!activeEl || !activeEl.classList.contains('block-text-field')) return;
+  const blockEl = activeEl.closest('.block-wrapper') as HTMLElement;
+  if (!blockEl) return;
+  const blockId = blockEl.dataset.id;
+  if (!blockId) return;
+
+  const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+  if (!n) return;
+
+  const match = findBlockById(n.blocks, blockId);
+  if (match) {
+    match.block.content = cleanBadgeHtml(activeEl);
+  }
+}
+
 export function renderSubItems(ctx: AppContext, n: Note) {
   // Legacy stub - subpages/subfolders are now rendered as inline blocks in the editor body
 }
-
-
 
 export function renderAcademicAndBacklinks(ctx: AppContext, n: Note) {
   const authIn = ctx.root.querySelector('.ac-authors') as HTMLInputElement;
@@ -160,7 +175,14 @@ export function initEditorEvents(ctx: AppContext) {
     
     const cmd = b.dataset.cmd;
     if (!cmd) return;
-    ctx.elements.edBody.focus();
+
+    const activeElBefore = document.activeElement as HTMLElement;
+    const isEditing = activeElBefore && activeElBefore.classList.contains('block-text-field');
+    if (!isEditing) {
+      const firstField = ctx.elements.edBody.querySelector('.block-text-field') as HTMLElement;
+      if (firstField) firstField.focus();
+    }
+
     try {
       if (cmd === 'undo') {
         const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
@@ -182,13 +204,14 @@ export function initEditorEvents(ctx: AppContext) {
         const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
         ctx.showPrompt('Link URL', 'https://...', 'https://', u => {
           if (u) {
-            ctx.elements.edBody.focus();
+            if (activeElBefore) activeElBefore.focus();
             if (range) {
               const s = window.getSelection();
               s?.removeAllRanges();
               s?.addRange(range);
             }
             document.execCommand('createLink', false, u);
+            syncFocusedBlockContent(ctx);
             saveAndSyncContent();
             ctx.markSaving();
           }
@@ -199,7 +222,7 @@ export function initEditorEvents(ctx: AppContext) {
         const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
         const val = prompt('Enter TeX / LaTeX formula:', selectionText);
         if (val !== null) {
-          ctx.elements.edBody.focus();
+          if (activeElBefore) activeElBefore.focus();
           if (range) {
             const s = window.getSelection();
             s?.removeAllRanges();
@@ -207,18 +230,9 @@ export function initEditorEvents(ctx: AppContext) {
           }
           const texHtml = `$$${val.trim()}$$`;
           document.execCommand('insertHTML', false, texHtml);
+          syncFocusedBlockContent(ctx);
           saveAndSyncContent();
           ctx.markSaving();
-          
-          const activeEl = document.activeElement as HTMLElement;
-          const blockEl = activeEl?.closest('.block-wrapper') as HTMLElement;
-          const blockId = blockEl?.dataset.id;
-          if (blockEl && blockId) {
-            const match = findBlockById(n.blocks, blockId);
-            if (match) {
-              match.block.content = activeEl.textContent || '';
-            }
-          }
           ctx.renderEditor();
         }
       } else {
@@ -226,6 +240,10 @@ export function initEditorEvents(ctx: AppContext) {
       }
     } catch (err) {}
     
+    if (cmd !== 'link' && cmd !== 'math' && cmd !== 'undo' && cmd !== 'redo') {
+      syncFocusedBlockContent(ctx);
+    }
+
     ctx.syncToolbar();
     saveAndSyncContent();
     ctx.markSaving();
@@ -281,11 +299,143 @@ export function initEditorEvents(ctx: AppContext) {
 
   // Init Key, Input, Tab, Slash, Checkbox events
   initEditorKeyEvents(ctx);
-
+ 
   // Init Hover Card Popover events
   initEditorHoverCard(ctx);
-
+ 
   // Init Drag and Drop events
   initEditorDragDrop(ctx);
+
+  // Initialize floating selection formatting toolbar bubble
+  let bubble = ctx.elements.edInner.querySelector('.floating-format-bubble') as HTMLElement;
+  if (!bubble) {
+    bubble = document.createElement('div');
+    bubble.className = 'floating-format-bubble';
+    bubble.innerHTML = `
+      <button class="fb-btn bold-btn" title="Bold (Ctrl+B)"><b>B</b></button>
+      <button class="fb-btn italic-btn" title="Italic (Ctrl+I)"><i>I</i></button>
+      <button class="fb-btn underline-btn" title="Underline (Ctrl+U)"><u>U</u></button>
+      <button class="fb-btn strike-btn" title="Strikethrough"><s>S</s></button>
+      <span class="sep"></span>
+      <button class="fb-btn code-btn" title="Inline Code (Ctrl+E)">&lt;&gt;</button>
+      <button class="fb-btn link-btn" title="Link (Ctrl+K)">🔗</button>
+      <button class="fb-btn highlight-btn" title="Highlight (Ctrl+Shift+H)">🖍</button>
+      <button class="fb-btn comment-btn" title="Comment (Ctrl+Shift+M)">💬</button>
+    `;
+    ctx.elements.edInner.appendChild(bubble);
+
+    // Prevent default mousedown to preserve rich text selection
+    bubble.addEventListener('mousedown', e => {
+      e.preventDefault();
+    });
+
+    const runCommand = (cmd: string, val?: string) => {
+      document.execCommand(cmd, false, val);
+      syncFocusedBlockContent(ctx);
+      saveAndSyncContent();
+      ctx.markSaving();
+      ctx.syncToolbar();
+    };
+
+    bubble.querySelector('.bold-btn')?.addEventListener('click', () => runCommand('bold'));
+    bubble.querySelector('.italic-btn')?.addEventListener('click', () => runCommand('italic'));
+    bubble.querySelector('.underline-btn')?.addEventListener('click', () => runCommand('underline'));
+    bubble.querySelector('.strike-btn')?.addEventListener('click', () => runCommand('strikeThrough'));
+    bubble.querySelector('.code-btn')?.addEventListener('click', () => {
+      const sel = window.getSelection()?.toString();
+      if (sel) {
+        runCommand('insertHTML', `<code style="background:var(--bg3); padding: 2px 4px; border-radius: 4px; font-family: monospace;">${esc(sel)}</code>`);
+      }
+    });
+    bubble.querySelector('.link-btn')?.addEventListener('click', () => {
+      const sel = window.getSelection();
+      const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+      ctx.showPrompt('Link URL', 'https://...', 'https://', u => {
+        if (u) {
+          if (range) {
+            const s = window.getSelection();
+            s?.removeAllRanges();
+            s?.addRange(range);
+          }
+          runCommand('createLink', u);
+        }
+      });
+    });
+    bubble.querySelector('.highlight-btn')?.addEventListener('click', () => {
+      runCommand('hiliteColor', ctx.api.theme === 'dark' ? 'rgba(255,210,63,.32)' : '#ffe9a0');
+    });
+    bubble.querySelector('.comment-btn')?.addEventListener('click', () => {
+      const activeEl = document.activeElement as HTMLElement;
+      const blockEl = activeEl?.closest('.block-wrapper') as HTMLElement;
+      if (blockEl) {
+        const bId = blockEl.dataset.id!;
+        const n = ctx.st.notes.find((x: any) => x.id === ctx.st.sel);
+        if (n) {
+          const match = findBlockById(n.blocks, bId);
+          if (match) {
+            const commentVal = prompt('Enter comment:', match.block.comment || '');
+            if (commentVal !== null) {
+              match.block.comment = commentVal.trim() || undefined;
+              ctx.renderEditor();
+            }
+          }
+        }
+      }
+    });
+  }
+
+  const handleSelectionChange = () => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+      bubble.style.display = 'none';
+      return;
+    }
+
+    const range = sel.getRangeAt(0);
+    const commonAncestor = range.commonAncestorContainer;
+    const editableParent = commonAncestor.nodeType === Node.ELEMENT_NODE
+      ? (commonAncestor as HTMLElement).closest('.block-text-field, .table-cell-field')
+      : commonAncestor.parentNode ? (commonAncestor.parentNode as HTMLElement).closest('.block-text-field, .table-cell-field') : null;
+
+    if (!editableParent || !ctx.elements.edBody.contains(editableParent)) {
+      bubble.style.display = 'none';
+      return;
+    }
+
+    const rects = range.getClientRects();
+    if (rects.length === 0) {
+      bubble.style.display = 'none';
+      return;
+    }
+
+    const firstRect = rects[0];
+    const innerRect = ctx.elements.edInner.getBoundingClientRect();
+    const left = firstRect.left - innerRect.left + (firstRect.width / 2) - ((bubble.offsetWidth || 230) / 2);
+    const top = firstRect.top - innerRect.top - (bubble.offsetHeight || 36) - 8;
+
+    bubble.style.left = Math.max(8, left) + 'px';
+    bubble.style.top = top + 'px';
+    bubble.style.display = 'flex';
+
+    // Update active button states based on selection style
+    const boldBtn = bubble.querySelector('.bold-btn');
+    const italicBtn = bubble.querySelector('.italic-btn');
+    const underlineBtn = bubble.querySelector('.underline-btn');
+    const strikeBtn = bubble.querySelector('.strike-btn');
+
+    if (document.queryCommandState('bold')) boldBtn?.classList.add('active');
+    else boldBtn?.classList.remove('active');
+
+    if (document.queryCommandState('italic')) italicBtn?.classList.add('active');
+    else italicBtn?.classList.remove('active');
+
+    if (document.queryCommandState('underline')) underlineBtn?.classList.add('active');
+    else underlineBtn?.classList.remove('active');
+
+    if (document.queryCommandState('strikeThrough')) strikeBtn?.classList.add('active');
+    else strikeBtn?.classList.remove('active');
+  };
+
+  document.addEventListener('selectionchange', handleSelectionChange);
 }
 

@@ -1,6 +1,42 @@
 import type { Block } from '../../types';
 import { genId, esc } from '../stringHelpers';
 
+export function cleanBadgeHtml(el: HTMLElement): string {
+  const temp = document.createElement('div');
+  temp.innerHTML = el.innerHTML;
+  
+  temp.querySelectorAll('.wiki-link').forEach((child: any) => {
+    const txt = child.textContent || '';
+    child.replaceWith(document.createTextNode(txt));
+  });
+  temp.querySelectorAll('.date-badge').forEach((child: any) => {
+    const date = child.getAttribute('data-date') || '';
+    child.replaceWith(document.createTextNode(`📅 ${date}`));
+  });
+  temp.querySelectorAll('.math-badge').forEach((child: any) => {
+    const tex = child.getAttribute('data-tex') || '';
+    child.replaceWith(document.createTextNode(`$$${tex}$$`));
+  });
+  temp.querySelectorAll('.search-highlight').forEach((child: any) => {
+    const txt = child.textContent || '';
+    child.replaceWith(document.createTextNode(txt));
+  });
+  
+  return temp.innerHTML;
+}
+
+export function isSpecialBlockOrBlockTag(el: Element): boolean {
+  const tag = el.tagName.toLowerCase();
+  const blockTags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'blockquote', 'ul', 'ol', 'li', 'hr', 'pre', 'section', 'article', 'aside', 'table'];
+  if (blockTags.includes(tag)) return true;
+  
+  if (tag === 'img' || tag === 'video' || tag === 'audio' || tag === 'iframe') return true;
+  if (tag === 'a' && (el.classList.contains('bookmark-link') || el.classList.contains('file-link'))) return true;
+  if (el.classList.contains('callout-block') || el.classList.contains('mermaid-block') || el.classList.contains('math-block') || el.classList.contains('block-wrapper') || el.classList.contains('toggle-block') || el.classList.contains('column-list-block') || el.classList.contains('column-block') || el.classList.contains('template-block') || el.classList.contains('toc-block') || el.classList.contains('breadcrumb-block')) return true;
+  
+  return false;
+}
+
 export function htmlToBlocks(html: string): Block[] {
   const d = document.createElement('div');
   d.innerHTML = html;
@@ -12,9 +48,9 @@ export function htmlToBlocks(html: string): Block[] {
       const tag = el.tagName.toLowerCase();
       
       if (tag === 'h2') {
-        blocks.push({ id: genId(), type: 'heading1', content: el.textContent || '', children: [] });
+        blocks.push({ id: genId(), type: 'heading1', content: cleanBadgeHtml(el), children: [] });
       } else if (tag === 'h3') {
-        blocks.push({ id: genId(), type: 'heading2', content: el.textContent || '', children: [] });
+        blocks.push({ id: genId(), type: 'heading2', content: cleanBadgeHtml(el), children: [] });
       } else if (tag === 'img') {
         blocks.push({
           id: genId(),
@@ -48,17 +84,113 @@ export function htmlToBlocks(html: string): Block[] {
           children: []
         });
       } else if (tag === 'h4') {
-        blocks.push({ id: genId(), type: 'heading3', content: el.textContent || '', children: [] });
+        blocks.push({ id: genId(), type: 'heading3', content: cleanBadgeHtml(el), children: [] });
+      } else if (tag === 'table') {
+        const rows: string[][] = [];
+        const trs = el.querySelectorAll('tr');
+        trs.forEach(tr => {
+          const row: string[] = [];
+          const tds = tr.querySelectorAll('td, th');
+          tds.forEach(td => {
+            row.push(cleanBadgeHtml(td as HTMLElement));
+          });
+          if (row.length > 0) {
+            rows.push(row);
+          }
+        });
+        blocks.push({
+          id: genId(),
+          type: 'table',
+          content: JSON.stringify(rows.length > 0 ? rows : [['', ''], ['', '']]),
+          children: []
+        });
       } else if (tag === 'hr') {
         blocks.push({ id: genId(), type: 'divider', content: '', children: [] });
       } else if (tag === 'blockquote') {
-        blocks.push({ id: genId(), type: 'quote', content: el.textContent || '', children: [] });
+        blocks.push({ id: genId(), type: 'quote', content: cleanBadgeHtml(el), children: [] });
       } else if (el.classList.contains('callout-block')) {
+        const pEl = el.querySelector('p') || el;
         blocks.push({
           id: genId(),
           type: 'callout',
           icon: el.getAttribute('data-icon') || '💡',
-          content: el.textContent || '',
+          content: cleanBadgeHtml(pEl),
+          children: []
+        });
+      } else if (el.classList.contains('toggle-block')) {
+        const type = el.getAttribute('data-type') || 'toggle';
+        const collapsed = el.getAttribute('data-collapsed') === 'true';
+        const childrenContainer = el.querySelector('.toggle-children');
+        const childrenBlocks = childrenContainer ? htmlToBlocks(childrenContainer.innerHTML) : [];
+        
+        const pEl = el.querySelector('p') || el.querySelector('.toggle-title');
+        let content = '';
+        if (pEl) {
+          content = cleanBadgeHtml(pEl as HTMLElement);
+        } else {
+          const clone = el.cloneNode(true) as HTMLElement;
+          clone.querySelector('.toggle-children')?.remove();
+          content = cleanBadgeHtml(clone);
+        }
+        
+        blocks.push({
+          id: genId(),
+          type: type as any,
+          content,
+          collapsed,
+          children: childrenBlocks
+        });
+      } else if (el.classList.contains('column-list-block')) {
+        const childrenBlocks = htmlToBlocks(el.innerHTML);
+        blocks.push({
+          id: genId(),
+          type: 'column_list',
+          content: '',
+          children: childrenBlocks
+        });
+      } else if (el.classList.contains('column-block')) {
+        const widthVal = el.getAttribute('data-width');
+        const columnWidth = widthVal ? parseInt(widthVal) : undefined;
+        const childrenBlocks = htmlToBlocks(el.innerHTML);
+        blocks.push({
+          id: genId(),
+          type: 'column',
+          content: '',
+          columnWidth,
+          children: childrenBlocks
+        });
+      } else if (el.classList.contains('template-block')) {
+        const childrenContainer = el.querySelector('.template-children');
+        const childrenBlocks = childrenContainer ? htmlToBlocks(childrenContainer.innerHTML) : [];
+        
+        const pEl = el.querySelector('p');
+        let content = '';
+        if (pEl) {
+          content = cleanBadgeHtml(pEl);
+        } else {
+          const clone = el.cloneNode(true) as HTMLElement;
+          clone.querySelector('.template-children')?.remove();
+          content = cleanBadgeHtml(clone);
+        }
+        
+        blocks.push({
+          id: genId(),
+          type: 'template',
+          content,
+          children: childrenBlocks
+        });
+      } else if (el.classList.contains('toc-block')) {
+        blocks.push({
+          id: genId(),
+          type: 'toc',
+          content: '',
+          children: []
+        });
+      } else if (el.classList.contains('breadcrumb-block')) {
+        blocks.push({
+          id: genId(),
+          type: 'breadcrumb',
+          content: '',
           children: []
         });
       } else if (tag === 'pre' || el.classList.contains('mermaid-block') || el.classList.contains('math-block')) {
@@ -124,9 +256,17 @@ export function htmlToBlocks(html: string): Block[] {
       } else if (tag === 'li') {
         const isTodo = el.querySelector('input[type="checkbox"]') !== null || el.textContent?.trim().startsWith('[ ]') || el.textContent?.trim().startsWith('[x]');
         const checked = el.querySelector('input[type="checkbox"]') ? (el.querySelector('input[type="checkbox"]') as HTMLInputElement).checked : false;
-        let content = el.textContent || '';
-        if (content.startsWith('[ ]') || content.startsWith('[x]')) {
-          content = content.substring(3).trim();
+        let content = cleanBadgeHtml(el);
+        if (isTodo) {
+          const temp = document.createElement('div');
+          temp.innerHTML = content;
+          const checkbox = temp.querySelector('input[type="checkbox"]');
+          if (checkbox) {
+            checkbox.remove();
+            content = temp.innerHTML.trim();
+          } else if (content.startsWith('[ ]') || content.startsWith('[x]')) {
+            content = content.substring(3).trim();
+          }
         }
         const parentTag = el.parentElement?.tagName.toLowerCase();
         let itemType: any = 'paragraph';
@@ -142,8 +282,10 @@ export function htmlToBlocks(html: string): Block[] {
           children: []
         });
       } else if (tag === 'p' || tag === 'div') {
-        if (el.children.length === 0 || (el.children.length === 1 && el.children[0].tagName.toLowerCase() === 'br')) {
-          blocks.push({ id: genId(), type: 'paragraph', content: el.textContent || '', children: [] });
+        const hasBlockOrSpecialChildren = Array.from(el.querySelectorAll('*')).some(child => isSpecialBlockOrBlockTag(child));
+        
+        if (!hasBlockOrSpecialChildren) {
+          blocks.push({ id: genId(), type: 'paragraph', content: cleanBadgeHtml(el), children: [] });
         } else {
           Array.from(el.childNodes).forEach(child => walk(child));
         }
@@ -215,10 +357,59 @@ export function blocksToHtml(blocks: Block[]): string {
       html += `<p><a class="file-link" href="${block.url || ''}" download="${esc(block.fileName || '')}">${esc(block.content || 'File')}</a></p>`;
     } else if (block.type === 'code') {
       html += `<pre><code class="language-${block.language || 'plaintext'}">${esc(block.content || '')}</code></pre>`;
+    } else if (block.type === 'toggle' || block.type === 'toggle_h1' || block.type === 'toggle_h2' || block.type === 'toggle_h3') {
+      const collapsedAttr = block.collapsed ? 'data-collapsed="true"' : '';
+      html += `<div class="toggle-block" data-type="${block.type}" ${collapsedAttr}><p>${esc(block.content)}</p>`;
+      if (block.children && block.children.length > 0) {
+        html += `<div class="toggle-children">${blocksToHtml(block.children)}</div>`;
+      }
+      html += `</div>`;
+    } else if (block.type === 'column_list') {
+      html += `<div class="column-list-block">`;
+      if (block.children && block.children.length > 0) {
+        html += blocksToHtml(block.children);
+      }
+      html += `</div>`;
+    } else if (block.type === 'column') {
+      const widthAttr = block.columnWidth ? `data-width="${block.columnWidth}"` : '';
+      html += `<div class="column-block" ${widthAttr}>`;
+      if (block.children && block.children.length > 0) {
+        html += blocksToHtml(block.children);
+      }
+      html += `</div>`;
+    } else if (block.type === 'template') {
+      html += `<div class="template-block"><p>${esc(block.content || '')}</p>`;
+      if (block.children && block.children.length > 0) {
+        html += `<div class="template-children">${blocksToHtml(block.children)}</div>`;
+      }
+      html += `</div>`;
+    } else if (block.type === 'toc') {
+      html += `<div class="toc-block"></div>`;
+    } else if (block.type === 'breadcrumb') {
+      html += `<div class="breadcrumb-block"></div>`;
+    } else if (block.type === 'subfolder') {
+      html += `<div class="subfolder-block" data-id="${block.url || ''}"><p>${esc(block.content || 'Subfolder')}</p></div>`;
+    } else if (block.type === 'table') {
+      let grid: string[][] = [];
+      try {
+        grid = JSON.parse(block.content);
+      } catch (ex) {
+        grid = [['', ''], ['', '']];
+      }
+      html += `<table><tbody>`;
+      for (const row of grid) {
+        html += `<tr>`;
+        for (const cell of row) {
+          html += `<td>${cell}</td>`;
+        }
+        html += `</tr>`;
+      }
+      html += `</tbody></table>`;
     } else {
       html += `<p>${esc(block.content)}</p>`;
     }
-    if (block.children && block.children.length > 0) {
+    if (block.children && block.children.length > 0 && 
+        !['toggle', 'toggle_h1', 'toggle_h2', 'toggle_h3', 'column_list', 'column', 'template', 'table'].includes(block.type)) {
       html += blocksToHtml(block.children);
     }
   }

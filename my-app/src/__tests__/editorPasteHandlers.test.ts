@@ -321,8 +321,8 @@ describe('handleEditorPaste block splitting', () => {
           children: []
         }
       ],
-      updatedAt: Date.now()
-    };
+      nb: 'default'
+    } as any;
 
     const edBody = document.createElement('div');
     edBody.className = 'ed-body';
@@ -380,19 +380,15 @@ describe('handleEditorPaste block splitting', () => {
 
     expect(mockEvent.preventDefault).toHaveBeenCalled();
     // After paste inside container:
-    // b1.content should be 'Hello' + 'Pasted block 1' = 'HelloPasted block 1'
-    // b1.children should contain:
-    //   1. type: 'bullet', content: 'Pasted block 2'
-    //   2. type: 'paragraph', content: ' container'
+    // All pasted blocks are joined by <br> and inserted inline.
+    // b1.content should contain all lines and the text after caret.
     expect(note.blocks).toHaveLength(1);
     const containerBlock = note.blocks[0];
     expect(containerBlock.type).toBe('callout');
-    expect(containerBlock.content).toBe('HelloPasted block 1');
-    expect(containerBlock.children).toHaveLength(2);
-    expect(containerBlock.children[0].type).toBe('bullet');
-    expect(containerBlock.children[0].content).toBe('Pasted block 2');
-    expect(containerBlock.children[1].type).toBe('paragraph');
-    expect(containerBlock.children[1].content).toBe(' container');
+    expect(containerBlock.content).toContain('Hello');
+    expect(containerBlock.content).toContain('Pasted block 1<br>- Pasted block 2');
+    expect(containerBlock.content).toContain(' container');
+    expect(containerBlock.children || []).toHaveLength(0);
 
     document.body.removeChild(edBody);
   });

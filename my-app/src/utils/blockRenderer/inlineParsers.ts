@@ -1,7 +1,28 @@
 import { esc } from '../stringHelpers';
 
-export function renderLinksInContent(content: string): string {
-  let html = esc(content);
+export function escapeHtmlKeepingSafeTags(str: string): string {
+  if (!str) return '';
+  const placeholders: string[] = [];
+  
+  // Match safe open/close tags: b, strong, i, em, u, strike, s, del, mark, code, a
+  const tagRegex = /<\/?(b|strong|i|em|u|strike|s|del|mark|code|a)(?:\s+[^>]*)?>/gi;
+  
+  let result = str.replace(tagRegex, (match) => {
+    placeholders.push(match);
+    return `___SAFE_TAG_PLACEHOLDER_${placeholders.length - 1}___`;
+  });
+  
+  result = esc(result);
+  
+  result = result.replace(/___SAFE_TAG_PLACEHOLDER_(\d+)___/g, (match, idx) => {
+    return placeholders[parseInt(idx, 10)];
+  });
+  
+  return result;
+}
+
+export function renderLinksInContent(content: string, _allNotes?: any[]): string {
+  let html = escapeHtmlKeepingSafeTags(content);
   html = html.replace(/\[\[(.*?)\]\]/g, (match, title) => {
     return `<span class="wiki-link" data-ref="${title}" contenteditable="false" style="color: var(--accent); text-decoration: underline; cursor: pointer;">[[${title}]]</span>\u200B`;
   });

@@ -90,21 +90,7 @@ export function renderEditorpane(IC: any): string {
       <div class="ed-tools">
         <button class="ib ic" data-cmd="undo" title="Undo">${IC.undo}</button>
         <button class="ib ic" data-cmd="redo" title="Redo">${IC.redo}</button>
-        <span class="sep"></span>
-        <button class="ib style-btn"><span class="style-lbl">Paragraph</span><span class="ic">${IC.chevD}</span></button>
-        <span class="sep"></span>
-        <button class="ib tb-chr" data-cmd="bold" title="Bold (Ctrl+B)"><span class="chr b">B</span></button>
-        <button class="ib tb-chr" data-cmd="italic" title="Italic (Ctrl+I)"><span class="chr i">I</span></button>
-        <button class="ib tb-chr" data-cmd="underline" title="Underline (Ctrl+U)"><span class="chr u">U</span></button>
-        <button class="ib tb-chr" data-cmd="strikeThrough" title="Strikethrough"><span class="chr s">S</span></button>
-        <span class="sep"></span>
-        <button class="ib ic" data-cmd="insertUnorderedList" title="Bulleted list">${IC.ul}</button>
-        <button class="ib ic" data-cmd="insertOrderedList" title="Numbered list">${IC.ol}</button>
-        <button class="ib ic" data-cmd="quote" title="Quote">${IC.quote}</button>
-        <button class="ib ic" data-cmd="hiliteColor" title="Highlight">${IC.hl}</button>
-        <button class="ib ic" data-cmd="link" title="Insert link">${IC.link}</button>
-        <button class="ib tb-chr" data-cmd="math" title="Inline Equation (Ctrl+Shift+E)"><span class="chr" style="font-weight: normal; font-family: 'Cambria Math', 'Times New Roman', serif;">√x</span></button>
-        <span class="sep"></span>
+        <span class="tb-spacer"></span>
         <button class="ib ic pin-btn" title="Pin note">${IC.pin}</button>
         <button class="ib ic ed-more" title="More">${IC.dots}</button>
       </div>
@@ -117,9 +103,9 @@ export function renderEditorpane(IC: any): string {
         <button class="pill meta-tags"><span class="ic">${IC.tag}</span><span class="mt-txt">Tags</span><span class="ic">${IC.chevD}</span></button>
       </div>
       <div class="academic-metadata">
-        <label>Authors <input type="text" class="ac-authors" placeholder="Authors" spellcheck="false"></label>
-        <label>Journal <input type="text" class="ac-journal" placeholder="Journal" spellcheck="false"></label>
-        <label>Year <input type="text" class="ac-year" placeholder="Year" spellcheck="false"></label>
+        <label><span>Authors</span><input type="text" class="ac-authors" placeholder="Add authors…" spellcheck="false"></label>
+        <label><span>Journal</span><input type="text" class="ac-journal" placeholder="Add journal…" spellcheck="false"></label>
+        <label><span>Year</span><input type="text" class="ac-year" placeholder="Add year…" spellcheck="false"></label>
       </div>
       <div class="ed-body" spellcheck="false" data-ph="Start writing…"></div>
 

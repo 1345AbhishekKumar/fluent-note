@@ -100,11 +100,23 @@ describe('Fluent Notes - Store & Parsers', () => {
       const destIndex = destMatch.parentList.indexOf(destMatch.block);
       destMatch.parentList.splice(destIndex + 1, 0, dragMatch.block);
       
-      // Check results
+       // Check results
       expect(blocks).toHaveLength(1); // Only b1 left at root
       expect(blocks[0].children).toHaveLength(2); // b1-c1 and b2 inside b1
       expect(blocks[0].children[0].id).toBe('b1-c1');
       expect(blocks[0].children[1].id).toBe('b2');
     });
   });
+
+  describe('Table Block Conversion', () => {
+    it('parses tables from HTML to blocks representation', () => {
+      const html = '<table><tr><td>Cell 1</td><td>Cell 2</td></tr><tr><td>Cell 3</td><td>Cell 4</td></tr></table>';
+      const blocks = htmlToBlocks(html);
+      expect(blocks).toHaveLength(1);
+      expect(blocks[0].type).toBe('table');
+      const grid = JSON.parse(blocks[0].content);
+      expect(grid).toEqual([['Cell 1', 'Cell 2'], ['Cell 3', 'Cell 4']]);
+    });
+  });
 });
+

@@ -112,10 +112,26 @@ export function renderCodeBlockHtml(
 export function renderMediaBlockHtml(block: Block, levelStyle: string, dragHandle: string): string {
   const type = block.type;
   if (type === 'image') {
+    const widthStyle = block.columnWidth ? `width: ${block.columnWidth}%;` : '';
+    const captionText = block.comment || '';
     const inner = block.url
-      ? `<img class="block-media-img" src="${block.url}" alt="${esc(block.content || 'image')}" />`
+      ? `<div class="image-node-container" style="${widthStyle}" data-id="${block.id}">
+          <div class="image-node-toolbar" contenteditable="false">
+            <button class="image-tb-btn img-align-left" data-id="${block.id}" data-align="left" title="Align Left"><svg viewBox="0 0 24 24"><line x1="17" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="17" y1="18" x2="3" y2="18"></line></svg></button>
+            <button class="image-tb-btn img-align-center" data-id="${block.id}" data-align="center" title="Align Center"><svg viewBox="0 0 24 24"><line x1="18" y1="10" x2="6" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="18" y1="18" x2="6" y2="18"></line></svg></button>
+            <button class="image-tb-btn img-align-right" data-id="${block.id}" data-align="right" title="Align Right"><svg viewBox="0 0 24 24"><line x1="21" y1="10" x2="7" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="21" y1="18" x2="7" y2="18"></line></svg></button>
+            <button class="image-tb-btn img-replace" data-id="${block.id}" title="Replace Image"><svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg></button>
+            <button class="image-tb-btn img-delete" data-id="${block.id}" title="Delete Image"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+          </div>
+          <img class="block-media-img" src="${block.url}" alt="${esc(block.content || 'image')}" />
+          <div class="image-resize-handle image-resize-left" data-id="${block.id}" data-dir="left"></div>
+          <div class="image-resize-handle image-resize-right" data-id="${block.id}" data-dir="right"></div>
+          <div class="image-caption-box" contenteditable="false">
+            <input class="image-caption-input" type="text" data-id="${block.id}" placeholder="Write a caption..." value="${esc(captionText)}" />
+          </div>
+        </div>`
       : `<div class="block-media-placeholder" data-prompt="image" data-id="${block.id}">🖼 Click to add image</div>`;
-    return `<div class="block-wrapper" data-id="${block.id}" data-type="image" ${levelStyle}>
+    return `<div class="block-wrapper block-image-node-wrapper" data-id="${block.id}" data-type="image" ${levelStyle}>
       ${dragHandle}<div class="block-media-container">${inner}</div>
     </div>`;
   }
@@ -364,4 +380,45 @@ export function renderMermaidBlockHtml(
     </div>
   </div>`;
 }
+
+export function renderTableBlockHtml(
+  block: Block,
+  levelStyle: string,
+  dragHandle: string
+): string {
+  let rows: string[][] = [];
+  try {
+    rows = JSON.parse(block.content);
+  } catch (e) {
+    rows = [['', ''], ['', '']];
+  }
+
+  let tableHtml = `<table class="block-table" style="border-collapse: collapse; margin-top: 4px; margin-bottom: 4px;"><tbody>`;
+  for (let rIdx = 0; rIdx < rows.length; rIdx++) {
+    tableHtml += `<tr data-row="${rIdx}">`;
+    for (let cIdx = 0; cIdx < rows[rIdx].length; cIdx++) {
+      const cellContent = rows[rIdx][cIdx] || '';
+      tableHtml += `
+        <td style="border: 1px solid var(--border); padding: 6px 10px; min-width: 100px; position: relative;" data-row="${rIdx}" data-col="${cIdx}">
+          <div class="table-cell-field" contenteditable="true" spellcheck="false" data-ph="Cell..." style="outline: none; min-height: 20px; font-size: 13.5px; color: var(--text1);">${cellContent}</div>
+        </td>`;
+    }
+    tableHtml += `</tr>`;
+  }
+  tableHtml += `</tbody></table>`;
+
+  return `<div class="block-wrapper block-table-wrapper" data-id="${block.id}" data-type="table" ${levelStyle}>
+    ${dragHandle}
+    <div class="block-table-container" style="width: 100%; display: flex; flex-direction: column; overflow-x: auto; padding: 4px 0;">
+      <div class="table-controls-premium" contenteditable="false" style="display: flex; gap: 8px; margin-bottom: 6px; font-size: 11px;">
+        <button class="table-ctrl-btn add-row-btn" data-id="${block.id}">➕ Row</button>
+        <button class="table-ctrl-btn add-col-btn" data-id="${block.id}">➕ Column</button>
+        <button class="table-ctrl-btn del-row-btn" data-id="${block.id}">➖ Row</button>
+        <button class="table-ctrl-btn del-col-btn" data-id="${block.id}">➖ Column</button>
+      </div>
+      ${tableHtml}
+    </div>
+  </div>`;
+}
+
 

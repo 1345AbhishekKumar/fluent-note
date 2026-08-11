@@ -1,14 +1,14 @@
 import type { Block, Note, BlockType } from '../types';
 import { esc } from './stringHelpers';
-import { htmlToBlocks, blocksToHtml } from './blockRenderer/blockConverters';
+import { htmlToBlocks, blocksToHtml, cleanBadgeHtml } from './blockRenderer/blockConverters';
 import { renderLinksInContent } from './blockRenderer/inlineParsers';
 import { 
   getDragHandleHtml, renderCodeBlockHtml, renderMediaBlockHtml, renderMathBlockHtml, 
   renderTocBlockHtml, renderBreadcrumbBlockHtml, renderSubpageBlockHtml, renderSubfolderBlockHtml,
-  renderMermaidBlockHtml
+  renderMermaidBlockHtml, renderTableBlockHtml
 } from './blockRenderer/renderBlockGenerators';
 
-export { htmlToBlocks, blocksToHtml, renderLinksInContent };
+export { htmlToBlocks, blocksToHtml, cleanBadgeHtml, renderLinksInContent };
 
 export function getPlaceholderForType(type: BlockType): string {
   const placeholderMap: Partial<Record<BlockType, string>> = {
@@ -79,7 +79,7 @@ export function renderBlockTree(
       return renderSubpageBlockHtml(block, levelStyle, dragHandle, contextInfo);
     }
 
-    if (type === 'subfolder') {
+    if ((type as string) === 'subfolder') {
       return renderSubfolderBlockHtml(block, levelStyle, dragHandle);
     }
 
@@ -97,6 +97,10 @@ export function renderBlockTree(
 
     if (type === 'equation' || type === 'math') {
       return renderMathBlockHtml(block, levelStyle, dragHandle);
+    }
+
+    if (type === 'table') {
+      return renderTableBlockHtml(block, levelStyle, dragHandle);
     }
 
     if (type === 'toc') {
@@ -176,7 +180,7 @@ export function renderBlockTree(
           ${dragHandle}
           <div class="block-content-container" ${inlineBgStyle}>
             <div class="block-list-marker-gutter">
-              <span class="block-bullet-marker">•</span>
+              <span class="block-bullet-marker"></span>
             </div>
             <div class="block-text-field" ${inlineTextStyle} contenteditable="true" spellcheck="false" data-ph="${placeholder}">${renderLinksInContent(block.content)}</div>
             ${commentHtml}

@@ -88,7 +88,7 @@ export function renderTreeItem(
         ${chevronHtml}
         <span class="ic" style="color: ${color}">${iconHtml}</span>
         <span class="sb-txt">${label}</span>
-        <span class="tree-add-btn ic" title="Add sub-item" style="margin-left:auto; display:none; align-items:center; justify-content:center; width:20px; height:20px; border-radius:4px; opacity:0.6; transition:opacity var(--duration-quick) var(--ease-smooth-out);">${IC.plus}</span>
+        <span class="tree-add-btn ic" title="Add sub-item" style="margin-left:auto; display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:4px; opacity:0; pointer-events:none; transition:opacity var(--duration-quick) var(--ease-smooth-out);">${IC.plus}</span>
       </button>
       ${childrenHtml ? `<div class="tree-children">${childrenHtml}</div>` : ''}
     </div>

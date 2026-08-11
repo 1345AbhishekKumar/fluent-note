@@ -129,6 +129,8 @@ export const APPS: AppInstance[] = [];
 
 export { sharedNotebooks, saveNotebooks } from './notebookStore';
 
+let saveVaultTimeout: ReturnType<typeof setTimeout> | null = null;
+
 export function saveVaultToDisk() {
   if (typeof window !== 'undefined' && window.electronAPI) {
     const data = {
@@ -145,10 +147,31 @@ export function saveVaultToDisk() {
   }
 }
 
+export function saveVaultToDiskDebounced() {
+  if (saveVaultTimeout) clearTimeout(saveVaultTimeout);
+  saveVaultTimeout = setTimeout(() => {
+    saveVaultToDisk();
+    saveVaultTimeout = null;
+  }, 1500);
+}
+
+export function flushSaveVault() {
+  if (saveVaultTimeout) {
+    clearTimeout(saveVaultTimeout);
+    saveVaultTimeout = null;
+    saveVaultToDisk();
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', flushSaveVault);
+}
+
 export function saveAndSync() {
   saveNotes(sharedNotes);
   saveFolders(sharedFolders);
   saveNotebooks(sharedNotebooks);
+  flushSaveVault();
   saveVaultToDisk();
   APPS.forEach(app => {
     app.syncNotes(sharedNotes);
@@ -163,7 +186,7 @@ export function saveAndSyncContent() {
   saveNotes(sharedNotes);
   saveFolders(sharedFolders);
   saveNotebooks(sharedNotebooks);
-  saveVaultToDisk();
+  saveVaultToDiskDebounced();
   APPS.forEach(app => {
     app.syncNotes(sharedNotes);
     app.renderList();

@@ -29,9 +29,15 @@
     "@electron-forge/plugin-fuses": "^7.11.2",
     "@electron-forge/plugin-vite": "^7.11.2",
     "@electron/fuses": "^1.8.0",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/d3-force": "^3.0.10",
+    "@types/d3-zoom": "^3.0.8",
     "@types/electron-squirrel-startup": "^1.0.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
+    "@vitejs/plugin-react": "^4.3.4",
     "electron": "43.2.0",
     "eslint": "^8.57.1",
     "eslint-plugin-import": "^2.32.0",
@@ -41,7 +47,14 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
+    "d3-force": "^3.0.0",
+    "d3-zoom": "^3.0.0",
     "electron-squirrel-startup": "^1.0.1",
-    "mermaid": "^11.16.1"
+    "mermaid": "^11.16.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.2",
+    "zod": "^4.4.3",
+    "zustand": "^5.0.14"
   }
 }

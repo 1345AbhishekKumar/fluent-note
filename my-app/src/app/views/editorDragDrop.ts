@@ -5,6 +5,7 @@ import { saveClips, saveAndSyncContent } from '../../store';
 import { renderReviewInbox } from './review';
 import { pushToUndo } from './editorEvents/editorHistory';
 import { renderMermaidDiagramsInContainer } from '../../utils/mermaidRenderer';
+import { duplicateBlockWithNewIds } from './editorEvents/editorHelpers';
 
 function isDescendantBlock(block: Block, targetId: string): boolean {
   if (block.id === targetId) return true;
@@ -158,6 +159,52 @@ export function initEditorDragDrop(ctx: AppContext) {
       }
       return;
     }
+
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+      const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+      if (!n) return;
+      const destMatch = findBlockById(n.blocks, destBlockEl.dataset.id!);
+      if (!destMatch) return;
+
+      (async () => {
+        let insertIndex = destMatch.parentList.indexOf(destMatch.block) + 1;
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const filePath = (file as any).path;
+          let fileUrl = '';
+          if (filePath && typeof window !== 'undefined' && window.electronAPI?.copyAssetToVault) {
+            try {
+              const res = await window.electronAPI.copyAssetToVault(filePath);
+              if (res?.url) fileUrl = res.url;
+            } catch (err) {
+              console.error('Error copying dropped asset:', err);
+            }
+          }
+
+          let blockType: any = 'file';
+          if (file.type.startsWith('image/')) blockType = 'image';
+          else if (file.type.startsWith('video/')) blockType = 'video';
+          else if (file.type.startsWith('audio/')) blockType = 'audio';
+          else if (file.type === 'application/pdf') blockType = 'pdf';
+
+          const newBlock: Block = {
+            id: genId(),
+            type: blockType,
+            content: file.name,
+            fileName: file.name,
+            url: fileUrl,
+            children: []
+          };
+
+          destMatch.parentList.splice(insertIndex++, 0, newBlock);
+        }
+        setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes }));
+        saveAndSyncContent();
+        ctx.markSaving();
+      })();
+      return;
+    }
     
     if (!draggedBlockId || destBlockEl.dataset.id === draggedBlockId) return;
     
@@ -182,50 +229,55 @@ export function initEditorDragDrop(ctx: AppContext) {
 
       pushToUndo(ctx, n);
 
-      // Remove dragged block from its original location
-      const dragIndex = dragMatch.parentList.indexOf(dragMatch.block);
-      if (dragIndex !== -1) {
-        dragMatch.parentList.splice(dragIndex, 1);
+      let blockToInsert = dragMatch.block;
+      if (e.altKey) {
+        blockToInsert = duplicateBlockWithNewIds(dragMatch.block);
+      } else {
+        // Remove dragged block from its original location
+        const dragIndex = dragMatch.parentList.indexOf(dragMatch.block);
+        if (dragIndex !== -1) {
+          dragMatch.parentList.splice(dragIndex, 1);
+        }
       }
       
       if (isColLeft || isColRight) {
         // Multi-column layout creation
         const destIndex = destMatch.parentList.indexOf(destMatch.block);
-
+ 
         if (destMatch.parentList !== n.blocks && destMatch.block.type === 'column') {
           // Add column to existing column list
-          const newCol: Block = { id: genId(), type: 'column', content: '', children: [dragMatch.block] };
+          const newCol: Block = { id: genId(), type: 'column', content: '', children: [blockToInsert] };
           const colInsertIdx = isColLeft ? destIndex : destIndex + 1;
           destMatch.parentList.splice(colInsertIdx, 0, newCol);
         } else {
           // Wrap target block & dragged block in a new column_list
-          const col1Children = isColLeft ? [dragMatch.block] : [destMatch.block];
-          const col2Children = isColLeft ? [destMatch.block] : [dragMatch.block];
-
+          const col1Children = isColLeft ? [blockToInsert] : [destMatch.block];
+          const col2Children = isColLeft ? [destMatch.block] : [blockToInsert];
+ 
           const col1: Block = { id: genId(), type: 'column', content: '', children: col1Children };
           const col2: Block = { id: genId(), type: 'column', content: '', children: col2Children };
-
+ 
           const colList: Block = {
             id: genId(),
             type: 'column_list',
             content: '',
             children: [col1, col2]
           };
-
+ 
           if (destIndex !== -1) {
             destMatch.parentList.splice(destIndex, 1, colList);
           }
         }
       } else if (isChild && isParentEligibleBlock(destMatch.block.type)) {
         if (!destMatch.block.children) destMatch.block.children = [];
-        destMatch.block.children.push(dragMatch.block);
+        destMatch.block.children.push(blockToInsert);
         if (destMatch.block.collapsed) {
           destMatch.block.collapsed = false;
         }
       } else {
         let destIndex = destMatch.parentList.indexOf(destMatch.block);
         const insertOffset = isTop ? 0 : 1;
-        destMatch.parentList.splice(destIndex + insertOffset, 0, dragMatch.block);
+        destMatch.parentList.splice(destIndex + insertOffset, 0, blockToInsert);
       }
       
       setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes }));

@@ -1,8 +1,12 @@
-import { app, dialog, shell, ipcMain } from 'electron';
+import { app, dialog, shell, ipcMain, BrowserWindow } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { sanitizeFilename, serializeNoteToMarkdown, deserializeMarkdownToNote } from '../utils/fsUtils';
 import { DEFAULT_NOTES, DEFAULT_FOLDERS, DEFAULT_CLIPS } from '../constants';
+import { VaultDataSchema } from '../shared/schemas';
+import { indexVaultNotes, searchVaultNotes, getBacklinksForNote } from './services/indexer';
+import { z } from 'zod';
+
 
 const configPath = path.join(app.getPath('userData'), 'fluent-notes-config.json');
 
@@ -148,6 +152,283 @@ function removeEmptyDirsRecursively(dir: string, isRoot = false) {
   }
 }
 
+export async function selectVaultFolder() {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory', 'createDirectory'],
+    title: 'Select Fluent Notes Vault Directory'
+  });
+
+  if (!result.canceled && result.filePaths.length > 0) {
+    const selectedPath = result.filePaths[0];
+    setVaultPath(selectedPath);
+    return selectedPath;
+  }
+  return null;
+}
+
+export async function createNewVault(name: string) {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory', 'createDirectory'],
+    title: 'Choose Parent Folder for New Vault'
+  });
+
+  if (!result.canceled && result.filePaths.length > 0) {
+    const parentDir = result.filePaths[0];
+    const newVaultPath = path.join(parentDir, name);
+    try {
+      if (!fs.existsSync(newVaultPath)) {
+        fs.mkdirSync(newVaultPath, { recursive: true });
+      }
+      setVaultPath(newVaultPath);
+      return newVaultPath;
+    } catch (err) {
+      console.error('Failed to create new vault folder:', err);
+      throw err;
+    }
+  }
+  return null;
+}
+
+export async function openVaultByPath(p: string) {
+  if (fs.existsSync(p) && fs.statSync(p).isDirectory()) {
+    setVaultPath(p);
+    return p;
+  }
+  throw new Error('Vault path does not exist');
+}
+
+export async function revealVaultInExplorer(p: string) {
+  try {
+    if (fs.existsSync(p)) {
+      await shell.openPath(p);
+      return true;
+    }
+  } catch (err) {
+    console.error('Failed to reveal vault in explorer:', err);
+  }
+  return false;
+}
+
+export async function renameVault(oldPath: string, newName: string) {
+  if (!fs.existsSync(oldPath)) {
+    throw new Error('Vault path does not exist');
+  }
+  const parentDir = path.dirname(oldPath);
+  const newPath = path.join(parentDir, newName);
+  if (fs.existsSync(newPath)) {
+    throw new Error('A folder with that name already exists');
+  }
+  
+  try {
+    fs.renameSync(oldPath, newPath);
+  } catch (err) {
+    console.error('Failed to rename vault folder:', err);
+    throw err;
+  }
+
+  // Update configuration
+  const cfg = readConfig();
+  if (cfg.currentVaultPath === oldPath) {
+    cfg.currentVaultPath = newPath;
+  }
+  if (cfg.recentVaults) {
+    cfg.recentVaults = cfg.recentVaults.map(x => x === oldPath ? newPath : x);
+  }
+  writeConfig(cfg);
+
+  return { success: true, newPath };
+}
+
+export async function moveVault(currentPath: string) {
+  if (!fs.existsSync(currentPath)) {
+    throw new Error('Vault path does not exist');
+  }
+
+  const result = await dialog.showOpenDialog({
+    title: 'Select New Parent Directory for Vault',
+    properties: ['openDirectory', 'createDirectory']
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+
+  const parentDir = result.filePaths[0];
+  const folderName = path.basename(currentPath);
+  const newPath = path.join(parentDir, folderName);
+
+  if (fs.existsSync(newPath)) {
+    throw new Error('A folder with that name already exists in the target directory');
+  }
+
+  try {
+    fs.renameSync(currentPath, newPath);
+  } catch (err: any) {
+    if (err.code === 'EXDEV') {
+      try {
+        fs.cpSync(currentPath, newPath, { recursive: true });
+        fs.rmSync(currentPath, { recursive: true, force: true });
+      } catch (copyErr) {
+        console.error('Failed to copy and delete vault for cross-device move:', copyErr);
+        throw copyErr;
+      }
+    } else {
+      console.error('Failed to move vault folder:', err);
+      throw err;
+    }
+  }
+
+  // Update configuration
+  const cfg = readConfig();
+  if (cfg.currentVaultPath === currentPath) {
+    cfg.currentVaultPath = newPath;
+  }
+  if (cfg.recentVaults) {
+    cfg.recentVaults = cfg.recentVaults.map(x => x === currentPath ? newPath : x);
+  }
+  writeConfig(cfg);
+
+  return newPath;
+}
+
+export function loadVaultData() {
+  const vaultPath = getVaultPath();
+  if (!vaultPath) {
+    return { notes: [], folders: [], notebooks: [], tags: [], clips: [] };
+  }
+  try {
+    if (!fs.existsSync(vaultPath)) {
+      fs.mkdirSync(vaultPath, { recursive: true });
+    }
+
+    const defaultPath = path.join(app.getPath('documents'), 'FluentNotesVault');
+    const isDefaultVault = vaultPath.toLowerCase() === defaultPath.toLowerCase();
+
+    const configDir = path.join(vaultPath, '.fluent-notes');
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+
+    const metadataPath = path.join(configDir, 'metadata.json');
+    let metadata: any = {
+      folders: isDefaultVault ? DEFAULT_FOLDERS : [],
+      notebooks: isDefaultVault ? [
+        { id: 'design', name: 'Design Team', color: '#8470ff' },
+        { id: 'work', name: 'Work', color: '#ff9d42' },
+        { id: 'research', name: 'Research', color: '#23b8b8' },
+        { id: 'personal', name: 'Personal', color: '#ff6a8f' }
+      ] : [],
+      tags: isDefaultVault ? [
+        { id: 'design', name: 'design', color: '#4cc2ff' },
+        { id: 'ideas', name: 'ideas', color: '#ffb900' },
+        { id: 'todo', name: 'to-do', color: '#6ccb5f' },
+        { id: 'meeting', name: 'meeting', color: '#c58af9' },
+        { id: 'reading', name: 'reading', color: '#ff8fb2' },
+        { id: 'travel', name: 'travel', color: '#4de0c0' }
+      ] : [],
+      clips: isDefaultVault ? DEFAULT_CLIPS : []
+    };
+
+    if (fs.existsSync(metadataPath)) {
+      try {
+        metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+      } catch (e) {
+        console.error('Error parsing metadata.json:', e);
+      }
+    } else {
+      fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
+    }
+
+    // Read all notes recursively
+    const notes: any[] = [];
+    const relativeMdFiles = readMdFilesRecursively(vaultPath, vaultPath);
+
+    if (relativeMdFiles.length === 0) {
+      if (isDefaultVault) {
+        DEFAULT_NOTES.forEach(note => {
+          const noteContent = serializeNoteToMarkdown(note);
+          const fileName = `${sanitizeFilename(note.title) || note.id}.md`;
+          fs.writeFileSync(path.join(vaultPath, fileName), noteContent, 'utf8');
+          notes.push(note);
+        });
+      } else {
+        const untitledNote: any = {
+          id: 'n-' + Math.random().toString(36).slice(2, 7),
+          nb: '',
+          tags: [],
+          pinned: false,
+          date: 'Just now',
+          title: 'Untitled Note',
+          body: '<h2>Untitled Note</h2><p>Start writing...</p>',
+          blocks: [],
+          ord: 0,
+          parentId: null
+        };
+        const noteContent = serializeNoteToMarkdown(untitledNote);
+        const fileName = `Untitled Note.md`;
+        fs.writeFileSync(path.join(vaultPath, fileName), noteContent, 'utf8');
+        notes.push(untitledNote);
+      }
+    } else {
+      relativeMdFiles.forEach(f => {
+        try {
+          const filePath = path.join(vaultPath, f);
+          const content = fs.readFileSync(filePath, 'utf8');
+          const basename = path.basename(f, '.md');
+          
+          let noteId: string | undefined = undefined;
+          const fmMatch = content.match(/^---\r?\n([\s\S]+?)\r?\n---\r?\n/);
+          if (fmMatch) {
+            const lines = fmMatch[1].split(/\r?\n/);
+            for (const line of lines) {
+              const colonIdx = line.indexOf(':');
+              if (colonIdx !== -1) {
+                const key = line.slice(0, colonIdx).trim();
+                if (key === 'id') {
+                  const val = line.slice(colonIdx + 1).trim();
+                  try {
+                    noteId = JSON.parse(val);
+                  } catch {
+                    noteId = val;
+                  }
+                  break;
+                }
+              }
+            }
+          }
+
+          if (!noteId) {
+            const suffixMatch = basename.match(/_n-[a-z0-9]{5}$/i);
+            if (suffixMatch) {
+              noteId = suffixMatch[0].slice(1);
+            }
+          }
+
+          if (!noteId) {
+            noteId = 'n-' + Math.random().toString(36).slice(2, 7);
+          }
+
+          const note = deserializeMarkdownToNote(content, noteId);
+          notes.push(note);
+        } catch (e) {
+          console.error(`Error loading note file ${f}:`, e);
+        }
+      });
+    }
+
+    return {
+      notes,
+      folders: metadata.folders || [],
+      notebooks: metadata.notebooks || [],
+      tags: metadata.tags || [],
+      clips: metadata.clips || []
+    };
+  } catch (err) {
+    console.error('Error loading vault:', err);
+    return { notes: [], folders: [], notebooks: [], tags: [], clips: [] };
+  }
+}
+
 export function initVaultManager() {
   ipcMain.on('get-vault-path-sync', (event) => {
     event.returnValue = getVaultPath();
@@ -157,262 +438,56 @@ export function initVaultManager() {
     event.returnValue = getRecentVaults();
   });
 
-  ipcMain.handle('remove-recent-vault', async (event, p: string) => {
-    removeRecentVault(p);
+  ipcMain.on('load-vault-sync', (event) => {
+    event.returnValue = loadVaultData();
+  });
+
+  ipcMain.handle('load-vault', async () => {
+    return loadVaultData();
+  });
+
+  ipcMain.handle('select-vault-folder', async () => {
+    return selectVaultFolder();
+  });
+
+  ipcMain.handle('create-new-vault', async (event, name: unknown) => {
+    const validatedName = z.string().parse(name);
+    return createNewVault(validatedName);
+  });
+
+  ipcMain.handle('open-vault-by-path', async (event, p: unknown) => {
+    const validatedPath = z.string().parse(p);
+    return openVaultByPath(validatedPath);
+  });
+
+  ipcMain.handle('remove-recent-vault', async (event, p: unknown) => {
+    const validatedPath = z.string().parse(p);
+    removeRecentVault(validatedPath);
     return getRecentVaults();
   });
 
-  ipcMain.handle('select-vault-folder', async (event) => {
-    const result = await dialog.showOpenDialog({
-      properties: ['openDirectory', 'createDirectory'],
-      title: 'Select Fluent Notes Vault Directory'
-    });
-
-    if (!result.canceled && result.filePaths.length > 0) {
-      const selectedPath = result.filePaths[0];
-      setVaultPath(selectedPath);
-      return selectedPath;
-    }
-    return null;
+  ipcMain.handle('rename-vault', async (event, oldPath: unknown, newName: unknown) => {
+    const validatedOldPath = z.string().parse(oldPath);
+    const validatedNewName = z.string().parse(newName);
+    return renameVault(validatedOldPath, validatedNewName);
   });
 
-  ipcMain.handle('create-new-vault', async (event, name: string) => {
-    const result = await dialog.showOpenDialog({
-      properties: ['openDirectory', 'createDirectory'],
-      title: 'Choose Parent Folder for New Vault'
-    });
-
-    if (!result.canceled && result.filePaths.length > 0) {
-      const parentDir = result.filePaths[0];
-      const newVaultPath = path.join(parentDir, name);
-      try {
-        if (!fs.existsSync(newVaultPath)) {
-          fs.mkdirSync(newVaultPath, { recursive: true });
-        }
-        setVaultPath(newVaultPath);
-        return newVaultPath;
-      } catch (err) {
-        console.error('Failed to create new vault folder:', err);
-        throw err;
-      }
-    }
-    return null;
+  ipcMain.handle('move-vault', async (event, p: unknown) => {
+    const validatedPath = z.string().parse(p);
+    return moveVault(validatedPath);
   });
 
-  ipcMain.handle('open-vault-by-path', async (event, p: string) => {
-    if (fs.existsSync(p) && fs.statSync(p).isDirectory()) {
-      setVaultPath(p);
-      return p;
-    }
-    throw new Error('Vault path does not exist');
+  ipcMain.handle('reveal-vault-in-explorer', async (event, p: unknown) => {
+    const validatedPath = z.string().parse(p);
+    return revealVaultInExplorer(validatedPath);
   });
 
-  ipcMain.handle('reveal-vault-in-explorer', async (event, p: string) => {
-    try {
-      if (fs.existsSync(p)) {
-        await shell.openPath(p);
-        return true;
-      }
-    } catch (err) {
-      console.error('Failed to reveal vault in explorer:', err);
-    }
-    return false;
-  });
 
-  ipcMain.handle('rename-vault', async (event, oldPath: string, newName: string) => {
-    if (!fs.existsSync(oldPath)) {
-      throw new Error('Vault path does not exist');
-    }
-    const parentDir = path.dirname(oldPath);
-    const newPath = path.join(parentDir, newName);
-    if (fs.existsSync(newPath)) {
-      throw new Error('A folder with that name already exists');
-    }
-    
-    try {
-      fs.renameSync(oldPath, newPath);
-    } catch (err) {
-      console.error('Failed to rename vault folder:', err);
-      throw err;
-    }
-
-    // Update configuration
-    const cfg = readConfig();
-    if (cfg.currentVaultPath === oldPath) {
-      cfg.currentVaultPath = newPath;
-    }
-    if (cfg.recentVaults) {
-      cfg.recentVaults = cfg.recentVaults.map(x => x === oldPath ? newPath : x);
-    }
-    writeConfig(cfg);
-
-    return { success: true, newPath };
-  });
-
-  ipcMain.handle('move-vault', async (event, currentPath: string) => {
-    if (!fs.existsSync(currentPath)) {
-      throw new Error('Vault path does not exist');
-    }
-
-    const result = await dialog.showOpenDialog({
-      title: 'Select New Parent Directory for Vault',
-      properties: ['openDirectory', 'createDirectory']
-    });
-
-    if (result.canceled || result.filePaths.length === 0) {
-      return null;
-    }
-
-    const parentDir = result.filePaths[0];
-    const folderName = path.basename(currentPath);
-    const newPath = path.join(parentDir, folderName);
-
-    if (fs.existsSync(newPath)) {
-      throw new Error('A folder with that name already exists in the target directory');
-    }
-
-    try {
-      fs.renameSync(currentPath, newPath);
-    } catch (err: any) {
-      if (err.code === 'EXDEV') {
-        try {
-          fs.cpSync(currentPath, newPath, { recursive: true });
-          fs.rmSync(currentPath, { recursive: true, force: true });
-        } catch (copyErr) {
-          console.error('Failed to copy and delete vault for cross-device move:', copyErr);
-          throw copyErr;
-        }
-      } else {
-        console.error('Failed to move vault folder:', err);
-        throw err;
-      }
-    }
-
-    // Update configuration
-    const cfg = readConfig();
-    if (cfg.currentVaultPath === currentPath) {
-      cfg.currentVaultPath = newPath;
-    }
-    if (cfg.recentVaults) {
-      cfg.recentVaults = cfg.recentVaults.map(x => x === currentPath ? newPath : x);
-    }
-    writeConfig(cfg);
-
-    return newPath;
-  });
-
-  ipcMain.on('load-vault-sync', (event) => {
-    const vaultPath = getVaultPath();
-    if (!vaultPath) {
-      event.returnValue = { notes: [], folders: [], notebooks: [], tags: [], clips: [] };
-      return;
-    }
-    try {
-      if (!fs.existsSync(vaultPath)) {
-        fs.mkdirSync(vaultPath, { recursive: true });
-      }
-
-      const defaultPath = path.join(app.getPath('documents'), 'FluentNotesVault');
-      const isDefaultVault = vaultPath.toLowerCase() === defaultPath.toLowerCase();
-
-      const configDir = path.join(vaultPath, '.fluent-notes');
-      if (!fs.existsSync(configDir)) {
-        fs.mkdirSync(configDir, { recursive: true });
-      }
-
-      const metadataPath = path.join(configDir, 'metadata.json');
-      let metadata: any = {
-        folders: isDefaultVault ? DEFAULT_FOLDERS : [],
-        notebooks: isDefaultVault ? [
-          { id: 'design', name: 'Design Team', color: '#8470ff' },
-          { id: 'work', name: 'Work', color: '#ff9d42' },
-          { id: 'research', name: 'Research', color: '#23b8b8' },
-          { id: 'personal', name: 'Personal', color: '#ff6a8f' }
-        ] : [],
-        tags: isDefaultVault ? [
-          { id: 'design', name: 'design', color: '#4cc2ff' },
-          { id: 'ideas', name: 'ideas', color: '#ffb900' },
-          { id: 'todo', name: 'to-do', color: '#6ccb5f' },
-          { id: 'meeting', name: 'meeting', color: '#c58af9' },
-          { id: 'reading', name: 'reading', color: '#ff8fb2' },
-          { id: 'travel', name: 'travel', color: '#4de0c0' }
-        ] : [],
-        clips: isDefaultVault ? DEFAULT_CLIPS : []
-      };
-
-      if (fs.existsSync(metadataPath)) {
-        try {
-          metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
-        } catch (e) {
-          console.error('Error parsing metadata.json:', e);
-        }
-      } else {
-        fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
-      }
-
-      // Read all notes recursively
-      const notes: any[] = [];
-      const relativeMdFiles = readMdFilesRecursively(vaultPath, vaultPath);
-
-      if (relativeMdFiles.length === 0) {
-        if (isDefaultVault) {
-          DEFAULT_NOTES.forEach(note => {
-            const noteContent = serializeNoteToMarkdown(note);
-            const fileName = `${sanitizeFilename(note.title) || note.id}.md`;
-            fs.writeFileSync(path.join(vaultPath, fileName), noteContent, 'utf8');
-            notes.push(note);
-          });
-        } else {
-          // Create exactly one blank Untitled Note
-          const untitledNote: any = {
-            id: 'n-' + Math.random().toString(36).slice(2, 7),
-            nb: '',
-            tags: [],
-            pinned: false,
-            date: 'Just now',
-            title: 'Untitled Note',
-            body: '<h2>Untitled Note</h2><p>Start writing...</p>',
-            blocks: [],
-            ord: 0,
-            parentId: null
-          };
-          const noteContent = serializeNoteToMarkdown(untitledNote);
-          const fileName = `Untitled Note.md`;
-          fs.writeFileSync(path.join(vaultPath, fileName), noteContent, 'utf8');
-          notes.push(untitledNote);
-        }
-      } else {
-        relativeMdFiles.forEach(f => {
-          try {
-            const filePath = path.join(vaultPath, f);
-            const content = fs.readFileSync(filePath, 'utf8');
-            const basename = path.basename(f, '.md');
-            const noteId = basename.split('_').pop() || 'n-' + Math.random().toString(36).slice(2, 7);
-            const note = deserializeMarkdownToNote(content, noteId);
-            notes.push(note);
-          } catch (e) {
-            console.error(`Error loading note file ${f}:`, e);
-          }
-        });
-      }
-
-      event.returnValue = {
-        notes,
-        folders: metadata.folders || [],
-        notebooks: metadata.notebooks || [],
-        tags: metadata.tags || [],
-        clips: metadata.clips || []
-      };
-    } catch (err) {
-      console.error('Error loading vault:', err);
-      event.returnValue = { notes: [], folders: [], notebooks: [], tags: [], clips: [] };
-    }
-  });
-
-  ipcMain.handle('save-vault', async (event, data: { notes: any[], folders: any[], notebooks: any[], tags: any[], clips: any[] }) => {
+  ipcMain.handle('save-vault', async (event, rawData: any) => {
     const vaultPath = getVaultPath();
     if (!vaultPath) return { success: false, error: 'No vault path' };
     try {
+      const data = VaultDataSchema.parse(rawData);
       if (!fs.existsSync(vaultPath)) {
         fs.mkdirSync(vaultPath, { recursive: true });
       }
@@ -500,6 +575,13 @@ export function initVaultManager() {
       // Cleanup empty directories recursively
       removeEmptyDirsRecursively(vaultPath, true);
 
+      // Trigger background SQLite indexing
+      try {
+        indexVaultNotes(data.notes);
+      } catch (idxErr) {
+        console.error('Error triggering indexer:', idxErr);
+      }
+
       return { success: true, vaultPath };
     } catch (err: any) {
       console.error('Error saving vault:', err);
@@ -507,7 +589,67 @@ export function initVaultManager() {
     }
   });
 
+  ipcMain.handle('search-vault-notes', async (event, query: string) => {
+    return searchVaultNotes(query);
+  });
+
+  ipcMain.handle('get-note-backlinks', async (event, title: string) => {
+    return getBacklinksForNote(title);
+  });
+
   ipcMain.handle('copy-asset-to-vault', async (event, srcPath: string) => {
+    const vaultPath = getVaultPath();
+    if (!vaultPath || !fs.existsSync(srcPath)) return null;
+    const assetsDir = path.join(vaultPath, 'assets');
+    if (!fs.existsSync(assetsDir)) {
+      fs.mkdirSync(assetsDir, { recursive: true });
+    }
+    const ext = path.extname(srcPath);
+    const baseName = sanitizeFilename(path.basename(srcPath, ext)) || 'file';
+    let destFileName = `${baseName}${ext}`;
+    let destPath = path.join(assetsDir, destFileName);
+    let count = 1;
+    while (fs.existsSync(destPath)) {
+      destFileName = `${baseName}_${count}${ext}`;
+      destPath = path.join(assetsDir, destFileName);
+      count++;
+    }
+    fs.copyFileSync(srcPath, destPath);
+    return {
+      url: `fluent-file://assets/${destFileName}`,
+      fileName: destFileName
+    };
+  });
+
+  ipcMain.handle('select-file', async (event, cmdType: string) => {
+    let filters: Electron.FileFilter[] = [];
+    if (cmdType === 'image') {
+      filters = [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'] }];
+    } else if (cmdType === 'video') {
+      filters = [{ name: 'Videos', extensions: ['mp4', 'webm', 'ogg', 'mov', 'mkv'] }];
+    } else if (cmdType === 'audio') {
+      filters = [{ name: 'Audios', extensions: ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'] }];
+    } else if (cmdType === 'pdf') {
+      filters = [{ name: 'PDF Documents', extensions: ['pdf'] }];
+    } else {
+      filters = [{ name: 'All Files', extensions: ['*'] }];
+    }
+
+    const focusedWindow = BrowserWindow.getFocusedWindow();
+    const options: Electron.OpenDialogOptions = {
+      properties: ['openFile'],
+      filters,
+      title: `Select ${cmdType.toUpperCase()}`
+    };
+    const result = focusedWindow
+      ? await dialog.showOpenDialog(focusedWindow, options)
+      : await dialog.showOpenDialog(options);
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+
+    const srcPath = result.filePaths[0];
     const vaultPath = getVaultPath();
     if (!vaultPath || !fs.existsSync(srcPath)) return null;
     const assetsDir = path.join(vaultPath, 'assets');

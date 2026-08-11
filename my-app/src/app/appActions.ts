@@ -1,6 +1,6 @@
 import type { AppContext } from './context';
 import type { Note, Folder } from '../types';
-import { sharedNotes, APPS, saveAndSync } from '../store';
+import { sharedNotes, APPS, saveAndSync, flushSaveVault } from '../store';
 import { genId, findNotebookForParent } from '../utils';
 import { showPrompt } from './components/prompt';
 import { filtered } from './views/list';
@@ -32,6 +32,7 @@ export function expandAncestors(ctx: AppContext, id: string | null) {
 }
 
 export function selectNote(ctx: AppContext, id: string | null, focusTitle: boolean = false, skipHistory: boolean = false) {
+  flushSaveVault();
   const { st, elements, root, renderList, renderSidebar, renderEditor } = ctx;
   st.sel = id;
   if (st.selectedBlockIds) {

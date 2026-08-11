@@ -1,6 +1,6 @@
 import type { AppContext } from '../../context';
 import type { Block, BlockType, Note } from '../../../types';
-import { findBlockById, flattenVisibleBlocks, getBlockLevel, isCaretAtStart, isCaretAtEnd, moveCaret, genId, isParentEligibleBlock } from '../../../utils';
+import { findBlockById, flattenVisibleBlocks, getBlockLevel, isCaretAtStart, isCaretAtEnd, moveCaret, genId, isParentEligibleBlock, cleanBadgeHtml } from '../../../utils';
 import { saveAndSyncContent } from '../../../store';
 import { rerenderNote } from './pickers/editorPopups';
 
@@ -65,22 +65,29 @@ export function handleBlockEnterKey(
   const listLikeTypes: BlockType[] = ['bullet', 'numbered', 'todo'];
   const isListLike = listLikeTypes.includes(currentType);
 
+  let textBefore = currentBlock.content;
+  let textAfter = '';
+
   const sel = window.getSelection();
-  let caretOffset = (target.textContent || '').length;
   if (sel && sel.rangeCount > 0) {
     const range = sel.getRangeAt(0);
-    const preRange = document.createRange();
-    preRange.selectNodeContents(target);
-    preRange.setEnd(range.startContainer, range.startOffset);
-    caretOffset = preRange.toString().length;
+    const rightRange = range.cloneRange();
+    rightRange.selectNodeContents(target);
+    rightRange.setStart(range.startContainer, range.startOffset);
+
+    const frag = rightRange.extractContents();
+    const tempDiv = document.createElement('div');
+    tempDiv.appendChild(frag);
+
+    textAfter = tempDiv.innerHTML;
+    textBefore = target.innerHTML;
   }
-  const fullText = currentBlock.content;
-  const textBefore = fullText.slice(0, caretOffset);
-  const textAfter = fullText.slice(caretOffset);
+
+  const fullText = target.textContent || '';
 
   if (e.shiftKey) {
     insertTextAtCaret(ctx, target, '\n');
-    currentBlock.content = target.textContent || '';
+    currentBlock.content = cleanBadgeHtml(target);
     saveAndSyncContent();
     ctx.markSaving();
     return;

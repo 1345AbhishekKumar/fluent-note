@@ -328,7 +328,16 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
   initResponsive(ctx, root);
 
   function syncToolbar() {
-    if (document.activeElement !== elements.edBody && document.activeElement !== elements.edTitle) return;
+    const active = document.activeElement;
+    const insideEditor = active && (
+      active === elements.edBody || 
+      active === elements.edTitle || 
+      active.classList.contains('block-text-field') || 
+      active.classList.contains('block-code-field') ||
+      elements.edBody.contains(active)
+    );
+    if (!insideEditor) return;
+
     qAll('button[data-cmd]').forEach(b => {
       const c = b.dataset.cmd;
       if (c && ['bold', 'italic', 'underline', 'strikeThrough', 'insertUnorderedList', 'insertOrderedList'].includes(c)) {
@@ -339,17 +348,28 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
         b.classList.toggle('toggled', on);
       }
     });
-    let cur = 'p';
-    try {
-      cur = (document.queryCommandValue('formatBlock') || 'p').toLowerCase();
-    } catch (e) {}
-    elements.styleLbl.textContent = ({
-      p: 'Paragraph',
-      h2: 'Heading 1',
-      h3: 'Heading 2',
-      blockquote: 'Quote',
-      div: 'Paragraph'
-    } as any)[cur] || 'Paragraph';
+
+    let cur = 'paragraph';
+    if (active && active.classList.contains('block-text-field')) {
+      const blockEl = active.closest('.block-wrapper') as HTMLElement;
+      if (blockEl) {
+        cur = blockEl.dataset.type || 'paragraph';
+      }
+    }
+    const typeLabelMap: Record<string, string> = {
+      paragraph: 'Paragraph',
+      heading1: 'Heading 1',
+      heading2: 'Heading 2',
+      heading3: 'Heading 3',
+      todo: 'To-do',
+      bullet: 'Bulleted list',
+      numbered: 'Numbered list',
+      toggle: 'Toggle',
+      quote: 'Quote',
+      code: 'Code Block',
+      callout: 'Callout'
+    };
+    elements.styleLbl.textContent = typeLabelMap[cur] || 'Paragraph';
   }
 
   // Initialize modular component events

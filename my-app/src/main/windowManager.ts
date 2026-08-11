@@ -19,6 +19,7 @@ export const createWindow = (noteId?: string) => {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
   });
 
@@ -55,18 +56,17 @@ export const createWindow = (noteId?: string) => {
 };
 
 export function initWindowManager() {
-  // Handle IPC window controls globally to support multiple windows
-  ipcMain.on('window-close', (event) => {
+  const handleClose = (event: Electron.IpcMainEvent) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win) win.close();
-  });
+  };
 
-  ipcMain.on('window-minimize', (event) => {
+  const handleMinimize = (event: Electron.IpcMainEvent) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win) win.minimize();
-  });
+  };
 
-  ipcMain.on('window-maximize', (event) => {
+  const handleMaximize = (event: Electron.IpcMainEvent) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win) {
       if (win.isMaximized()) {
@@ -75,10 +75,33 @@ export function initWindowManager() {
         win.maximize();
       }
     }
-  });
+  };
 
-  ipcMain.on('window-new', (event, noteId) => {
+  const handleNewWindow = (event: Electron.IpcMainEvent, noteId?: string) => {
     createWindow(noteId);
+  };
+
+  // Support both domain-namespaced and legacy channels
+  ipcMain.on('window:close', handleClose);
+  ipcMain.on('window-close', handleClose);
+
+  ipcMain.on('window:minimize', handleMinimize);
+  ipcMain.on('window-minimize', handleMinimize);
+
+  ipcMain.on('window:maximize', handleMaximize);
+  ipcMain.on('window-maximize', handleMaximize);
+
+  ipcMain.on('window:new', handleNewWindow);
+  ipcMain.on('window-new', handleNewWindow);
+
+  ipcMain.handle('window:open-external', async (event, url: string) => {
+    try {
+      await shell.openExternal(url);
+      return true;
+    } catch (err) {
+      console.error('Failed to open external URL:', err);
+      return false;
+    }
   });
 
   ipcMain.handle('open-external-url', async (event, url: string) => {

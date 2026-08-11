@@ -1,6 +1,6 @@
 import type { AppContext } from '../../context';
 import type { Block, BlockType, Note } from '../../../types';
-import { moveCaret } from '../../../utils';
+import { moveCaret, esc } from '../../../utils';
 import { rerenderNote, focusNextBlockOrNew } from './pickers/editorPopups';
 
 interface ShortcutEntry {
@@ -78,3 +78,69 @@ export function tryMarkdownShortcut(
 
   return false;
 }
+
+export function tryInlineMarkdown(ctx: AppContext, el: HTMLElement): boolean {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return false;
+  const range = sel.getRangeAt(0);
+  if (!range.collapsed) return false;
+
+  const node = range.startContainer;
+  if (node.nodeType !== Node.TEXT_NODE) return false;
+  
+  const offset = range.startOffset;
+  const text = node.textContent || '';
+  const preText = text.substring(0, offset);
+
+  const boldRegex = /(?:\s|^)\*\*(.+?)\*\*\s$/;
+  const italicRegex = /(?:\s|^)\*(.+?)\*\s$/;
+  const strikeRegex = /(?:\s|^)~(.+?)~\s$/;
+  const codeRegex = /(?:\s|^)`(.+?)`\s$/;
+  const linkRegex = /(?:\s|^)\[(.+?)\]\((.+?)\)\s$/;
+
+  let match = preText.match(boldRegex);
+  let html = '';
+  if (match) {
+    const hasLeadSpace = match[0].startsWith(' ');
+    html = (hasLeadSpace ? ' ' : '') + `<strong>${match[1]}</strong>&nbsp;`;
+  } else {
+    match = preText.match(italicRegex);
+    if (match) {
+      const hasLeadSpace = match[0].startsWith(' ');
+      html = (hasLeadSpace ? ' ' : '') + `<em>${match[1]}</em>&nbsp;`;
+    } else {
+      match = preText.match(strikeRegex);
+      if (match) {
+        const hasLeadSpace = match[0].startsWith(' ');
+        html = (hasLeadSpace ? ' ' : '') + `<span style="text-decoration: line-through;">${match[1]}</span>&nbsp;`;
+      } else {
+        match = preText.match(codeRegex);
+        if (match) {
+          const hasLeadSpace = match[0].startsWith(' ');
+          html = (hasLeadSpace ? ' ' : '') + `<code style="background: var(--bg3); padding: 2px 4px; border-radius: 4px; font-family: monospace;">${match[1]}</code>&nbsp;`;
+        } else {
+          match = preText.match(linkRegex);
+          if (match) {
+            const hasLeadSpace = match[0].startsWith(' ');
+            html = (hasLeadSpace ? ' ' : '') + `<a href="${match[2]}" target="_blank" style="color: var(--accent); text-decoration: underline;">${esc(match[1])}</a>&nbsp;`;
+          }
+        }
+      }
+    }
+  }
+
+  if (match && html) {
+    const startIdx = offset - match[0].length;
+    const r = document.createRange();
+    r.setStart(node, startIdx);
+    r.setEnd(node, offset);
+    
+    sel.removeAllRanges();
+    sel.addRange(r);
+    
+    document.execCommand('insertHTML', false, html);
+    return true;
+  }
+  return false;
+}
+
