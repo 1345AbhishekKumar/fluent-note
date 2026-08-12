@@ -109,6 +109,21 @@ export function renderCodeBlockHtml(
   </div>`;
 }
 
+function getYoutubeEmbedUrl(url: string): string | null {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  if (match && match[2].length === 11) {
+    return `https://www.youtube.com/embed/${match[2]}`;
+  }
+  const shortsReg = /youtube\.com\/shorts\/([^#\&\?]*)/;
+  const shortsMatch = url.match(shortsReg);
+  if (shortsMatch && shortsMatch[1].length === 11) {
+    return `https://www.youtube.com/embed/${shortsMatch[1]}`;
+  }
+  return null;
+}
+
 export function renderMediaBlockHtml(block: Block, levelStyle: string, dragHandle: string): string {
   const type = block.type;
   if (type === 'image') {
@@ -136,9 +151,17 @@ export function renderMediaBlockHtml(block: Block, levelStyle: string, dragHandl
     </div>`;
   }
   if (type === 'video') {
-    const inner = block.url
-      ? `<video class="block-media-video" src="${block.url}" controls></video>`
-      : `<div class="block-media-placeholder" data-prompt="video" data-id="${block.id}">🎬 Click to add video</div>`;
+    let inner = '';
+    if (block.url) {
+      const ytEmbed = getYoutubeEmbedUrl(block.url);
+      if (ytEmbed) {
+        inner = `<iframe class="block-media-video" src="${ytEmbed}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+      } else {
+        inner = `<video class="block-media-video" src="${block.url}" controls></video>`;
+      }
+    } else {
+      inner = `<div class="block-media-placeholder" data-prompt="video" data-id="${block.id}">🎬 Click to add video</div>`;
+    }
     return `<div class="block-wrapper" data-id="${block.id}" data-type="video" ${levelStyle}>
       ${dragHandle}<div class="block-media-container">${inner}</div>
     </div>`;

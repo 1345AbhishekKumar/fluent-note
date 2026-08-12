@@ -167,10 +167,10 @@ export function renderBlockTree(
               <button class="callout-icon-btn" data-id="${block.id}" contenteditable="false">${calloutIcon}</button>
               <div class="block-text-field" contenteditable="true" spellcheck="true" data-ph="Callout text...">${renderLinksInContent(block.content)}</div>
               ${commentHtml}
+              ${childrenHtml}
             </div>
           </div>
         </div>
-        ${childrenHtml}
       </div>`;
     }
 
@@ -219,10 +219,10 @@ export function renderBlockTree(
             <div class="block-quote">
               <div class="block-text-field" ${inlineTextStyle} contenteditable="true" spellcheck="false" data-ph="${placeholder}">${renderLinksInContent(block.content)}</div>
               ${commentHtml}
+              ${childrenHtml}
             </div>
           </div>
         </div>
-        ${childrenHtml}
       </div>`;
     }
 

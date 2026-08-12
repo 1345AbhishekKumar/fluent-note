@@ -27,7 +27,7 @@ export function openMediaFilePrompt(ctx: AppContext, cmdType: string, block: Blo
   input.type = 'file';
   if (cmdType === 'image') input.accept = 'image/*';
   else if (cmdType === 'video') input.accept = 'video/*';
-  else if (cmdType === 'audio') input.accept = 'audio/*';
+  else if (cmdType === 'audio') input.accept = 'audio/mpeg, audio/mp3, audio/wav, audio/ogg, audio/x-m4a, audio/aac, audio/flac, .mp3, .wav, .ogg, .m4a, .aac, .flac';
   else if (cmdType === 'pdf') input.accept = 'application/pdf';
   input.onchange = async () => {
     const file = input.files?.[0];
@@ -54,19 +54,16 @@ export function openMediaFilePrompt(ctx: AppContext, cmdType: string, block: Blo
       }
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      block.type = cmdType as any;
-      block.url = e.target?.result as string;
-      block.content = file.name;
-      block.fileName = file.name;
-      rerenderNote(ctx, n);
-      const match = findBlockById(n.blocks, block.id);
-      if (match) {
-        focusNextBlockOrNew(ctx, n, match.index, match.parentList);
-      }
-    };
-    reader.readAsDataURL(file);
+    const blobUrl = URL.createObjectURL(file);
+    block.type = cmdType as any;
+    block.url = blobUrl;
+    block.content = file.name;
+    block.fileName = file.name;
+    rerenderNote(ctx, n);
+    const match = findBlockById(n.blocks, block.id);
+    if (match) {
+      focusNextBlockOrNew(ctx, n, match.index, match.parentList);
+    }
   };
   input.click();
 }

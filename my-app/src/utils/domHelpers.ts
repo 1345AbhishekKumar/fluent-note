@@ -2,27 +2,28 @@
 
 export function isCaretAtStart(el: HTMLElement): boolean {
   const sel = window.getSelection();
-  if (sel && sel.rangeCount > 0) {
+  if (sel && sel.rangeCount > 0 && sel.isCollapsed) {
     const range = sel.getRangeAt(0);
     const preCaretRange = range.cloneRange();
     preCaretRange.selectNodeContents(el);
     preCaretRange.setEnd(range.startContainer, range.startOffset);
-    return preCaretRange.toString().length === 0;
+    return preCaretRange.toString().replace(/\u200B/g, '').length === 0;
   }
   return false;
 }
 
 export function isCaretAtEnd(el: HTMLElement): boolean {
   const sel = window.getSelection();
-  if (sel && sel.rangeCount > 0) {
+  if (sel && sel.rangeCount > 0 && sel.isCollapsed) {
     const range = sel.getRangeAt(0);
     const postCaretRange = range.cloneRange();
     postCaretRange.selectNodeContents(el);
     postCaretRange.setStart(range.endContainer, range.endOffset);
-    return postCaretRange.toString().length === 0;
+    return postCaretRange.toString().replace(/\u200B/g, '').length === 0;
   }
   return false;
 }
+
 
 
 export function moveCaret(el: HTMLElement, toStart: boolean = false) {

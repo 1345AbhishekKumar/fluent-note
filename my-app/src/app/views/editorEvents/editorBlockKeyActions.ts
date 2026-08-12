@@ -1,6 +1,6 @@
 import type { AppContext } from '../../context';
 import type { Block, BlockType, Note } from '../../../types';
-import { findBlockById, flattenVisibleBlocks, getBlockLevel, isCaretAtStart, isCaretAtEnd, moveCaret, genId, isParentEligibleBlock, cleanBadgeHtml } from '../../../utils';
+import { findBlockById, flattenVisibleBlocks, getBlockLevel, isCaretAtStart, isCaretAtEnd, moveCaret, genId, isParentEligibleBlock, cleanBadgeHtml, getGraphemeClusterDeletionBounds } from '../../../utils';
 import { saveAndSyncContent } from '../../../store';
 import { rerenderNote } from './pickers/editorPopups';
 
@@ -52,6 +52,12 @@ function insertTextAtCaret(ctx: AppContext, el: HTMLElement, val: string) {
   }
 }
 
+function cleanHtmlString(html: string): string {
+  const temp = document.createElement('div');
+  temp.innerHTML = html;
+  return cleanBadgeHtml(temp);
+}
+
 export function handleBlockEnterKey(
   ctx: AppContext,
   e: KeyboardEvent,
@@ -79,8 +85,8 @@ export function handleBlockEnterKey(
     const tempDiv = document.createElement('div');
     tempDiv.appendChild(frag);
 
-    textAfter = tempDiv.innerHTML;
-    textBefore = target.innerHTML;
+    textAfter = cleanHtmlString(tempDiv.innerHTML);
+    textBefore = cleanHtmlString(target.innerHTML);
   }
 
   const fullText = target.textContent || '';
@@ -188,8 +194,40 @@ export function handleBlockBackspaceKey(
   match: { parentList: Block[]; index: number; block: Block },
   blockId: string
 ) {
-  if (!isCaretAtStart(target)) return;
+  const sel = window.getSelection();
+  // 1. If text is highlighted (Range Selection), let native browser handler delete the selection natively
+  if (sel && !sel.isCollapsed) {
+    return;
+  }
 
+  // 2. If caret is inside text, check for grapheme cluster multi-code-unit deletion (emojis/accents)
+  if (!isCaretAtStart(target)) {
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      const textNode = range.startContainer;
+      if (textNode.nodeType === Node.TEXT_NODE && textNode.textContent) {
+        const text = textNode.textContent;
+        const offset = range.startOffset;
+        const bounds = getGraphemeClusterDeletionBounds(text, offset, 'backward');
+
+        // If deleting a multi-code-unit symbol (span > 1), execute native execCommand over range
+        if (bounds.end - bounds.start > 1) {
+          e.preventDefault();
+          const graphemeRange = document.createRange();
+          graphemeRange.setStart(textNode, bounds.start);
+          graphemeRange.setEnd(textNode, bounds.end);
+          sel.removeAllRanges();
+          sel.addRange(graphemeRange);
+          try {
+            document.execCommand('delete', false);
+          } catch (_) {}
+        }
+      }
+    }
+    return;
+  }
+
+  // 3. Caret is at structural start of block -> merge with previous block
   e.preventDefault();
   const flat = flattenVisibleBlocks(n.blocks);
   const flatIndex = flat.findIndex(b => b.id === blockId);
@@ -248,8 +286,39 @@ export function handleBlockDeleteKey(
   match: { parentList: Block[]; index: number; block: Block },
   blockId: string
 ) {
-  if (!isCaretAtEnd(target)) return;
+  const sel = window.getSelection();
+  // 1. If text is highlighted (Range Selection), let native browser handler delete selection natively
+  if (sel && !sel.isCollapsed) {
+    return;
+  }
 
+  // 2. If caret is inside text, check for grapheme cluster multi-code-unit forward deletion
+  if (!isCaretAtEnd(target)) {
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      const textNode = range.startContainer;
+      if (textNode.nodeType === Node.TEXT_NODE && textNode.textContent) {
+        const text = textNode.textContent;
+        const offset = range.startOffset;
+        const bounds = getGraphemeClusterDeletionBounds(text, offset, 'forward');
+
+        if (bounds.end - bounds.start > 1) {
+          e.preventDefault();
+          const graphemeRange = document.createRange();
+          graphemeRange.setStart(textNode, bounds.start);
+          graphemeRange.setEnd(textNode, bounds.end);
+          sel.removeAllRanges();
+          sel.addRange(graphemeRange);
+          try {
+            document.execCommand('delete', false);
+          } catch (_) {}
+        }
+      }
+    }
+    return;
+  }
+
+  // 3. Caret is at structural end of block -> merge with next block
   e.preventDefault();
   const flat = flattenVisibleBlocks(n.blocks);
   const flatIndex = flat.findIndex(b => b.id === blockId);
@@ -287,6 +356,7 @@ export function handleBlockDeleteKey(
     const currField = ctx.elements.edBody.querySelector(`[data-id="${blockId}"] .block-text-field`) as HTMLElement;
     if (currField) {
       currField.focus();
+
       const sel = window.getSelection();
       if (sel && sel.rangeCount > 0) {
         const range = document.createRange();

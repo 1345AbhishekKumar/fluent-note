@@ -35,11 +35,11 @@
   border: 1px solid var(--pane-brd);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
   
-  transform: translateY(12px) scale(0.98);
+  transform: translateY(var(--distance-medium)) scale(var(--scale-small));
   opacity: 0;
   transition: 
-    transform 0.2s var(--ease-smooth-out), 
-    opacity 0.2s var(--ease-smooth-out);
+    transform var(--duration-fast) var(--ease-smooth-out), 
+    opacity var(--duration-fast) var(--ease-smooth-out);
 }
 
 .vault-overlay[style*="display: flex"] .vault-manager {
@@ -52,7 +52,7 @@
     opacity: 0;
   }
   .vault-overlay[style*="display: flex"] .vault-manager {
-    transform: translateY(12px) scale(0.98);
+    transform: translateY(var(--distance-medium)) scale(var(--scale-small));
     opacity: 0;
   }
 }
@@ -278,10 +278,10 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--duration-quick), border-color var(--duration-quick), transform 0.1s;
+  transition: background var(--duration-quick), border-color var(--duration-quick), transform var(--duration-micro) var(--ease-smooth-out);
   white-space: nowrap;
 }
-.vm-action-btn:active { transform: scale(0.97); }
+.vm-action-btn:active { transform: scale(var(--scale-medium)); }
 
 .vm-btn-primary {
   background: var(--accent-fill);

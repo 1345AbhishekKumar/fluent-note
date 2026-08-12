@@ -6,6 +6,7 @@ import {
 import { 
   handleCheckboxChange, handleDocumentMouseDown, handleEditorBodyClick, handleBlockSelectionClick, focusOrCreateBottomBlock
 } from './editorClickDelegation';
+import { handleDragHandleClick } from './editorDragFlyout';
 
 export function initEditorClickHandlers(ctx: AppContext) {
   ctx.elements.edBody.addEventListener('paste', e => handleEditorPaste(ctx, e));
@@ -18,6 +19,14 @@ export function initEditorClickHandlers(ctx: AppContext) {
     handleEditorBodyClick(ctx, e);
     handleBlockSelectionClick(ctx, e);
     handleCodeBlockControlsClick(ctx, e, e.target as HTMLElement);
+  });
+
+  ctx.elements.edBody.addEventListener('mouseup', e => {
+    const target = e.target as HTMLElement;
+    const dragHandle = target.closest('.block-drag-handle') as HTMLElement;
+    if (dragHandle) {
+      handleDragHandleClick(ctx, e, dragHandle);
+    }
   });
 
   const handleEmptyClick = (e: Event) => {

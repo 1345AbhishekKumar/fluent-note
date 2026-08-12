@@ -243,7 +243,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  transition: all 0.15s ease;
+  transition: all var(--duration-quick) var(--ease-smooth-out);
 }
 .table-ctrl-btn:hover {
   background: var(--accent-soft);
@@ -263,10 +263,10 @@
   border-radius: 8px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(20px);
-  animation: bubbleFadeIn 0.15s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: bubbleFadeIn var(--duration-quick) var(--ease-smooth-out);
 }
 @keyframes bubbleFadeIn {
-  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  from { opacity: 0; transform: translateY(var(--distance-small)) scale(var(--scale-small)); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .floating-format-bubble button {

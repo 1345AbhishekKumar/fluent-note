@@ -53,17 +53,28 @@ export function openCalendarPicker(ctx: AppContext, anchorEl: HTMLElement, curre
   input.type = 'date';
   const match = currentDate.match(/\d{4}-\d{2}-\d{2}/);
   input.value = match ? match[0] : new Date().toISOString().slice(0, 10);
-  input.style.position = 'absolute';
+  input.style.position = 'fixed';
   input.style.opacity = '0';
   input.style.pointerEvents = 'none';
   input.style.zIndex = '99999';
   
-  const rect = anchorEl.getBoundingClientRect();
-  const parentRect = ctx.elements.edInner.getBoundingClientRect();
-  input.style.left = `${rect.left - parentRect.left}px`;
-  input.style.top = `${rect.bottom - parentRect.top}px`;
+  const sel = window.getSelection();
+  let rect: DOMRect | null = null;
+  if (sel && sel.rangeCount > 0) {
+    const range = sel.getRangeAt(0);
+    const rects = range.getClientRects();
+    if (rects && rects.length > 0) {
+      rect = rects[0] as DOMRect;
+    }
+  }
+  if (!rect) {
+    rect = anchorEl.getBoundingClientRect();
+  }
   
-  ctx.elements.edInner.appendChild(input);
+  input.style.left = `${rect.left}px`;
+  input.style.top = `${rect.bottom}px`;
+  
+  document.body.appendChild(input);
   
   input.addEventListener('change', () => {
     if (input.value) {

@@ -148,9 +148,19 @@ export function showSlashMenu(ctx: AppContext, blockEl: HTMLElement, textField: 
   const rect = textField.getBoundingClientRect();
   const innerRect = ctx.elements.edInner.getBoundingClientRect();
   menu.style.left = (rect.left - innerRect.left) + 'px';
-  menu.style.top = (rect.bottom - innerRect.top + 4) + 'px';
 
   ctx.elements.edInner.appendChild(menu);
+
+  const menuHeight = menu.offsetHeight || 340;
+  const viewportHeight = window.innerHeight;
+  const spaceBelow = viewportHeight - rect.bottom;
+  const spaceAbove = rect.top;
+
+  if (spaceBelow < menuHeight && spaceAbove > spaceBelow) {
+    menu.style.top = (rect.top - innerRect.top - menuHeight - 4) + 'px';
+  } else {
+    menu.style.top = (rect.bottom - innerRect.top + 4) + 'px';
+  }
   activeSlashBlockId = blockEl.dataset.id!;
 
   menu.querySelectorAll('.slash-item').forEach(btn => {
@@ -281,12 +291,47 @@ export function executeSlashCommand(ctx: AppContext, realIndex: number) {
       break;
 
     case 'image': case 'video': case 'audio': case 'file': {
+      const isUrl = /^(https?:\/\/[^\s]+)$/i.test(content);
+      if (isUrl) {
+        match.block.type = cmdType as BlockType;
+        match.block.url = content;
+        match.block.content = cmdType;
+        rerenderNote(ctx, n);
+        focusNextBlockOrNew(ctx, n, match.index, match.parentList);
+        return;
+      }
       rerenderNote(ctx, n);
       openMediaFilePrompt(ctx, cmdType, match.block, n);
       return;
     }
 
     case 'pdf': case 'bookmark': {
+      const isUrl = /^(https?:\/\/[^\s]+)$/i.test(content);
+      if (isUrl) {
+        match.block.type = cmdType as BlockType;
+        match.block.url = content;
+        match.block.content = content;
+        rerenderNote(ctx, n);
+
+        if (cmdType === 'bookmark' && typeof window !== 'undefined' && window.electronAPI && window.electronAPI.fetchLinkMetadata) {
+          window.electronAPI.fetchLinkMetadata(content)
+            .then((meta) => {
+              if (meta && meta.title) {
+                match.block.bookmarkTitle = meta.title;
+                match.block.bookmarkDesc = meta.description;
+                match.block.bookmarkImage = meta.image;
+                match.block.bookmarkIcon = meta.icon;
+                rerenderNote(ctx, n);
+              }
+            })
+            .catch((err) => {
+              console.error('Error fetching link metadata:', err);
+            });
+        }
+        focusNextBlockOrNew(ctx, n, match.index, match.parentList);
+        return;
+      }
+
       const originalState: Partial<Block> = {
         type: match.block.type,
         content: match.block.content,

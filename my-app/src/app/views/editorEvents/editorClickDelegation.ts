@@ -86,7 +86,7 @@ export function handleDocumentMouseDown(ctx: AppContext, e: MouseEvent) {
   }
 
   if (ctx.st.selectedBlockIds && ctx.st.selectedBlockIds.size > 0) {
-    const isDragHandle = target.closest('.block-drag-handle');
+    const isDragHandle = target.closest('.block-drag-handle') || target.closest('.block-add-btn');
     const isFlyout = target.closest('#flyout') || target.closest('.fly-item') || target.closest('.url-popup-editor') || target.closest('.math-popup-editor');
     const isSelectionModifier = e.shiftKey || e.altKey || e.metaKey;
     
@@ -242,11 +242,6 @@ export function handleEditorBodyClick(ctx: AppContext, e: MouseEvent) {
     return;
   }
 
-  const dragHandle = target.closest('.block-drag-handle') as HTMLElement;
-  if (dragHandle) {
-    handleDragHandleClick(ctx, e, dragHandle);
-    return;
-  }
 
   const dateBadge = target.closest('.date-badge') as HTMLElement;
   if (dateBadge) {

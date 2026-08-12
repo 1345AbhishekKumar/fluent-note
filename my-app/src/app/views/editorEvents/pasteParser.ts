@@ -13,12 +13,19 @@ export function sanitizeInlineHtml(html: string): string {
       } else if (child.nodeType === Node.ELEMENT_NODE) {
         const el = child as HTMLElement;
         const tag = el.tagName.toLowerCase();
-        const safeTags = ['b', 'strong', 'i', 'em', 'u', 'strike', 's', 'del', 'mark', 'code', 'a'];
+        const safeTags = ['b', 'strong', 'i', 'em', 'u', 'strike', 's', 'del', 'mark', 'code', 'a', 'span'];
         if (safeTags.includes(tag)) {
           const innerContent = clean(el);
           if (tag === 'a') {
             const href = el.getAttribute('href') || '';
             result += `<a href="${esc(href)}" target="_blank">${innerContent}</a>`;
+          } else if (tag === 'span') {
+            const style = el.getAttribute('style') || '';
+            const className = el.getAttribute('class') || '';
+            let attrs = '';
+            if (style) attrs += ` style="${esc(style)}"`;
+            if (className) attrs += ` class="${esc(className)}"`;
+            result += `<span${attrs}>${innerContent}</span>`;
           } else {
             result += `<${tag}>${innerContent}</${tag}>`;
           }

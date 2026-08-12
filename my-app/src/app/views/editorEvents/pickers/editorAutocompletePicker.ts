@@ -1,12 +1,14 @@
 import type { AppContext } from '../../../context';
 import type { Block, Note } from '../../../../types';
-import { findBlockById, moveCaret, genId } from '../../../../utils';
+import { findBlockById, moveCaret, genId, cleanBadgeHtml } from '../../../../utils';
 import { saveAndSyncContent, saveAndSync } from '../../../../store';
 import { rerenderNote } from './editorPopups';
 
 let activePickerEl: HTMLElement | null = null;
 let activePickerBlockId: string | null = null;
 let activePickerSymbol: string | null = null;
+let activeTextField: HTMLElement | null = null;
+let activePickerQuery = '';
 let selectedPickerIndex = 0;
 let visiblePickerItems: any[] = [];
 
@@ -57,6 +59,8 @@ export function showAutocompletePicker(ctx: AppContext, block: Block, textField:
   selectedPickerIndex = 0;
   activePickerSymbol = symbol;
   activePickerBlockId = block.id;
+  activeTextField = textField;
+  activePickerQuery = query;
 
   const picker = document.createElement('div');
   picker.className = 'slash-menu autocomplete-picker absolute z-[1000] bg-card dark:bg-[#202020] border border-border rounded-xl shadow-xl max-h-[280px] min-w-[250px] overflow-y-auto py-1.5 flex flex-col';
@@ -223,12 +227,25 @@ export function showAutocompletePicker(ctx: AppContext, block: Block, textField:
   const rect = textField.getBoundingClientRect();
   const innerRect = ctx.elements.edInner.getBoundingClientRect();
   picker.style.left = (rect.left - innerRect.left) + 'px';
-  picker.style.top = (rect.bottom - innerRect.top + 4) + 'px';
 
   ctx.elements.edInner.appendChild(picker);
   activePickerEl = picker;
 
+  const pickerHeight = picker.offsetHeight || 280;
+  const viewportHeight = window.innerHeight;
+  const spaceBelow = viewportHeight - rect.bottom;
+  const spaceAbove = rect.top;
+
+  if (spaceBelow < pickerHeight && spaceAbove > spaceBelow) {
+    picker.style.top = (rect.top - innerRect.top - pickerHeight - 4) + 'px';
+  } else {
+    picker.style.top = (rect.bottom - innerRect.top + 4) + 'px';
+  }
+
   picker.querySelectorAll('.slash-item').forEach(btn => {
+    btn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+    });
     btn.addEventListener('click', () => {
       const index = parseInt((btn as HTMLElement).dataset.index!);
       executePickerCommand(ctx, index);
@@ -247,22 +264,38 @@ export function updatePickerSelection(menu: HTMLElement) {
 export function executePickerCommand(ctx: AppContext, index: number) {
   if (index >= 0 && index < visiblePickerItems.length) {
     const item = visiblePickerItems[index];
-    const activeEl = document.activeElement as HTMLElement;
+    const textField = activeTextField || (document.activeElement as HTMLElement);
     const blockId = activePickerBlockId;
     
-    if (activeEl && activeEl.classList.contains('block-text-field')) {
-      const text = activeEl.textContent || '';
+    if (textField && textField.classList.contains('block-text-field')) {
+      textField.focus();
+      const text = textField.textContent || '';
       const symbol = activePickerSymbol || '';
+      const query = activePickerQuery || '';
+      const totalOffset = symbol.length + query.length;
+      
       const lastIdx = text.lastIndexOf(symbol);
       if (lastIdx !== -1) {
-        activeEl.textContent = text.slice(0, lastIdx);
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) {
+          const range = sel.getRangeAt(0);
+          if (range.startContainer.nodeType === Node.TEXT_NODE) {
+            const startOffset = Math.max(0, range.startOffset - totalOffset);
+            range.setStart(range.startContainer, startOffset);
+            range.deleteContents();
+          } else {
+            textField.textContent = text.slice(0, lastIdx);
+          }
+        } else {
+          textField.textContent = text.slice(0, lastIdx);
+        }
         
         if (blockId) {
           const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
           if (n) {
             const match = findBlockById(n.blocks, blockId);
             if (match) {
-              match.block.content = activeEl.textContent || '';
+              match.block.content = cleanBadgeHtml(textField);
             }
           }
         }
@@ -275,8 +308,8 @@ export function executePickerCommand(ctx: AppContext, index: number) {
       const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
       if (n) {
         const match = findBlockById(n.blocks, blockId);
-        if (match && activeEl) {
-          match.block.content = activeEl.textContent || '';
+        if (match && textField) {
+          match.block.content = cleanBadgeHtml(textField);
           rerenderNote(ctx, n);
           const field = ctx.elements.edBody.querySelector(`[data-id="${blockId}"] .block-text-field`) as HTMLElement;
           if (field) moveCaret(field);
@@ -294,6 +327,8 @@ export function closeAutocompletePicker() {
   }
   activePickerBlockId = null;
   activePickerSymbol = null;
+  activeTextField = null;
+  activePickerQuery = '';
   selectedPickerIndex = 0;
   visiblePickerItems = [];
 }

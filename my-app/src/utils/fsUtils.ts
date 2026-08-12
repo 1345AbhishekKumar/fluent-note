@@ -30,9 +30,11 @@ export function blocksToMarkdown(blocks: Block[], depth = 0): string {
       case 'numbered':
         line = `1. ${block.content}`;
         break;
-      case 'quote':
-        line = `> ${block.content}`;
+      case 'quote': {
+        const lines = (block.content || '').split('\n');
+        line = lines.map(l => `> ${l}`).join('\n' + indent);
         break;
+      }
       case 'divider':
         line = '---';
         break;
@@ -43,9 +45,10 @@ export function blocksToMarkdown(blocks: Block[], depth = 0): string {
         line = `\`\`\`${block.language || 'plaintext'}\n${block.content || ''}\n\`\`\``;
         break;
       case 'math':
-      case 'equation':
-        line = `$$${block.content}$$`;
+      case 'equation': {
+        line = `$$\n${block.content || ''}\n$$`;
         break;
+      }
       case 'image':
         line = `![${block.content || 'image'}](${block.url || ''})`;
         break;
@@ -60,9 +63,17 @@ export function blocksToMarkdown(blocks: Block[], depth = 0): string {
       case 'subpage':
         line = `[subpage:${block.content || 'Untitled'}](${block.url || ''})`;
         break;
-      case 'callout':
-        line = `> [!NOTE] ${block.icon || '💡'} ${block.content || ''}`;
+      case 'callout': {
+        const lines = (block.content || '').split('\n');
+        const icon = block.icon || '💡';
+        line = lines.map((l, idx) => {
+          if (idx === 0) {
+            return `> [!NOTE] ${icon} ${l}`;
+          }
+          return `> ${l}`;
+        }).join('\n' + indent);
         break;
+      }
       case 'toggle':
       case 'toggle_h1':
       case 'toggle_h2':
@@ -122,6 +133,14 @@ export function markdownToBlocks(markdown: string): Block[] {
   let codeLang = 'plaintext';
   let codeContent: string[] = [];
 
+  let inMathBlock = false;
+  let mathContent: string[] = [];
+
+  let inBqCodeBlock = false;
+  let bqCodeLang = 'plaintext';
+  let bqCodeContent: string[] = [];
+  let bqCodeParent: Block | null = null;
+
   for (const line of lines) {
     const trimmed = line.trim();
 
@@ -150,8 +169,87 @@ export function markdownToBlocks(markdown: string): Block[] {
       continue;
     }
 
+    if (inMathBlock) {
+      if (trimmed.endsWith('$$')) {
+        inMathBlock = false;
+        const lastLineContent = line.slice(0, line.lastIndexOf('$$'));
+        if (lastLineContent.trim()) {
+          mathContent.push(lastLineContent);
+        }
+        const block: Block = {
+          id: 'b-' + Math.random().toString(36).slice(2, 7),
+          type: 'math',
+          content: mathContent.join('\n'),
+          children: []
+        };
+        appendBlock(block, 0);
+        mathContent = [];
+      } else {
+        mathContent.push(line);
+      }
+      continue;
+    }
+
+    if (!inCodeBlock && !inMathBlock && trimmed.startsWith('$$') && (trimmed === '$$' || !trimmed.endsWith('$$'))) {
+      inMathBlock = true;
+      const initialContent = trimmed.slice(2);
+      if (initialContent) {
+        mathContent.push(initialContent);
+      }
+      continue;
+    }
+
     if (!trimmed) {
       continue;
+    }
+
+    // Handle code fences inside blockquotes (> ```)
+    if (inBqCodeBlock) {
+      if (trimmed.startsWith('>')) {
+        const inner = trimmed.slice(1).replace(/^\s/, '');
+        if (inner.startsWith('```')) {
+          const blockType: BlockType = bqCodeLang === 'mermaid' ? 'mermaid' : 'code';
+          const codeBlock: Block = {
+            id: 'b-' + Math.random().toString(36).slice(2, 7),
+            type: blockType,
+            content: bqCodeContent.join('\n'),
+            language: blockType === 'code' ? bqCodeLang : undefined,
+            children: []
+          };
+          if (bqCodeParent) {
+            if (!bqCodeParent.children) bqCodeParent.children = [];
+            bqCodeParent.children.push(codeBlock);
+          } else {
+            appendBlock(codeBlock, 0);
+          }
+          inBqCodeBlock = false;
+          bqCodeContent = [];
+          bqCodeParent = null;
+        } else {
+          bqCodeContent.push(inner);
+        }
+      } else {
+        // Line doesn't start with >, finalize the code block
+        const blockType: BlockType = bqCodeLang === 'mermaid' ? 'mermaid' : 'code';
+        const codeBlock: Block = {
+          id: 'b-' + Math.random().toString(36).slice(2, 7),
+          type: blockType,
+          content: bqCodeContent.join('\n'),
+          language: blockType === 'code' ? bqCodeLang : undefined,
+          children: []
+        };
+        if (bqCodeParent) {
+          if (!bqCodeParent.children) bqCodeParent.children = [];
+          bqCodeParent.children.push(codeBlock);
+        } else {
+          appendBlock(codeBlock, 0);
+        }
+        inBqCodeBlock = false;
+        bqCodeContent = [];
+        bqCodeParent = null;
+        // Don't continue — let the current line be processed normally
+      }
+      if (inBqCodeBlock || trimmed.startsWith('>')) continue;
     }
 
     if (trimmed === ':::') {
@@ -169,15 +267,53 @@ export function markdownToBlocks(markdown: string): Block[] {
       const widthMatch = trimmed.match(/\[width:(\d+)\]/);
       const columnWidth = widthMatch ? parseInt(widthMatch[1]) : undefined;
       block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'column', content: '', columnWidth, children: [] };
-    } else if (trimmed.startsWith('> [!TOGGLE')) {
-      const collapsed = trimmed.includes('[collapsed]');
-      let type: BlockType = 'toggle';
-      if (trimmed.startsWith('> [!TOGGLE-H1]')) type = 'toggle_h1';
-      else if (trimmed.startsWith('> [!TOGGLE-H2]')) type = 'toggle_h2';
-      else if (trimmed.startsWith('> [!TOGGLE-H3]')) type = 'toggle_h3';
-      
-      const content = trimmed.replace(/^>\s*\[!TOGGLE(?:-H\d)?\]\s*(?:\[collapsed\])?\s*/, '').trim();
-      block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type, content, collapsed, children: [] };
+    } else if (trimmed.startsWith('>')) {
+      if (trimmed.startsWith('> [!TOGGLE')) {
+        const collapsed = trimmed.includes('[collapsed]');
+        let type: BlockType = 'toggle';
+        if (trimmed.startsWith('> [!TOGGLE-H1]')) type = 'toggle_h1';
+        else if (trimmed.startsWith('> [!TOGGLE-H2]')) type = 'toggle_h2';
+        else if (trimmed.startsWith('> [!TOGGLE-H3]')) type = 'toggle_h3';
+        
+        const content = trimmed.replace(/^>\s*\[!TOGGLE(?:-H\d)?\]\s*(?:\[collapsed\])?\s*/, '').trim();
+        block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type, content, collapsed, children: [] };
+      } else if (trimmed.startsWith('> [!NOTE]')) {
+        const rest = trimmed.replace(/^>\s*\[!NOTE\]\s*/, '').trim();
+        let icon = '💡';
+        let content = rest;
+        const firstSpace = rest.indexOf(' ');
+        if (firstSpace !== -1 && rest.length > 0 && !rest.startsWith('http')) {
+          const candidateIcon = rest.slice(0, firstSpace).trim();
+          if (candidateIcon.length <= 4) {
+            icon = candidateIcon;
+            content = rest.slice(firstSpace + 1).trim();
+          }
+        }
+        block = { id: 'b-' + Math.random().toString(36).slice(9, 14), type: 'callout', icon, content, children: [] };
+      } else {
+        const quoteContent = trimmed.slice(1).replace(/^\s/, '');
+        // Detect code fence inside blockquote
+        if (quoteContent.startsWith('```')) {
+          inBqCodeBlock = true;
+          bqCodeLang = quoteContent.slice(3).trim() || 'plaintext';
+          bqCodeContent = [];
+          const lastAtLevel = levelStack.length > 0 && levelStack[levelStack.length - 1].level === level
+            ? levelStack[levelStack.length - 1].block
+            : null;
+          bqCodeParent = (lastAtLevel && (lastAtLevel.type === 'quote' || lastAtLevel.type === 'callout'))
+            ? lastAtLevel : null;
+          continue;
+        }
+        const lastBlockAtLevel = levelStack.length > 0 && levelStack[levelStack.length - 1].level === level
+          ? levelStack[levelStack.length - 1].block
+          : null;
+        if (lastBlockAtLevel && (lastBlockAtLevel.type === 'quote' || lastBlockAtLevel.type === 'callout')) {
+          lastBlockAtLevel.content = (lastBlockAtLevel.content || '') + '\n' + quoteContent;
+          continue;
+        } else {
+          block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'quote', content: quoteContent, children: [] };
+        }
+      }
     } else if (trimmed === '[toc]' || trimmed === '[[toc]]') {
       block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'toc', content: '', children: [] };
     } else if (trimmed === '[breadcrumb]') {
@@ -208,21 +344,7 @@ export function markdownToBlocks(markdown: string): Block[] {
       block = { id: 'b-' + Math.random().toString(36).slice(6, 11), type: 'todo', content: trimmed.slice(6), checked: true, children: [] };
     } else if (trimmed.startsWith('- ')) {
       block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'bullet', content: trimmed.slice(2), children: [] };
-    } else if (trimmed.startsWith('> [!NOTE]')) {
-      const rest = trimmed.replace(/^>\s*\[!NOTE\]\s*/, '').trim();
-      let icon = '💡';
-      let content = rest;
-      const firstSpace = rest.indexOf(' ');
-      if (firstSpace !== -1 && rest.length > 0 && !rest.startsWith('http')) {
-        const candidateIcon = rest.slice(0, firstSpace).trim();
-        if (candidateIcon.length <= 4) {
-          icon = candidateIcon;
-          content = rest.slice(firstSpace + 1).trim();
-        }
-      }
-      block = { id: 'b-' + Math.random().toString(36).slice(9, 14), type: 'callout', icon, content, children: [] };
-    } else if (trimmed.startsWith('> ')) {
-      block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'quote', content: trimmed.slice(2), children: [] };
+
     } else if (trimmed.match(/^\d+\.\s/)) {
       const content = trimmed.replace(/^\d+\.\s/, '');
       block = { id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'numbered', content, children: [] };

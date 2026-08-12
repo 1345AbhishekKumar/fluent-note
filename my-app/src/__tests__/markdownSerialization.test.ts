@@ -379,4 +379,50 @@ title: "Norm"
     expect(parsedHtmlBlocks[4].type).toBe('toc');
     expect(parsedHtmlBlocks[5].type).toBe('breadcrumb');
   });
+
+  it('correctly serializes and deserializes multi-line quotes, callouts, and math blocks', () => {
+    const blocks: Block[] = [
+      {
+        id: 'bq_multi',
+        type: 'quote',
+        content: 'Line 1 of quote\nLine 2 of quote',
+        children: []
+      },
+      {
+        id: 'bc_multi',
+        type: 'callout',
+        icon: '⚡',
+        content: 'Line 1 of callout\nLine 2 of callout',
+        children: []
+      },
+      {
+        id: 'bm_multi',
+        type: 'math',
+        content: 'x = y + z\na = b + c',
+        children: []
+      }
+    ];
+
+    const md = blocksToMarkdown(blocks);
+    
+    // Check serialization format
+    expect(md).toContain('> Line 1 of quote\n> Line 2 of quote');
+    expect(md).toContain('> [!NOTE] ⚡ Line 1 of callout\n> Line 2 of callout');
+    expect(md).toContain('$$\nx = y + z\na = b + c\n$$');
+
+    // Deserialization back
+    const parsed = markdownToBlocks(md);
+    expect(parsed).toHaveLength(3);
+
+    expect(parsed[0].type).toBe('quote');
+    expect(parsed[0].content).toBe('Line 1 of quote\nLine 2 of quote');
+
+    expect(parsed[1].type).toBe('callout');
+    expect(parsed[1].icon).toBe('⚡');
+    expect(parsed[1].content).toBe('Line 1 of callout\nLine 2 of callout');
+
+    expect(parsed[2].type).toBe('math');
+    expect(parsed[2].content).toBe('x = y + z\na = b + c');
+  });
 });
+

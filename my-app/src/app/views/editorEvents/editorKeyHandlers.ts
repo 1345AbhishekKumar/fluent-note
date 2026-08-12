@@ -19,6 +19,8 @@ import { handleMultiBlockTextDeletion } from './editorMultiBlockSelection';
 import { pushToUndo, pushToUndoDebounced, triggerUndo, triggerRedo } from './editorHistory';
 import { renderMermaidDiagramsInContainer } from '../../../utils/mermaidRenderer';
 
+let mermaidDebounceTimeout: any = null;
+
 export function initEditorKeyHandlers(ctx: AppContext) {
   ctx.elements.edTitle.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
@@ -42,7 +44,12 @@ export function initEditorKeyHandlers(ctx: AppContext) {
           const match = findBlockById(n.blocks, blockId);
           if (match) {
             match.block.content = target.textContent || '';
-            renderMermaidDiagramsInContainer(ctx.elements.edBody, ctx.api.theme);
+            if (mermaidDebounceTimeout) {
+              clearTimeout(mermaidDebounceTimeout);
+            }
+            mermaidDebounceTimeout = setTimeout(() => {
+              renderMermaidDiagramsInContainer(ctx.elements.edBody, ctx.api.theme);
+            }, 400);
             saveAndSyncContent();
             ctx.markSaving();
           }
