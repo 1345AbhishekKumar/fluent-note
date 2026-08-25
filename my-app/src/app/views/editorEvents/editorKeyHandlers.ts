@@ -395,9 +395,15 @@ export function initEditorKeyHandlers(ctx: AppContext) {
         return;
       }
 
+      // Ensure that if focus is inside another app instance's DOM tree, this app instance does not process it
+      if (activeEl && !ctx.root.contains(activeEl) && document.body !== activeEl && document.documentElement !== activeEl) {
+        return;
+      }
+
       const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
       if (n) {
         e.preventDefault();
+        e.stopImmediatePropagation();
         if (isRedo) {
           triggerRedo(ctx, n);
         } else {

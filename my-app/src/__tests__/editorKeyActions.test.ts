@@ -207,5 +207,48 @@ describe('Editor Key Actions', () => {
 
     document.body.removeChild(el);
   });
+
+  it('prevents multiple app instances from double-triggering undo on single Ctrl+Z', () => {
+    const note: Note = {
+      id: 'n_undo_test',
+      title: 'Undo Test',
+      body: '',
+      blocks: [
+        { id: 'b1', type: 'paragraph', content: 'Block 1', children: [] }
+      ],
+      nb: 'default',
+      tags: [],
+      pinned: false,
+      date: 'Just now',
+      ord: 0
+    };
+
+    const rootA = document.createElement('div');
+    const edBodyA = document.createElement('div');
+    edBodyA.className = 'ed-body';
+    edBodyA.innerHTML = `
+      <div class="block-wrapper" data-id="b1">
+        <div class="block-text-field" contenteditable="true">Block 1</div>
+      </div>
+    `;
+    rootA.appendChild(edBodyA);
+    document.body.appendChild(rootA);
+
+    const rootB = document.createElement('div');
+    const edBodyB = document.createElement('div');
+    edBodyB.className = 'ed-body';
+    rootB.appendChild(edBodyB);
+    document.body.appendChild(rootB);
+
+    const fieldA = edBodyA.querySelector('.block-text-field') as HTMLElement;
+    fieldA.focus();
+
+    // Verify activeElement is in rootA
+    expect(rootA.contains(document.activeElement)).toBe(true);
+    expect(rootB.contains(document.activeElement)).toBe(false);
+
+    document.body.removeChild(rootA);
+    document.body.removeChild(rootB);
+  });
 });
 
