@@ -3,7 +3,7 @@ export type BlockType =
   | 'todo' | 'bullet' | 'numbered' | 'toggle' | 'toggle_h1' | 'toggle_h2' | 'toggle_h3'
   | 'quote' | 'divider' | 'code' | 'callout'
   | 'image' | 'video' | 'audio' | 'pdf' | 'bookmark' | 'file'
-  | 'equation' | 'math' | 'mermaid'
+  | 'equation' | 'math' | 'mermaid' | 'html'
   | 'toc' | 'breadcrumb' | 'template' | 'subpage' | 'subfolder'
   | 'column_list' | 'column' | 'table';
 
@@ -21,6 +21,7 @@ export interface Block {
   codeWrap?: boolean;
   codeFullWidth?: boolean;
   mermaidMode?: 'diagram' | 'code' | 'split';
+  htmlMode?: 'code' | 'preview' | 'split';
   collapsed?: boolean; // for toggle blocks
   textColor?: string;
   bgColor?: string;
@@ -108,5 +109,8 @@ export interface AppInstance {
   showReceivedToast: (closureCount: number, title: string) => void;
   st: any;
   navigateNote: (direction: 'prev' | 'next') => void;
+  goBack?: () => void;
+  goForward?: () => void;
   closeVaultSwitcher?: () => void;
+  destroy?: () => void;
 }

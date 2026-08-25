@@ -4,8 +4,8 @@ import {
   renderLinksInContent,
   getReferencedNoteIds,
   calculateSubGraphClosure
-} from '../renderer';
-import type { Note } from '../renderer';
+} from '../utils';
+import type { Note } from '../types';
 
 describe('Fluent Notes - Store & Parsers', () => {
   describe('WikiLinks & Ref Extraction', () => {

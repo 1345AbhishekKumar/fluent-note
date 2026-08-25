@@ -1,6 +1,6 @@
 import type { AppContext } from '../../context';
 import type { Block, BlockType } from '../../../types';
-import { findBlockById, genId, esc, moveCaret } from '../../../utils';
+import { findBlockById, genId, esc, moveCaret, cleanBadgeHtml } from '../../../utils';
 import { saveAndSyncContent } from '../../../store';
 import { rerenderNote } from './pickers/editorPopups';
 import { pushToUndo } from './editorHistory';
@@ -111,6 +111,8 @@ export function handleEditorPaste(ctx: AppContext, e: ClipboardEvent) {
         }
 
         rerenderNote(ctx, n);
+        saveAndSyncContent();
+        ctx.markSaving();
       };
       reader.readAsDataURL(file);
     }
@@ -137,7 +139,7 @@ export function handleEditorPaste(ctx: AppContext, e: ClipboardEvent) {
           const match = findBlockById(n.blocks, blockId);
           if (match) {
             const textEl = blockEl.querySelector('.block-text-field') as HTMLElement;
-            match.block.content = textEl.innerHTML;
+            match.block.content = cleanBadgeHtml(textEl);
             saveAndSyncContent();
             ctx.markSaving();
           }
@@ -207,7 +209,7 @@ export function handleEditorPaste(ctx: AppContext, e: ClipboardEvent) {
       return prefix + b.content;
     }).join('<br>');
     insertHtmlAtCaret(htmlToInsert);
-    currentBlock.content = target.innerHTML;
+    currentBlock.content = cleanBadgeHtml(target);
     saveAndSyncContent();
     ctx.markSaving();
     return;
@@ -217,7 +219,7 @@ export function handleEditorPaste(ctx: AppContext, e: ClipboardEvent) {
     // Paste inline for a single paragraph block using insertHTML to preserve formatting
     const htmlToInsert = pastedBlocks[0].content;
     insertHtmlAtCaret(htmlToInsert);
-    currentBlock.content = target.innerHTML;
+    currentBlock.content = cleanBadgeHtml(target);
     saveAndSyncContent();
     ctx.markSaving();
     return;
@@ -254,6 +256,8 @@ export function handleEditorPaste(ctx: AppContext, e: ClipboardEvent) {
   }
 
   rerenderNote(ctx, n);
+  saveAndSyncContent();
+  ctx.markSaving();
 
   setTimeout(() => {
     const field = ctx.elements.edBody.querySelector(`[data-id="${focusId}"] .block-text-field`) as HTMLElement;

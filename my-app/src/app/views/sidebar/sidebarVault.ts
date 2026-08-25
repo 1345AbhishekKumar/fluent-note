@@ -6,7 +6,9 @@ import { APPS } from '../../../store';
 export async function reloadFromVault(ctx: AppContext) {
   const { clearVaultCache, sharedNotes, sharedFolders, sharedNotebooks, saveAndSync: _saveAndSync } = await import('../../../store');
   clearVaultCache();
-  const newVaultData = window.electronAPI!.loadVaultSync();
+  const newVaultData = window.electronAPI?.loadVault
+    ? await window.electronAPI.loadVault()
+    : (window.electronAPI?.loadVaultSync ? window.electronAPI.loadVaultSync() : null);
   sharedNotes.length = 0;
   if (newVaultData?.notes) {
     newVaultData.notes.forEach((n: any) => sharedNotes.push(n));
@@ -19,12 +21,30 @@ export async function reloadFromVault(ctx: AppContext) {
   if (newVaultData?.notebooks) {
     newVaultData.notebooks.forEach((nb: any) => sharedNotebooks.push(nb));
   }
-  ctx.st.sel = sharedNotes.length ? sharedNotes[0].id : null;
-  ctx.st.folder = null;
-  ctx.st.nb = 'all';
+  
+  // Clean state boundary reset (BUG-21)
+  ctx.st.historyStack = [];
+  ctx.st.historyIndex = -1;
   ctx.st.tag = null;
+  ctx.st.folder = null;
+  ctx.st.sel = null;
+  ctx.st.nb = 'all';
   ctx.st.quick = 'all';
   ctx.st.expandedFolders = new Set(['design']);
+
+  APPS.forEach(app => {
+    if (app.st) {
+      app.st.historyStack = [];
+      app.st.historyIndex = -1;
+      app.st.tag = null;
+      app.st.folder = null;
+      app.st.sel = null;
+      app.st.nb = 'all';
+      app.st.quick = 'all';
+      app.st.expandedFolders = new Set(['design']);
+    }
+  });
+
   _saveAndSync();
 }
 

@@ -3,9 +3,10 @@ import {
   htmlToBlocks, 
   findBlockById,
   getBlockLevel,
-  flattenBlocks
-} from '../renderer';
-import type { Block } from '../renderer';
+  flattenBlocks,
+  cleanBadgeHtml
+} from '../utils';
+import type { Block } from '../types';
 
 describe('Fluent Notes - Store & Parsers', () => {
   describe('HTML to Blocks Conversion', () => {
@@ -116,6 +117,19 @@ describe('Fluent Notes - Store & Parsers', () => {
       expect(blocks[0].type).toBe('table');
       const grid = JSON.parse(blocks[0].content);
       expect(grid).toEqual([['Cell 1', 'Cell 2'], ['Cell 3', 'Cell 4']]);
+    });
+  });
+
+  describe('Inline Rich Text and Search Highlights', () => {
+    it('converts inline HTML tags to markdown and strips search highlights', () => {
+      const el = document.createElement('div');
+      el.innerHTML = 'Normal <b>bold</b> <i>italic</i> <code>code</code> <del>strike</del> <u>underline</u> <a href="https://example.com">link</a> <span class="search-highlight">matched</span>';
+      
+      const markdownContent = cleanBadgeHtml(el);
+      expect(markdownContent).toBe('Normal **bold** *italic* `code` ~~strike~~ <u>underline</u> [link](https://example.com) matched');
+      expect(markdownContent).not.toContain('search-highlight');
+      expect(markdownContent).not.toContain('<b>');
+      expect(markdownContent).not.toContain('<i>');
     });
   });
 });

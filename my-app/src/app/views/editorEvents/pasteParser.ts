@@ -128,11 +128,14 @@ export function parseTextToBlocks(text: string): Block[] {
       if (inCodeBlock) {
         const codeContent = codeBlockLines.join('\n');
         const isMermaid = codeBlockLang === 'mermaid' || detectMermaidSyntax(codeContent);
+        const isHtml = codeBlockLang === 'html-preview' || codeBlockLang === 'htmlpreview';
         blocks.push({
           id: genId(),
-          type: isMermaid ? 'mermaid' : 'code',
+          type: isMermaid ? 'mermaid' : (isHtml ? 'html' : 'code'),
           content: codeContent,
-          language: isMermaid ? undefined : (codeBlockLang || 'plaintext'),
+          language: (isMermaid || isHtml) ? undefined : (codeBlockLang || 'plaintext'),
+          mermaidMode: isMermaid ? 'split' : undefined,
+          htmlMode: isHtml ? 'split' : undefined,
           children: []
         });
         inCodeBlock = false;
@@ -193,11 +196,14 @@ export function parseTextToBlocks(text: string): Block[] {
   if (inCodeBlock && codeBlockLines.length > 0) {
     const codeContent = codeBlockLines.join('\n');
     const isMermaid = codeBlockLang === 'mermaid' || detectMermaidSyntax(codeContent);
+    const isHtml = codeBlockLang === 'html-preview' || codeBlockLang === 'htmlpreview';
     blocks.push({
       id: genId(),
-      type: isMermaid ? 'mermaid' : 'code',
+      type: isMermaid ? 'mermaid' : (isHtml ? 'html' : 'code'),
       content: codeContent,
-      language: isMermaid ? undefined : (codeBlockLang || 'plaintext'),
+      language: (isMermaid || isHtml) ? undefined : (codeBlockLang || 'plaintext'),
+      mermaidMode: isMermaid ? 'split' : undefined,
+      htmlMode: isHtml ? 'split' : undefined,
       children: []
     });
   }
@@ -225,10 +231,11 @@ export function parseHtmlToBlocks(html: string): Block[] {
         blocks.push({ id: genId(), type: 'divider', content: '', children: [] });
       } else if (tag === 'blockquote') {
         blocks.push({ id: genId(), type: 'quote', content: el.textContent || '', children: [] });
-      } else if (tag === 'pre' || tag === 'code' || el.classList.contains('mermaid-block') || el.classList.contains('code-block')) {
+      } else if (tag === 'pre' || tag === 'code' || el.classList.contains('mermaid-block') || el.classList.contains('html-preview-block') || el.classList.contains('code-block')) {
         const codeEl = tag === 'pre' ? el.querySelector('code') : el;
         const contentText = codeEl ? (codeEl.textContent || '') : (el.textContent || '');
         const isMermaid = el.classList.contains('mermaid-block') || (codeEl !== null && codeEl.classList.contains('language-mermaid')) || detectMermaidSyntax(contentText);
+        const isHtml = el.classList.contains('html-preview-block') || (codeEl !== null && (codeEl.classList.contains('language-html-preview') || codeEl.classList.contains('language-htmlpreview')));
         
         if (isMermaid) {
           blocks.push({
@@ -236,6 +243,14 @@ export function parseHtmlToBlocks(html: string): Block[] {
             type: 'mermaid',
             content: contentText,
             mermaidMode: 'split',
+            children: []
+          });
+        } else if (isHtml) {
+          blocks.push({
+            id: genId(),
+            type: 'html',
+            content: contentText,
+            htmlMode: 'split',
             children: []
           });
         } else {

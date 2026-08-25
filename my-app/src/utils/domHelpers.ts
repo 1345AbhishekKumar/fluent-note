@@ -24,7 +24,71 @@ export function isCaretAtEnd(el: HTMLElement): boolean {
   return false;
 }
 
+export function isCaretOnFirstLine(el: HTMLElement): boolean {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) return false;
+  const range = sel.getRangeAt(0);
 
+  if (isCaretAtStart(el)) return true;
+
+  try {
+    const caretRect = range.getBoundingClientRect();
+    const rects = range.getClientRects();
+    const activeTop = rects.length > 0 ? rects[0].top : caretRect.top;
+    const activeHeight = rects.length > 0 ? rects[0].height : caretRect.height;
+
+    const startRange = document.createRange();
+    startRange.selectNodeContents(el);
+    startRange.collapse(true);
+    const startRect = startRange.getBoundingClientRect();
+    const startRects = startRange.getClientRects();
+    const startTop = startRects.length > 0 ? startRects[0].top : startRect.top;
+
+    if ((activeHeight > 0 || activeTop !== 0 || startTop !== 0) && activeTop !== undefined && startTop !== undefined) {
+      const threshold = activeHeight > 0 ? activeHeight * 0.75 : 8;
+      return Math.abs(activeTop - startTop) <= threshold;
+    }
+  } catch (_) {}
+
+  const preRange = range.cloneRange();
+  preRange.selectNodeContents(el);
+  preRange.setEnd(range.startContainer, range.startOffset);
+  const textBefore = preRange.toString();
+  return !textBefore.includes('\n');
+}
+
+export function isCaretOnLastLine(el: HTMLElement): boolean {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) return false;
+  const range = sel.getRangeAt(0);
+
+  if (isCaretAtEnd(el)) return true;
+
+  try {
+    const caretRect = range.getBoundingClientRect();
+    const rects = range.getClientRects();
+    const activeBottom = rects.length > 0 ? rects[0].bottom : caretRect.bottom;
+    const activeHeight = rects.length > 0 ? rects[0].height : caretRect.height;
+
+    const endRange = document.createRange();
+    endRange.selectNodeContents(el);
+    endRange.collapse(false);
+    const endRect = endRange.getBoundingClientRect();
+    const endRects = endRange.getClientRects();
+    const endBottom = endRects.length > 0 ? endRects[0].bottom : endRect.bottom;
+
+    if ((activeHeight > 0 || activeBottom !== 0 || endBottom !== 0) && activeBottom !== undefined && endBottom !== undefined) {
+      const threshold = activeHeight > 0 ? activeHeight * 0.75 : 8;
+      return Math.abs(activeBottom - endBottom) <= threshold;
+    }
+  } catch (_) {}
+
+  const postRange = range.cloneRange();
+  postRange.selectNodeContents(el);
+  postRange.setStart(range.endContainer, range.endOffset);
+  const textAfter = postRange.toString();
+  return !textAfter.includes('\n');
+}
 
 export function moveCaret(el: HTMLElement, toStart: boolean = false) {
   el.focus();

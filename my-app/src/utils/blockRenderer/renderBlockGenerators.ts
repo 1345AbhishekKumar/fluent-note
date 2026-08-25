@@ -2,13 +2,13 @@ import type { Block, Note, BlockType } from '../../types';
 import { esc } from '../stringHelpers';
 import { renderLinksInContent } from './inlineParsers';
 
-export const dragHandleSvg = '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="1.5" class="f"/><circle cx="9" cy="12" r="1.5" class="f"/><circle cx="9" cy="16" r="1.5" class="f"/><circle cx="15" cy="8" r="1.5" class="f"/><circle cx="15" cy="12" r="1.5" class="f"/><circle cx="15" cy="16" r="1.5" class="f"/></svg>';
-export const addSvg = '<svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor"/></svg>';
+export const dragHandleSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-grip-vertical-icon lucide-grip-vertical"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>';
+export const addSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
 
 export function getDragHandleHtml(blockId: string): string {
-  return `<div class="block-actions-container">
-    <button class="block-add-btn" data-id="${blockId}" contenteditable="false" title="Click to add a block below">${addSvg}</button>
-    <div class="block-drag-handle" draggable="true">${dragHandleSvg}</div>
+  return `<div class="block-actions-container" contenteditable="false">
+    <button class="block-add-btn" data-id="${blockId}" contenteditable="false" type="button" title="Click to add a block below">${addSvg}</button>
+    <div class="block-drag-handle" data-id="${blockId}" draggable="true" title="Drag to move, click to open menu">${dragHandleSvg}</div>
   </div>`;
 }
 
@@ -138,7 +138,7 @@ export function renderMediaBlockHtml(block: Block, levelStyle: string, dragHandl
             <button class="image-tb-btn img-replace" data-id="${block.id}" title="Replace Image"><svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg></button>
             <button class="image-tb-btn img-delete" data-id="${block.id}" title="Delete Image"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
           </div>
-          <img class="block-media-img" src="${block.url}" alt="${esc(block.content || 'image')}" />
+          <img class="block-media-img" src="${esc(block.url)}" alt="${esc(block.content || 'image')}" />
           <div class="image-resize-handle image-resize-left" data-id="${block.id}" data-dir="left"></div>
           <div class="image-resize-handle image-resize-right" data-id="${block.id}" data-dir="right"></div>
           <div class="image-caption-box" contenteditable="false">
@@ -155,9 +155,9 @@ export function renderMediaBlockHtml(block: Block, levelStyle: string, dragHandl
     if (block.url) {
       const ytEmbed = getYoutubeEmbedUrl(block.url);
       if (ytEmbed) {
-        inner = `<iframe class="block-media-video" src="${ytEmbed}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+        inner = `<iframe class="block-media-video" src="${esc(ytEmbed)}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
       } else {
-        inner = `<video class="block-media-video" src="${block.url}" controls></video>`;
+        inner = `<video class="block-media-video" src="${esc(block.url)}" controls></video>`;
       }
     } else {
       inner = `<div class="block-media-placeholder" data-prompt="video" data-id="${block.id}">🎬 Click to add video</div>`;
@@ -168,7 +168,7 @@ export function renderMediaBlockHtml(block: Block, levelStyle: string, dragHandl
   }
   if (type === 'audio') {
     const inner = block.url
-      ? `<audio class="block-media-audio" src="${block.url}" controls></audio>`
+      ? `<audio class="block-media-audio" src="${esc(block.url)}" controls></audio>`
       : `<div class="block-media-placeholder" data-prompt="audio" data-id="${block.id}">🎵 Click to add audio</div>`;
     return `<div class="block-wrapper" data-id="${block.id}" data-type="audio" ${levelStyle}>
       ${dragHandle}<div class="block-media-container">${inner}</div>
@@ -176,7 +176,7 @@ export function renderMediaBlockHtml(block: Block, levelStyle: string, dragHandl
   }
   if (type === 'pdf') {
     const inner = block.url
-      ? `<iframe class="block-media-pdf" src="${block.url}" title="PDF"></iframe>`
+      ? `<iframe class="block-media-pdf" src="${esc(block.url)}" title="PDF"></iframe>`
       : `<div class="block-media-placeholder" data-prompt="pdf" data-id="${block.id}">📄 Click to embed PDF</div>`;
     return `<div class="block-wrapper" data-id="${block.id}" data-type="pdf" ${levelStyle}>
       ${dragHandle}<div class="block-media-container">${inner}</div>
@@ -186,16 +186,16 @@ export function renderMediaBlockHtml(block: Block, levelStyle: string, dragHandl
     if (block.url) {
       if (block.bookmarkTitle) {
         const imageHtml = block.bookmarkImage
-          ? `<div class="bookmark-image-container" style="background-image: url('${block.bookmarkImage}')"></div>`
+          ? `<div class="bookmark-image-container" style="background-image: url('${esc(block.bookmarkImage)}')"></div>`
           : '';
         const iconHtml = block.bookmarkIcon
-          ? `<img class="bookmark-favicon" src="${block.bookmarkIcon}" alt="favicon" onerror="this.style.display='none'" />`
+          ? `<img class="bookmark-favicon" src="${esc(block.bookmarkIcon)}" alt="favicon" onerror="this.style.display='none'" />`
           : `<span class="bookmark-favicon-placeholder">🔖</span>`;
           
         return `<div class="block-wrapper" data-id="${block.id}" data-type="bookmark" ${levelStyle}>
           ${dragHandle}
           <div class="block-bookmark premium-bookmark">
-            <a class="block-bookmark-link-premium" href="${block.url}" target="_blank" rel="noopener" title="Ctrl + Click to open link">
+            <a class="block-bookmark-link-premium" href="${esc(block.url)}" target="_blank" rel="noopener" title="Ctrl + Click to open link">
               ${imageHtml}
               <div class="bookmark-info-container">
                 <div class="bookmark-header-row">
@@ -212,7 +212,7 @@ export function renderMediaBlockHtml(block: Block, levelStyle: string, dragHandl
         return `<div class="block-wrapper" data-id="${block.id}" data-type="bookmark" ${levelStyle}>
           ${dragHandle}
           <div class="block-bookmark">
-            <a class="block-bookmark-link" href="${block.url}" target="_blank" rel="noopener" title="Ctrl + Click to open link">
+            <a class="block-bookmark-link" href="${esc(block.url)}" target="_blank" rel="noopener" title="Ctrl + Click to open link">
               <span class="bookmark-icon">🔖</span>
               <span class="bookmark-text">${esc(block.content || block.url)}</span>
               <span class="bookmark-url">${esc(block.url)}</span>
@@ -229,7 +229,7 @@ export function renderMediaBlockHtml(block: Block, levelStyle: string, dragHandl
   }
   if (type === 'file') {
     const inner = block.url
-      ? `<a class="block-file-link" href="${block.url}" download="${block.fileName || 'file'}">
+      ? `<a class="block-file-link" href="${esc(block.url)}" download="${esc(block.fileName || 'file')}">
            <span class="file-icon">📎</span>
            <span class="file-name">${esc(block.fileName || block.content || 'File')}</span>
          </a>`
@@ -337,7 +337,7 @@ export function renderSubpageBlockHtml(
 
   return `<div class="block-wrapper block-subpage-wrapper" data-id="${block.id}" data-type="subpage" ${levelStyle}>
     ${dragHandle}
-    <div class="block-subpage-row" data-subpageid="${childNoteId}">
+    <div class="block-subpage-row" data-subpageid="${esc(childNoteId)}">
       <span class="subpage-icon">📄</span>
       <span class="subpage-title">${esc(title || 'Untitled')}</span>
     </div>
@@ -354,7 +354,7 @@ export function renderSubfolderBlockHtml(
 
   return `<div class="block-wrapper block-subfolder-wrapper" data-id="${block.id}" data-type="subfolder" ${levelStyle}>
     ${dragHandle}
-    <div class="block-subfolder-row" data-subfolderid="${folderId}">
+    <div class="block-subfolder-row" data-subfolderid="${esc(folderId)}">
       <span class="subfolder-icon">📁</span>
       <span class="subfolder-title">${esc(folderName)}</span>
     </div>
@@ -444,4 +444,52 @@ export function renderTableBlockHtml(
   </div>`;
 }
 
+export function renderHtmlBlockHtml(
+  block: Block,
+  levelStyle: string,
+  dragHandle: string
+): string {
+  const mode = block.htmlMode || 'split';
+  const isCodeVisible = mode === 'code' || mode === 'split';
+  const isPreviewVisible = mode === 'preview' || mode === 'split';
 
+  const escContent = esc(block.content || '');
+
+  const codeDisplay = isCodeVisible ? '' : 'style="display:none;"';
+  const previewDisplay = isPreviewVisible ? '' : 'style="display:none;"';
+  const splitClass = mode === 'split' ? 'is-split' : '';
+
+  return `<div class="block-wrapper block-html-wrapper ${splitClass}" data-id="${block.id}" data-type="html" ${levelStyle}>
+    ${dragHandle}
+    <div class="html-block-card">
+      <div class="html-header">
+        <div class="html-title"><span class="html-icon">🌐</span> HTML Preview</div>
+        <div class="html-mode-toggle" data-id="${block.id}">
+          <button class="html-mode-btn ${mode === 'code' ? 'active' : ''}" data-mode="code" data-id="${block.id}">Code</button>
+          <button class="html-mode-btn ${mode === 'preview' ? 'active' : ''}" data-mode="preview" data-id="${block.id}">Preview</button>
+          <button class="html-mode-btn ${mode === 'split' ? 'active' : ''}" data-mode="split" data-id="${block.id}">Split</button>
+        </div>
+        <div class="html-actions">
+          <button class="html-refresh-btn" data-id="${block.id}" title="Refresh Preview">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+            <span>Refresh</span>
+          </button>
+          <button class="html-copy-btn" data-id="${block.id}" title="Copy HTML Code">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+          <button class="html-expand-btn" data-id="${block.id}" title="Open Fullscreen Preview">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-expand-icon lucide-expand"><path d="m15 15 6 6"/><path d="m15 9 6-6"/><path d="M21 16v5h-5"/><path d="M21 8V3h-5"/><path d="M3 16v5h5"/><path d="m3 21 6-6"/><path d="M3 8V3h5"/><path d="M9 9 3 3"/></svg>
+            <span>Expand</span>
+          </button>
+        </div>
+      </div>
+      <div class="html-body">
+        <div class="block-text-field block-code-field html-code-field" ${codeDisplay} contenteditable="true" spellcheck="false" data-ph="<!-- Enter HTML/CSS/JS here -->">${escContent}</div>
+        <div class="html-preview-container" ${previewDisplay} data-id="${block.id}">
+          <iframe class="html-preview-iframe" data-id="${block.id}" sandbox="allow-scripts allow-forms allow-modals" loading="lazy"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}

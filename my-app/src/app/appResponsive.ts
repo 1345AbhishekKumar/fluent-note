@@ -1,10 +1,9 @@
 import type { AppContext } from './context';
 
-export function initResponsive(ctx: AppContext, root: HTMLElement) {
+export function initResponsive(ctx: AppContext, root: HTMLElement): () => void {
   const { elements, st, closeOverlayIf } = ctx;
 
-  /* ---------- burger / overlay ---------- */
-  elements.burger.addEventListener('click', () => {
+  const onBurgerClick = () => {
     if (root.classList.contains('m') || root.classList.contains('s')) {
       st.overlay = !st.overlay;
       root.classList.toggle('sb-open', st.overlay);
@@ -12,11 +11,9 @@ export function initResponsive(ctx: AppContext, root: HTMLElement) {
       st.sbUser = !st.sbUser;
       root.classList.toggle('sb-user', st.sbUser);
     }
-  });
-  elements.scrim.addEventListener('click', closeOverlayIf);
+  };
 
-  /* ---------- reveal hover ---------- */
-  root.addEventListener('pointermove', e => {
+  const onPointerMove = (e: PointerEvent) => {
     if (e.pointerType !== 'mouse') return;
     const target = e.target as HTMLElement;
     const t = target.closest('.rv') as HTMLElement;
@@ -24,10 +21,17 @@ export function initResponsive(ctx: AppContext, root: HTMLElement) {
     const r = t.getBoundingClientRect();
     t.style.setProperty('--mx', (e.clientX - r.left) + 'px');
     t.style.setProperty('--my', (e.clientY - r.top) + 'px');
-  });
+  };
+
+  /* ---------- burger / overlay ---------- */
+  elements.burger.addEventListener('click', onBurgerClick);
+  elements.scrim.addEventListener('click', closeOverlayIf);
+
+  /* ---------- reveal hover ---------- */
+  root.addEventListener('pointermove', onPointerMove);
 
   /* ---------- container breakpoints ---------- */
-  new ResizeObserver(() => {
+  const resizeObserver = new ResizeObserver(() => {
     const w = root.clientWidth;
     const h = root.clientHeight;
     root.classList.toggle('xl', w >= 1000);
@@ -37,5 +41,13 @@ export function initResponsive(ctx: AppContext, root: HTMLElement) {
     root.classList.toggle('h-sm', h < 600 && h >= 430);
     root.classList.toggle('h-xs', h < 430);
     if (!(w < 620)) root.classList.remove('show-editor');
-  }).observe(root);
+  });
+  resizeObserver.observe(root);
+
+  return () => {
+    elements.burger.removeEventListener('click', onBurgerClick);
+    elements.scrim.removeEventListener('click', closeOverlayIf);
+    root.removeEventListener('pointermove', onPointerMove);
+    resizeObserver.disconnect();
+  };
 }

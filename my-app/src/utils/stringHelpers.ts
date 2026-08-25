@@ -1,15 +1,37 @@
 // String & ID helper utilities extracted from utils/index.ts
 
-export const genId = () => 'b' + Math.random().toString(36).slice(2, 7);
+export const genId = (prefix: string = 'b'): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  const p1 = Math.random().toString(36).substring(2, 10);
+  const p2 = Math.random().toString(36).substring(2, 10);
+  return `${prefix}-${p1}${p2}`;
+};
 
 export function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 export function strip(html: string): string {
-  const d = document.createElement('div');
-  d.innerHTML = html;
-  return (d.textContent || '').replace(/\s+/g, ' ').trim();
+  if (!html) return '';
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**

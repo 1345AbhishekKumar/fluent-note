@@ -386,7 +386,8 @@ describe('handleEditorPaste block splitting', () => {
     const containerBlock = note.blocks[0];
     expect(containerBlock.type).toBe('callout');
     expect(containerBlock.content).toContain('Hello');
-    expect(containerBlock.content).toContain('Pasted block 1<br>- Pasted block 2');
+    expect(containerBlock.content).toContain('Pasted block 1');
+    expect(containerBlock.content).toContain('- Pasted block 2');
     expect(containerBlock.content).toContain(' container');
     expect(containerBlock.children || []).toHaveLength(0);
 

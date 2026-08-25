@@ -1,7 +1,8 @@
 import type { AppContext } from '../../context';
 import { IC } from '../../../constants';
-import { sharedNotebooks as NBS, saveAndSync } from '../../../store';
+import { sharedNotebooks as NBS, saveAndSync, APPS } from '../../../store';
 import { findNotebookForParent } from '../../../utils';
+import { sanitizeHistory, collectDescendantNoteAndFolderIds } from '../../appActions';
 
 export function renderTreeItem(
   ctx: AppContext,
@@ -128,26 +129,36 @@ export function updateNotebookIdRecursive(ctx: AppContext, folderId: string, not
 }
 
 export function deleteFolderRecursive(ctx: AppContext, folderId: string) {
-  const childFolders = ctx.st.folders.filter(f => f.parentId === folderId);
-  const childNotes = ctx.st.notes.filter(n => n.parentId === folderId);
+  const { noteIds: descendantNoteIds, folderIds: descendantFolderIds } = collectDescendantNoteAndFolderIds(ctx.st.notes, ctx.st.folders, folderId);
+  const allFolderIds = new Set<string>([folderId, ...descendantFolderIds]);
 
-  childFolders.forEach(f => deleteFolderRecursive(ctx, f.id));
-  childNotes.forEach(n => {
-    const idx = ctx.st.notes.findIndex(x => x.id === n.id);
+  // Delete all descendant notes
+  descendantNoteIds.forEach(nId => {
+    const idx = ctx.st.notes.findIndex(x => x.id === nId);
     if (idx !== -1) {
       ctx.st.notes.splice(idx, 1);
-      if (ctx.st.sel === n.id) {
-        ctx.api.selectFirstNote();
-      }
     }
   });
 
-  const folderIdx = ctx.st.folders.findIndex(f => f.id === folderId);
-  if (folderIdx !== -1) ctx.st.folders.splice(folderIdx, 1);
+  // Delete folder and all descendant subfolders
+  allFolderIds.forEach(fId => {
+    const folderIdx = ctx.st.folders.findIndex(f => f.id === fId);
+    if (folderIdx !== -1) ctx.st.folders.splice(folderIdx, 1);
+    ctx.st.expandedFolders.delete(fId);
+  });
 
-  if (ctx.st.folder === folderId) {
+  if (ctx.st.folder && allFolderIds.has(ctx.st.folder)) {
     ctx.st.folder = null;
   }
+
+  APPS.forEach(app => {
+    if (app.st) {
+      sanitizeHistory({ st: app.st } as AppContext, descendantNoteIds);
+    }
+    if (app.getSelectedNoteId() && descendantNoteIds.has(app.getSelectedNoteId()!)) {
+      app.selectFirstNote();
+    }
+  });
 }
 
 export function deleteFoldersForNotebook(ctx: AppContext, notebookId: string) {

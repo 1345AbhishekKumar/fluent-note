@@ -59,18 +59,29 @@ export async function renderMermaidDiagramsInContainer(container: HTMLElement, t
       return;
     }
 
-    const renderId = 'm' + blockId.replace(/[^a-zA-Z0-9]/g, '') + Math.random().toString(36).substring(2, 7);
+    const sanitizedId = blockId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const renderId = `mermaid-${sanitizedId}`;
+
+    // Clean any pre-existing temporary DOM nodes left by previous render attempts
+    const cleanupTempNodes = () => {
+      const orphans = document.querySelectorAll(`[id="${renderId}"], [id="d${renderId}"], [id^="d${renderId}"]`);
+      orphans.forEach(el => el.remove());
+    };
+
+    cleanupTempNodes();
 
     try {
       const res = await api.render(renderId, code);
       const svg = typeof res === 'string' ? res : res.svg;
       outputEl.innerHTML = svg;
     } catch (err: any) {
-      const orphan = document.getElementById(renderId) || document.getElementById('d' + renderId);
-      if (orphan) orphan.remove();
-
+      cleanupTempNodes();
       const msg = err?.message ? String(err.message).split('\n')[0] : 'Syntax error in Mermaid definition';
       outputEl.innerHTML = `<div class="mermaid-error text-xs text-red-400 bg-red-950/40 p-2.5 rounded-lg font-mono border border-red-800/50 my-1">${esc(msg)}</div>`;
+    } finally {
+      // Ensure no dangling elements remained in document.body
+      const dangling = document.getElementById('d' + renderId);
+      if (dangling) dangling.remove();
     }
   });
 }

@@ -1,8 +1,7 @@
 import type { AppContext } from '../../../context';
 import type { Block, Note } from '../../../../types';
-import { findBlockById, moveCaret, genId, cleanBadgeHtml } from '../../../../utils';
+import { findBlockById, genId, cleanBadgeHtml } from '../../../../utils';
 import { saveAndSyncContent, saveAndSync } from '../../../../store';
-import { rerenderNote } from './editorPopups';
 
 let activePickerEl: HTMLElement | null = null;
 let activePickerBlockId: string | null = null;
@@ -23,6 +22,26 @@ function getNextWednesday() {
   const daysUntilWednesday = (3 - day + 7) % 7 || 7;
   const nextWed = new Date(today.getTime() + daysUntilWednesday * 86400000);
   return nextWed.toISOString().slice(0, 10);
+}
+
+function deleteTriggerAndQueryAtCaret(textField: HTMLElement, symbol: string, query: string) {
+  const totalOffset = symbol.length + query.length;
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0) {
+    const range = sel.getRangeAt(0);
+    if (range.startContainer.nodeType === Node.TEXT_NODE) {
+      const startOffset = Math.max(0, range.startOffset - totalOffset);
+      range.setStart(range.startContainer, startOffset);
+      range.deleteContents();
+      return;
+    }
+  }
+  const text = textField.textContent || '';
+  const token = symbol + query;
+  const lastIdx = text.lastIndexOf(token);
+  if (lastIdx !== -1) {
+    textField.textContent = text.slice(0, lastIdx) + text.slice(lastIdx + token.length);
+  }
 }
 
 function insertTextAtCaret(ctx: AppContext, el: HTMLElement, val: string) {
@@ -48,7 +67,7 @@ function insertTextAtCaret(ctx: AppContext, el: HTMLElement, val: string) {
     if (n) {
       const match = findBlockById(n.blocks, blockId);
       if (match) {
-        match.block.content = el.textContent || '';
+        match.block.content = cleanBadgeHtml(el);
       }
     }
   }
@@ -211,7 +230,10 @@ export function showAutocompletePicker(ctx: AppContext, block: Block, textField:
     }
   }
 
-  if (items.length === 0) return;
+  if (items.length === 0) {
+    closeAutocompletePicker();
+    return;
+  }
   visiblePickerItems = items;
 
   picker.innerHTML = items.map((item, idx) => `
@@ -245,10 +267,12 @@ export function showAutocompletePicker(ctx: AppContext, block: Block, textField:
   picker.querySelectorAll('.slash-item').forEach(btn => {
     btn.addEventListener('mousedown', (e) => {
       e.preventDefault();
-    });
-    btn.addEventListener('click', () => {
+      e.stopPropagation();
       const index = parseInt((btn as HTMLElement).dataset.index!);
       executePickerCommand(ctx, index);
+    });
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
     });
   });
 }
@@ -258,7 +282,7 @@ export function updatePickerSelection(menu: HTMLElement) {
     btn.classList.toggle('selected', i === selectedPickerIndex);
   });
   const sel = menu.querySelector('.slash-item.selected') as HTMLElement;
-  if (sel) sel.scrollIntoView({ block: 'nearest' });
+  if (sel && typeof sel.scrollIntoView === 'function') sel.scrollIntoView({ block: 'nearest' });
 }
 
 export function executePickerCommand(ctx: AppContext, index: number) {
@@ -266,37 +290,19 @@ export function executePickerCommand(ctx: AppContext, index: number) {
     const item = visiblePickerItems[index];
     const textField = activeTextField || (document.activeElement as HTMLElement);
     const blockId = activePickerBlockId;
+    const symbol = activePickerSymbol || '';
+    const query = activePickerQuery || '';
     
     if (textField && textField.classList.contains('block-text-field')) {
       textField.focus();
-      const text = textField.textContent || '';
-      const symbol = activePickerSymbol || '';
-      const query = activePickerQuery || '';
-      const totalOffset = symbol.length + query.length;
+      deleteTriggerAndQueryAtCaret(textField, symbol, query);
       
-      const lastIdx = text.lastIndexOf(symbol);
-      if (lastIdx !== -1) {
-        const sel = window.getSelection();
-        if (sel && sel.rangeCount > 0) {
-          const range = sel.getRangeAt(0);
-          if (range.startContainer.nodeType === Node.TEXT_NODE) {
-            const startOffset = Math.max(0, range.startOffset - totalOffset);
-            range.setStart(range.startContainer, startOffset);
-            range.deleteContents();
-          } else {
-            textField.textContent = text.slice(0, lastIdx);
-          }
-        } else {
-          textField.textContent = text.slice(0, lastIdx);
-        }
-        
-        if (blockId) {
-          const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
-          if (n) {
-            const match = findBlockById(n.blocks, blockId);
-            if (match) {
-              match.block.content = cleanBadgeHtml(textField);
-            }
+      if (blockId) {
+        const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+        if (n) {
+          const match = findBlockById(n.blocks, blockId);
+          if (match) {
+            match.block.content = cleanBadgeHtml(textField);
           }
         }
       }
@@ -310,9 +316,8 @@ export function executePickerCommand(ctx: AppContext, index: number) {
         const match = findBlockById(n.blocks, blockId);
         if (match && textField) {
           match.block.content = cleanBadgeHtml(textField);
-          rerenderNote(ctx, n);
-          const field = ctx.elements.edBody.querySelector(`[data-id="${blockId}"] .block-text-field`) as HTMLElement;
-          if (field) moveCaret(field);
+          saveAndSyncContent();
+          ctx.markSaving();
         }
       }
     }

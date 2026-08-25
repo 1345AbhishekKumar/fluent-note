@@ -8,6 +8,18 @@ export * from './utils';
 export * from './store';
 export * from './app/createApp';
 
+export function removeSearchHighlights(container?: Element | Document | null) {
+  const root = container || document;
+  if (!root || !root.querySelectorAll) return;
+  root.querySelectorAll('.search-highlight').forEach((el: any) => {
+    const parent = el.parentNode;
+    if (parent) {
+      parent.replaceChild(document.createTextNode(el.textContent || ''), el);
+      parent.normalize();
+    }
+  });
+}
+
 /* ================= BOOT ================= */
 document.addEventListener('DOMContentLoaded', () => {
   const halfA = document.getElementById('halfA');
@@ -142,13 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const performSearch = () => {
           const query = input.value.trim().toLowerCase();
-          app.root.querySelectorAll('.search-highlight').forEach((el: any) => {
-            const parent = el.parentNode;
-            if (parent) {
-              parent.replaceChild(document.createTextNode(el.textContent || ''), el);
-              parent.normalize();
-            }
-          });
+          removeSearchHighlights(app.root);
           matches = [];
           activeMatchIdx = -1;
 
@@ -192,13 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
         searchBar.querySelector('.page-search-btn.prev')?.addEventListener('click', () => navigate('prev'));
 
         close.addEventListener('click', () => {
-          app.root.querySelectorAll('.search-highlight').forEach((el: any) => {
-            const parent = el.parentNode;
-            if (parent) {
-              parent.replaceChild(document.createTextNode(el.textContent || ''), el);
-              parent.normalize();
-            }
-          });
+          removeSearchHighlights(app.root);
           searchBar.remove();
         });
 
@@ -270,11 +270,13 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Ctrl+[: Go Back
-    if ((e.ctrlKey || e.metaKey) && e.key === '[') {
+    // Ctrl+[ or Alt+Left: Go Back
+    if (((e.ctrlKey || e.metaKey) && e.key === '[') || (e.altKey && (e.key === 'ArrowLeft' || e.key === 'Left'))) {
       e.preventDefault();
       const app = getActiveApp();
-      if (app.st && app.st.historyStack && app.st.historyIndex > 0) {
+      if (app.goBack) {
+        app.goBack();
+      } else if (app.st && app.st.historyStack && app.st.historyIndex > 0) {
         app.st.historyIndex--;
         const noteId = app.st.historyStack[app.st.historyIndex];
         app.selectNote(noteId, false, true);
@@ -282,11 +284,13 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Ctrl+]: Go Forward
-    if ((e.ctrlKey || e.metaKey) && e.key === ']') {
+    // Ctrl+] or Alt+Right: Go Forward
+    if (((e.ctrlKey || e.metaKey) && e.key === ']') || (e.altKey && (e.key === 'ArrowRight' || e.key === 'Right'))) {
       e.preventDefault();
       const app = getActiveApp();
-      if (app.st && app.st.historyStack && app.st.historyIndex < app.st.historyStack.length - 1) {
+      if (app.goForward) {
+        app.goForward();
+      } else if (app.st && app.st.historyStack && app.st.historyIndex < app.st.historyStack.length - 1) {
         app.st.historyIndex++;
         const noteId = app.st.historyStack[app.st.historyIndex];
         app.selectNote(noteId, false, true);

@@ -37,7 +37,12 @@ app.on('ready', () => {
       const relativePath = decodeURIComponent(url.replace(/^fluent-file:\/\//, ''));
       const vaultPath = getVaultPath();
       if (!vaultPath) return new Response('No vault open', { status: 404 });
-      const fullPath = path.join(vaultPath, relativePath);
+      const normalizedVault = path.normalize(vaultPath);
+      const fullPath = path.normalize(path.join(normalizedVault, relativePath));
+      const normalizedVaultWithSep = normalizedVault.endsWith(path.sep) ? normalizedVault : normalizedVault + path.sep;
+      if (!fullPath.startsWith(normalizedVaultWithSep)) {
+        return new Response('Access denied', { status: 403 });
+      }
       return net.fetch(pathToFileURL(fullPath).toString());
     } catch (e) {
       console.error('Error serving fluent-file protocol:', e);

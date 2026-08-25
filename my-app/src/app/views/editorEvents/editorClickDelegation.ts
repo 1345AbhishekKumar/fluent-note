@@ -12,6 +12,8 @@ import { handleDragHandleClick } from './editorDragFlyout';
 import { duplicateBlocksWithNewIds } from './editorHelpers';
 import { openMediaSidebar } from '../mediaSidebar';
 import { renderMermaidDiagramsInContainer } from '../../../utils/mermaidRenderer';
+import { renderHtmlPreviewsInContainer, updateHtmlPreviewIframe } from '../../../utils/htmlPreviewRenderer';
+import { openHtmlFullscreenModal } from './htmlFullscreenModal';
 import { pushToUndo } from './editorHistory';
 
 export function focusOrCreateBottomBlock(ctx: AppContext) {
@@ -86,8 +88,8 @@ export function handleDocumentMouseDown(ctx: AppContext, e: MouseEvent) {
   }
 
   if (ctx.st.selectedBlockIds && ctx.st.selectedBlockIds.size > 0) {
-    const isDragHandle = target.closest('.block-drag-handle') || target.closest('.block-add-btn');
-    const isFlyout = target.closest('#flyout') || target.closest('.fly-item') || target.closest('.url-popup-editor') || target.closest('.math-popup-editor');
+    const isDragHandle = target.closest('.block-drag-handle') || target.closest('.block-add-btn') || target.closest('.block-actions-container');
+    const isFlyout = target.closest('#flyout') || target.closest('.flyout') || target.closest('.fly-item') || target.closest('.url-popup-editor') || target.closest('.math-popup-editor');
     const isSelectionModifier = e.shiftKey || e.altKey || e.metaKey;
     
     if (!isDragHandle && !isFlyout && !isSelectionModifier) {
@@ -388,6 +390,77 @@ export function handleEditorBodyClick(ctx: AppContext, e: MouseEvent) {
       ];
       ctx.openFly(mermaidCopyBtn, flyoutItems);
     }
+    return;
+  }
+
+  const htmlModeBtn = target.closest('.html-mode-btn') as HTMLElement;
+  if (htmlModeBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    const bId = htmlModeBtn.dataset.id!;
+    const mode = htmlModeBtn.dataset.mode as 'code' | 'preview' | 'split';
+    const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+    if (!n) return;
+    const match = findBlockById(n.blocks, bId);
+    if (match) {
+      match.block.htmlMode = mode;
+      rerenderNote(ctx, n);
+      renderHtmlPreviewsInContainer(ctx.elements.edBody, ctx.api.theme);
+      saveAndSyncContent();
+      ctx.markSaving();
+    }
+    return;
+  }
+
+  const htmlRefreshBtn = target.closest('.html-refresh-btn') as HTMLElement;
+  if (htmlRefreshBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    const bId = htmlRefreshBtn.dataset.id!;
+    const wrapper = ctx.elements.edBody.querySelector(`.block-html-wrapper[data-id="${bId}"]`);
+    if (wrapper) {
+      const codeField = wrapper.querySelector('.html-code-field') as HTMLElement;
+      const iframe = wrapper.querySelector('.html-preview-iframe') as HTMLIFrameElement;
+      if (iframe) {
+        let rawText = '';
+        if (codeField) {
+          const html = codeField.innerHTML || '';
+          if (html.includes('<br>') || html.includes('<div>')) {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/div>/gi, '\n').replace(/<div>/gi, '');
+            rawText = tmp.textContent || '';
+          } else {
+            rawText = codeField.innerText || codeField.textContent || '';
+          }
+        }
+        updateHtmlPreviewIframe(iframe, rawText, ctx.api.theme);
+        ctx.toast('Preview refreshed', '', () => {});
+      }
+    }
+    return;
+  }
+
+  const htmlCopyBtn = target.closest('.html-copy-btn') as HTMLElement;
+  if (htmlCopyBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    const bId = htmlCopyBtn.dataset.id!;
+    const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+    if (!n) return;
+    const match = findBlockById(n.blocks, bId);
+    if (match) {
+      navigator.clipboard.writeText(match.block.content || '');
+      ctx.toast('HTML code copied to clipboard!', '', () => {});
+    }
+    return;
+  }
+
+  const htmlExpandBtn = target.closest('.html-expand-btn') as HTMLElement;
+  if (htmlExpandBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    const bId = htmlExpandBtn.dataset.id!;
+    openHtmlFullscreenModal(ctx, bId);
     return;
   }
 

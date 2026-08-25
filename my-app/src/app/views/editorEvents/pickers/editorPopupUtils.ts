@@ -4,10 +4,12 @@ import { moveCaret, renderBlockTree, setEdBodyHtml } from '../../../../utils';
 import { saveAndSyncContent } from '../../../../store';
 
 import { renderMermaidDiagramsInContainer } from '../../../../utils/mermaidRenderer';
+import { renderHtmlPreviewsInContainer } from '../../../../utils/htmlPreviewRenderer';
 
 export function rerenderNote(ctx: AppContext, n: Note) {
   setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes }));
   renderMermaidDiagramsInContainer(ctx.elements.edBody, ctx.api?.theme);
+  renderHtmlPreviewsInContainer(ctx.elements.edBody, ctx.api?.theme);
   saveAndSyncContent();
   ctx.markSaving();
 }

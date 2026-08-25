@@ -1,5 +1,22 @@
 import { esc } from '../stringHelpers';
 
+export function sanitizeSafeTag(tagStr: string): string {
+  if (/^<\/[a-zA-Z0-9]+>$/.test(tagStr)) return tagStr;
+
+  let sanitized = tagStr.replace(/\s+on[a-zA-Z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+
+  sanitized = sanitized.replace(/\s+href\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi, (match, q1, q2, q3) => {
+    const rawHref = (q1 ?? q2 ?? q3 ?? '').trim();
+    const allowed = /^(?:https?:\/\/|mailto:)/i.test(rawHref);
+    if (!allowed) {
+      return '';
+    }
+    return ` href="${esc(rawHref)}"`;
+  });
+
+  return sanitized;
+}
+
 export function escapeHtmlKeepingSafeTags(str: string): string {
   if (!str) return '';
   const placeholders: string[] = [];
@@ -22,7 +39,11 @@ export function escapeHtmlKeepingSafeTags(str: string): string {
   result = esc(result);
   
   result = result.replace(/___SAFE_TAG_PLACEHOLDER_(\d+)___/g, (match, idx) => {
-    return placeholders[parseInt(idx, 10)];
+    const original = placeholders[parseInt(idx, 10)];
+    if (original.startsWith('&')) {
+      return original;
+    }
+    return sanitizeSafeTag(original);
   });
   
   return result;
@@ -33,7 +54,20 @@ export function renderLinksInContent(content: string, _allNotes?: any[]): string
   html = html.replace(/\[\[(.*?)\]\]/g, (match, title) => {
     return `<span class="wiki-link" data-ref="${title}" contenteditable="false" style="color: var(--accent); text-decoration: underline; cursor: pointer;">[[${title}]]</span>\u200B`;
   });
-  html = html.replace(/@([a-zA-Z0-9\s-_]+?)(?=\s+(?:and|or|for|with|is|are|was|were|the|a|an|in|at|on|of|to|from|by|about|as)\s+|[\.,\?\!\;:()]|$)/gi, (match, title) => {
+  
+  if (_allNotes && _allNotes.length > 0) {
+    const sorted = [..._allNotes]
+      .filter(n => n.title && n.title.trim().length > 0)
+      .sort((a, b) => b.title.trim().length - a.title.trim().length);
+    for (const note of sorted) {
+      const title = note.title.trim();
+      const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`@${escaped}(?=[\\.,\\?!;:()[\\]\\n\\r"\\s]|$)`, 'gi');
+      html = html.replace(regex, `<span class="wiki-link" data-ref="${esc(title)}" contenteditable="false" style="color: var(--accent); text-decoration: underline; cursor: pointer;">@${esc(title)}</span>\u200B`);
+    }
+  }
+
+  html = html.replace(/@([a-zA-Z0-9_\-]+(?:\s+[a-zA-Z0-9_\-]+)*?)(?=[,\.\?\!\;:()\[\]\n\r"]|\s+@|$)/gi, (match, title) => {
     return `<span class="wiki-link" data-ref="${title}" contenteditable="false" style="color: var(--accent); text-decoration: underline; cursor: pointer;">@${title}</span>\u200B`;
   });
   html = html.replace(/📅\s*(\d{4}-\d{2}-\d{2})/g, (match, dateStr) => {

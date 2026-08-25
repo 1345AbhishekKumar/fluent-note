@@ -228,12 +228,13 @@
   height: 32px;
   border-radius: 2px;
   background: transparent;
-  transition: background var(--duration-quick) var(--ease-smooth-out), height var(--duration-quick) var(--ease-smooth-out);
+  transform: scaleY(1);
+  transition: background var(--duration-quick) var(--ease-smooth-out), transform var(--duration-quick) var(--ease-smooth-out);
 }
 .resize-handle:hover::after,
 .resize-handle.dragging::after {
   background: var(--accent, #0078d4);
-  height: 48px;
+  transform: scaleY(1.5);
 }
 
 /* Resizing dragging state overrides */

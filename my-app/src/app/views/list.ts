@@ -120,16 +120,19 @@ export function renderGridView(ctx: AppContext, arr: Note[]) {
 }
 
 export function renderGraphView(ctx: AppContext, arr: Note[]) {
+  const width = ctx.elements.lpScroll.clientWidth || 300;
+  const height = ctx.elements.lpScroll.clientHeight || 380;
+
   const nodes = arr.map(n => ({
     id: n.id,
     title: n.title || 'Untitled',
-    x: 100 + Math.random() * 200,
-    y: 100 + Math.random() * 200,
+    x: width / 2 + (Math.random() - 0.5) * 150,
+    y: height / 2 + (Math.random() - 0.5) * 150,
     vx: 0,
     vy: 0
   }));
 
-  const edges: { source: string, target: string }[] = [];
+  const edges: { source: string; target: string }[] = [];
   for (const n of arr) {
     const refs = getReferencedNoteIds(n, arr);
     for (const refId of refs) {
@@ -140,7 +143,7 @@ export function renderGraphView(ctx: AppContext, arr: Note[]) {
   }
 
   ctx.elements.lpScroll.innerHTML = `
-    <svg class="graph-svg">
+    <svg class="graph-svg" width="100%" height="100%">
       <g class="edges-group"></g>
       <g class="nodes-group"></g>
     </svg>
@@ -149,16 +152,97 @@ export function renderGraphView(ctx: AppContext, arr: Note[]) {
   const svg = ctx.elements.lpScroll.querySelector('.graph-svg') as SVGSVGElement;
   if (!svg) return;
 
-  const edgesGroup = svg.querySelector('.edges-group') as SVGSVGElement;
-  const nodesGroup = svg.querySelector('.nodes-group') as SVGSVGElement;
+  const edgesGroup = svg.querySelector('.edges-group') as SVGGElement;
+  const nodesGroup = svg.querySelector('.nodes-group') as SVGGElement;
 
-  const width = ctx.elements.lpScroll.clientWidth || 300;
-  const height = ctx.elements.lpScroll.clientHeight || 380;
-  
-  nodes.forEach(n => {
-    n.x = width / 2 + (Math.random() - 0.5) * 150;
-    n.y = height / 2 + (Math.random() - 0.5) * 150;
-  });
+  // 1. Create edge elements once
+  const edgeElements: { edge: { source: string; target: string }; lineEl: SVGLineElement }[] = [];
+  for (const edge of edges) {
+    const lineEl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    lineEl.setAttribute('class', 'graph-edge');
+    edgesGroup.appendChild(lineEl);
+    edgeElements.push({ edge, lineEl });
+  }
+
+  // 2. Create node elements once and bind drag handlers once
+  const nodeElements: { node: typeof nodes[0]; groupEl: SVGGElement; circleEl: SVGCircleElement }[] = [];
+  for (const node of nodes) {
+    const groupEl = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const isSel = node.id === ctx.st.sel;
+    groupEl.setAttribute('class', `graph-node ${isSel ? 'active' : ''}`);
+    groupEl.setAttribute('data-id', node.id);
+
+    const circleEl = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circleEl.setAttribute('r', isSel ? '7' : '5');
+    circleEl.setAttribute('fill', isSel ? 'var(--accent)' : 'var(--text2)');
+
+    const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    textEl.setAttribute('dx', '9');
+    textEl.setAttribute('dy', '4');
+    textEl.textContent = node.title;
+
+    groupEl.appendChild(circleEl);
+    groupEl.appendChild(textEl);
+    nodesGroup.appendChild(groupEl);
+
+    nodeElements.push({ node, groupEl, circleEl });
+
+    // Attach drag listener once
+    groupEl.addEventListener('mousedown', (e: MouseEvent) => {
+      e.preventDefault();
+      ctx.selectNote(node.id);
+
+      // Update node styles for active selection
+      nodeElements.forEach(ne => {
+        const active = ne.node.id === node.id;
+        ne.groupEl.classList.toggle('active', active);
+        ne.circleEl.setAttribute('r', active ? '7' : '5');
+        ne.circleEl.setAttribute('fill', active ? 'var(--accent)' : 'var(--text2)');
+      });
+
+      function onMouseMove(moveEvent: MouseEvent) {
+        const svgRect = svg.getBoundingClientRect();
+        node.x = moveEvent.clientX - svgRect.left;
+        node.y = moveEvent.clientY - svgRect.top;
+        node.vx = 0;
+        node.vy = 0;
+        updateDomPositions();
+      }
+
+      function onMouseUp() {
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+        let dragTicks = 60;
+        function animate() {
+          if (dragTicks-- > 0 && ctx.st.view === 'graph') {
+            tick();
+            requestAnimationFrame(animate);
+          }
+        }
+        animate();
+      }
+
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    });
+  }
+
+  function updateDomPositions() {
+    for (const { edge, lineEl } of edgeElements) {
+      const s = nodes.find(n => n.id === edge.source);
+      const t = nodes.find(n => n.id === edge.target);
+      if (s && t) {
+        lineEl.setAttribute('x1', String(s.x));
+        lineEl.setAttribute('y1', String(s.y));
+        lineEl.setAttribute('x2', String(t.x));
+        lineEl.setAttribute('y2', String(t.y));
+      }
+    }
+
+    for (const { node, groupEl } of nodeElements) {
+      groupEl.setAttribute('transform', `translate(${node.x}, ${node.y})`);
+    }
+  }
 
   function tick() {
     const k = 0.08;
@@ -211,73 +295,14 @@ export function renderGraphView(ctx: AppContext, arr: Note[]) {
 
       n.vx *= 0.82;
       n.vy *= 0.82;
-    }
 
-    for (const n of nodes) {
       if (n.x < 15) n.x = 15;
       if (n.x > width - 15) n.x = width - 15;
       if (n.y < 15) n.y = 15;
       if (n.y > height - 15) n.y = height - 15;
     }
 
-    draw();
-  }
-
-  function draw() {
-    edgesGroup.innerHTML = edges.map(edge => {
-      const s = nodes.find(n => n.id === edge.source);
-      const t = nodes.find(n => n.id === edge.target);
-      if (!s || !t) return '';
-      return `<line class="graph-edge" x1="${s.x}" y1="${s.y}" x2="${t.x}" y2="${t.y}"></line>`;
-    }).join('');
-
-    nodesGroup.innerHTML = nodes.map(n => {
-      const activeClass = n.id === ctx.st.sel ? 'active' : '';
-      const color = n.id === ctx.st.sel ? 'var(--accent)' : 'var(--text2)';
-      return `
-        <g class="graph-node ${activeClass}" data-id="${n.id}" transform="translate(${n.x}, ${n.y})">
-          <circle r="${n.id === ctx.st.sel ? 7 : 5}" fill="${color}"></circle>
-          <text dx="9" dy="4">${esc(n.title)}</text>
-        </g>
-      `;
-    }).join('');
-
-    nodesGroup.querySelectorAll('.graph-node').forEach(nodeGroup => {
-      const nodeId = (nodeGroup as HTMLElement).dataset.id!;
-      
-      nodeGroup.addEventListener('mousedown', e => {
-        e.preventDefault();
-        const node = nodes.find(n => n.id === nodeId);
-        if (!node) return;
-        
-        ctx.selectNote(nodeId);
-        
-        function onMouseMove(moveEvent: MouseEvent) {
-          const svgRect = svg.getBoundingClientRect();
-          node!.x = moveEvent.clientX - svgRect.left;
-          node!.y = moveEvent.clientY - svgRect.top;
-          node!.vx = 0;
-          node!.vy = 0;
-          tick();
-        }
-        
-        function onMouseUp() {
-          window.removeEventListener('mousemove', onMouseMove);
-          window.removeEventListener('mouseup', onMouseUp);
-          let ticks = 60;
-          function animate() {
-            if (ticks-- > 0) {
-              tick();
-              requestAnimationFrame(animate);
-            }
-          }
-          animate();
-        }
-        
-        window.addEventListener('mousemove', onMouseMove);
-        window.addEventListener('mouseup', onMouseUp);
-      });
-    });
+    updateDomPositions();
   }
 
   let ticks = 120;

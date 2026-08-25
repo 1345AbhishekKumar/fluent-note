@@ -1,7 +1,7 @@
 import { app, dialog, shell, ipcMain, BrowserWindow } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
-import { sanitizeFilename, serializeNoteToMarkdown, deserializeMarkdownToNote } from '../utils/fsUtils';
+import { sanitizeFilename, serializeNoteToMarkdown, deserializeMarkdownToNote, deriveDeterministicId } from '../utils/fsUtils';
 import { DEFAULT_NOTES, DEFAULT_FOLDERS, DEFAULT_CLIPS } from '../constants';
 import { VaultDataSchema } from '../shared/schemas';
 import { indexVaultNotes, searchVaultNotes, getBacklinksForNote } from './services/indexer';
@@ -9,6 +9,12 @@ import { z } from 'zod';
 
 
 const configPath = path.join(app.getPath('userData'), 'fluent-notes-config.json');
+
+const ALLOWED_ASSET_EXTENSIONS = new Set([
+  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg',
+  '.mp4', '.webm', '.pdf', '.mp3', '.wav', '.ogg',
+  '.m4a', '.aac', '.flac', '.mov', '.mkv', '.bmp'
+]);
 
 export interface GlobalConfig {
   currentVaultPath?: string;
@@ -26,9 +32,35 @@ export function readConfig(): GlobalConfig {
   return {};
 }
 
+export function atomicWriteFileSync(filePath: string, data: string | Buffer, encoding: BufferEncoding = 'utf8') {
+  const dir = path.dirname(filePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  const tempPath = `${filePath}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`;
+  try {
+    fs.writeFileSync(tempPath, data, encoding);
+    try {
+      fs.renameSync(tempPath, filePath);
+    } catch (renameErr: any) {
+      if (renameErr.code === 'EPERM' || renameErr.code === 'EEXIST' || renameErr.code === 'EBUSY') {
+        fs.copyFileSync(tempPath, filePath);
+        try { fs.unlinkSync(tempPath); } catch {}
+      } else {
+        throw renameErr;
+      }
+    }
+  } catch (err) {
+    if (fs.existsSync(tempPath)) {
+      try { fs.unlinkSync(tempPath); } catch {}
+    }
+    throw err;
+  }
+}
+
 export function writeConfig(cfg: GlobalConfig) {
   try {
-    fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2), 'utf8');
+    atomicWriteFileSync(configPath, JSON.stringify(cfg, null, 2), 'utf8');
   } catch (e) {
     console.error('Error writing config:', e);
   }
@@ -336,7 +368,7 @@ export function loadVaultData() {
         console.error('Error parsing metadata.json:', e);
       }
     } else {
-      fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
+      atomicWriteFileSync(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
     }
 
     // Read all notes recursively
@@ -348,12 +380,12 @@ export function loadVaultData() {
         DEFAULT_NOTES.forEach(note => {
           const noteContent = serializeNoteToMarkdown(note);
           const fileName = `${sanitizeFilename(note.title) || note.id}.md`;
-          fs.writeFileSync(path.join(vaultPath, fileName), noteContent, 'utf8');
+          atomicWriteFileSync(path.join(vaultPath, fileName), noteContent, 'utf8');
           notes.push(note);
         });
       } else {
         const untitledNote: any = {
-          id: 'n-' + Math.random().toString(36).slice(2, 7),
+          id: deriveDeterministicId('Untitled Note'),
           nb: '',
           tags: [],
           pinned: false,
@@ -366,7 +398,7 @@ export function loadVaultData() {
         };
         const noteContent = serializeNoteToMarkdown(untitledNote);
         const fileName = `Untitled Note.md`;
-        fs.writeFileSync(path.join(vaultPath, fileName), noteContent, 'utf8');
+        atomicWriteFileSync(path.join(vaultPath, fileName), noteContent, 'utf8');
         notes.push(untitledNote);
       }
     } else {
@@ -398,14 +430,14 @@ export function loadVaultData() {
           }
 
           if (!noteId) {
-            const suffixMatch = basename.match(/_n-[a-z0-9]{5}$/i);
+            const suffixMatch = basename.match(/_n-[a-z0-9]{5,}$/i);
             if (suffixMatch) {
               noteId = suffixMatch[0].slice(1);
             }
           }
 
           if (!noteId) {
-            noteId = 'n-' + Math.random().toString(36).slice(2, 7);
+            noteId = deriveDeterministicId(f);
           }
 
           const note = deserializeMarkdownToNote(content, noteId);
@@ -505,7 +537,7 @@ export function initVaultManager() {
         tags: data.tags,
         clips: data.clips
       };
-      fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
+      atomicWriteFileSync(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
 
       // Ensure all folders and notebooks in metadata are created as physical directories
       data.notebooks.forEach(nb => {
@@ -551,26 +583,49 @@ export function initVaultManager() {
         }
 
         const fileContent = serializeNoteToMarkdown(note);
-        fs.writeFileSync(filePath, fileContent, 'utf8');
+        atomicWriteFileSync(filePath, fileContent, 'utf8');
       });
 
-      // Recursive cleanup of deleted notes
+      // Recursive cleanup of deleted notes using safe trash and frontmatter id verification
       const allMdFiles = readMdFilesRecursively(vaultPath, vaultPath);
-      allMdFiles.forEach(f => {
+      for (const f of allMdFiles) {
         const relPathLower = f.replace(/\\/g, '/').toLowerCase();
         if (!activePaths.has(relPathLower)) {
           const filePath = path.join(vaultPath, f);
           try {
-            const content = fs.readFileSync(filePath, 'utf8');
-            const match = content.match(/^---\r?\n([\s\S]+?)\r?\n---\r?\n/);
-            if (match) {
-              fs.unlinkSync(filePath);
+            if (fs.existsSync(filePath)) {
+              const content = fs.readFileSync(filePath, 'utf8');
+              const match = content.match(/^---\r?\n([\s\S]+?)\r?\n---\r?\n/);
+              if (match) {
+                let fileNoteId: string | undefined;
+                const lines = match[1].split(/\r?\n/);
+                for (const line of lines) {
+                  const colonIdx = line.indexOf(':');
+                  if (colonIdx !== -1 && line.slice(0, colonIdx).trim() === 'id') {
+                    const val = line.slice(colonIdx + 1).trim();
+                    try {
+                      fileNoteId = JSON.parse(val);
+                    } catch {
+                      fileNoteId = val;
+                    }
+                    break;
+                  }
+                }
+
+                if (fileNoteId) {
+                  if (typeof shell !== 'undefined' && shell.trashItem) {
+                    await shell.trashItem(filePath);
+                  } else {
+                    fs.unlinkSync(filePath);
+                  }
+                }
+              }
             }
           } catch (e) {
-            console.error(`Error deleting note file ${f}:`, e);
+            console.error(`Error safely trashing deleted note file ${f}:`, e);
           }
         }
-      });
+      }
 
       // Cleanup empty directories recursively
       removeEmptyDirsRecursively(vaultPath, true);
@@ -589,23 +644,29 @@ export function initVaultManager() {
     }
   });
 
-  ipcMain.handle('search-vault-notes', async (event, query: string) => {
-    return searchVaultNotes(query);
+  ipcMain.handle('search-vault-notes', async (event, query: unknown) => {
+    const validatedQuery = z.string().parse(query);
+    return searchVaultNotes(validatedQuery);
   });
 
-  ipcMain.handle('get-note-backlinks', async (event, title: string) => {
-    return getBacklinksForNote(title);
+  ipcMain.handle('get-note-backlinks', async (event, title: unknown) => {
+    const validatedTitle = z.string().parse(title);
+    return getBacklinksForNote(validatedTitle);
   });
 
-  ipcMain.handle('copy-asset-to-vault', async (event, srcPath: string) => {
+  ipcMain.handle('copy-asset-to-vault', async (event, srcPath: unknown) => {
+    const validatedSrcPath = z.string().parse(srcPath);
+    const ext = path.extname(validatedSrcPath).toLowerCase();
+    if (!ALLOWED_ASSET_EXTENSIONS.has(ext)) {
+      return null;
+    }
     const vaultPath = getVaultPath();
-    if (!vaultPath || !fs.existsSync(srcPath)) return null;
+    if (!vaultPath || !fs.existsSync(validatedSrcPath)) return null;
     const assetsDir = path.join(vaultPath, 'assets');
     if (!fs.existsSync(assetsDir)) {
       fs.mkdirSync(assetsDir, { recursive: true });
     }
-    const ext = path.extname(srcPath);
-    const baseName = sanitizeFilename(path.basename(srcPath, ext)) || 'file';
+    const baseName = sanitizeFilename(path.basename(validatedSrcPath, ext)) || 'file';
     let destFileName = `${baseName}${ext}`;
     let destPath = path.join(assetsDir, destFileName);
     let count = 1;
@@ -614,7 +675,7 @@ export function initVaultManager() {
       destPath = path.join(assetsDir, destFileName);
       count++;
     }
-    fs.copyFileSync(srcPath, destPath);
+    fs.copyFileSync(validatedSrcPath, destPath);
     return {
       url: `fluent-file://assets/${destFileName}`,
       fileName: destFileName

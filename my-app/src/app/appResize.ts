@@ -2,7 +2,7 @@ import type { AppContext } from './context';
 
 const isStorageAvailable = typeof localStorage !== 'undefined';
 
-export function initResize(ctx: AppContext) {
+export function initResize(ctx: AppContext): () => void {
   const { root, elements } = ctx;
 
   // 1. Load initial saved widths from localStorage
@@ -35,11 +35,15 @@ export function initResize(ctx: AppContext) {
   const frame = document.getElementById('frame') || document.body;
   observer.observe(frame, { childList: true });
 
+  const cleanups: (() => void)[] = [
+    () => observer.disconnect()
+  ];
+
   // 2. Setup drag handles
   const handles = root.querySelectorAll('.resize-handle') as NodeListOf<HTMLElement>;
 
   handles.forEach((handle) => {
-    handle.addEventListener('pointerdown', (e) => {
+    const onPointerDown = (e: PointerEvent) => {
       const targetType = handle.dataset.target;
       if (!targetType) return;
 
@@ -101,17 +105,24 @@ export function initResize(ctx: AppContext) {
 
       window.addEventListener('pointermove', onPointerMove);
       window.addEventListener('pointerup', onPointerUp);
-    });
+    };
+
+    handle.addEventListener('pointerdown', onPointerDown);
+    cleanups.push(() => handle.removeEventListener('pointerdown', onPointerDown));
   });
+
+  return () => {
+    cleanups.forEach(fn => fn());
+  };
 }
 
-export function initMediaResize(handle: HTMLElement, pane: HTMLElement) {
+export function initMediaResize(handle: HTMLElement, pane: HTMLElement): () => void {
   const savedMediaWidth = isStorageAvailable ? localStorage.getItem('fluent-notes:mediapane-width') : null;
   if (savedMediaWidth) {
     pane.style.setProperty('--media-width', `${savedMediaWidth}px`);
   }
 
-  handle.addEventListener('pointerdown', (e) => {
+  const onPointerDown = (e: PointerEvent) => {
     e.preventDefault();
     handle.releasePointerCapture(e.pointerId);
 
@@ -149,5 +160,10 @@ export function initMediaResize(handle: HTMLElement, pane: HTMLElement) {
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
-  });
+  };
+
+  handle.addEventListener('pointerdown', onPointerDown);
+  return () => {
+    handle.removeEventListener('pointerdown', onPointerDown);
+  };
 }

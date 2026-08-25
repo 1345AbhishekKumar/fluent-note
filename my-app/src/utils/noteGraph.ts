@@ -3,7 +3,7 @@ import type { Note, Folder } from '../types';
 import { sharedNotebooks as NBS } from '../store/notebookStore';
 import { getBlocksText } from './blockTree';
 
-export function extractLinks(text: string): { wiki: string[], at: string[] } {
+export function extractLinks(text: string, allNotes?: Note[]): { wiki: string[], at: string[] } {
   const wiki: string[] = [];
   const at: string[] = [];
   
@@ -14,11 +14,32 @@ export function extractLinks(text: string): { wiki: string[], at: string[] } {
       wiki.push(match[1].trim());
     }
   }
+
+  if (allNotes && allNotes.length > 0) {
+    const sorted = [...allNotes]
+      .filter(n => n.title && n.title.trim().length > 0)
+      .sort((a, b) => b.title.trim().length - a.title.trim().length);
+
+    for (const note of sorted) {
+      const title = note.title.trim();
+      const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`@${escaped}(?=[\\.,\\?!;:()[\\]\\n\\r"\\s]|$)`, 'gi');
+      if (regex.test(text)) {
+        if (!at.includes(title)) {
+          at.push(title);
+        }
+      }
+    }
+  }
   
-  const atRegex = /@([a-zA-Z0-9\s-_]+?)(?=\s+(?:and|or|for|with|is|are|was|were|the|a|an|in|at|on|of|to|from|by|about|as)\s+|[\.,\?\!\;:()]|$)/gi;
-  while ((match = atRegex.exec(text)) !== null) {
+  // Generic @ mention with stopword boundary matching inlineParsers
+  const genericAtRegex = /@([a-zA-Z0-9_\-]+(?:\s+(?!(?:and|or|for|with|is|are|was|were|the|a|an|in|at|on|of|to|from|by|about|as)\b)[a-zA-Z0-9_\-]+)*)/gi;
+  while ((match = genericAtRegex.exec(text)) !== null) {
     if (match[1]) {
-      at.push(match[1].trim());
+      const candidate = match[1].trim();
+      if (candidate && !at.includes(candidate)) {
+        at.push(candidate);
+      }
     }
   }
   
@@ -45,7 +66,7 @@ export function resolveNoteId(ref: string, allNotes: Note[]): string | null {
 export function getReferencedNoteIds(note: Note, allNotes: Note[]): Set<string> {
   const referencedIds = new Set<string>();
   const text = getBlocksText(note.blocks || []);
-  const { wiki, at } = extractLinks(text);
+  const { wiki, at } = extractLinks(text, allNotes);
   
   for (const ref of [...wiki, ...at]) {
     const id = resolveNoteId(ref, allNotes);
@@ -61,6 +82,44 @@ export function getReferencedNoteIds(note: Note, allNotes: Note[]): Set<string> 
   }
   
   return referencedIds;
+}
+
+export function renameNoteWikilinks(notes: Note[], oldTitle: string, newTitle: string): number {
+  if (!oldTitle || !newTitle || oldTitle.trim() === newTitle.trim()) return 0;
+  const trimmedOld = oldTitle.trim();
+  const trimmedNew = newTitle.trim();
+  
+  const escapedOld = trimmedOld.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const wikiRegex = new RegExp(`\\[\\[${escapedOld}\\]\\]`, 'gi');
+  
+  let updateCount = 0;
+
+  function updateBlocks(blocks: any[]): boolean {
+    let modified = false;
+    for (const b of blocks) {
+      if (b.content && wikiRegex.test(b.content)) {
+        b.content = b.content.replace(wikiRegex, `[[${trimmedNew}]]`);
+        modified = true;
+        updateCount++;
+      }
+      if (b.children && b.children.length > 0) {
+        if (updateBlocks(b.children)) modified = true;
+      }
+    }
+    return modified;
+  }
+
+  for (const n of notes) {
+    if (n.body && wikiRegex.test(n.body)) {
+      n.body = n.body.replace(wikiRegex, `[[${trimmedNew}]]`);
+      updateCount++;
+    }
+    if (n.blocks && n.blocks.length > 0) {
+      updateBlocks(n.blocks);
+    }
+  }
+
+  return updateCount;
 }
 
 export function calculateSubGraphClosure(

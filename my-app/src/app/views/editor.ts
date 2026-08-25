@@ -1,6 +1,6 @@
 import type { AppContext } from '../context';
 import type { Block, Note } from '../../types';
-import { esc, strip, htmlToBlocks, renderBlockTree, setEdBodyHtml, findBlockById, cleanBadgeHtml } from '../../utils';
+import { esc, strip, htmlToBlocks, renderBlockTree, setEdBodyHtml, findBlockById, cleanBadgeHtml, renameNoteWikilinks } from '../../utils';
 import { saveAndSyncContent, saveAndSync } from '../../store';
 import { styleItems, noteItems, nbItems, tagItems } from '../components/flyout';
 import { initEditorDragDrop } from './editorDragDrop';
@@ -9,6 +9,7 @@ import { initEditorHoverCard } from './editorEvents/editorHoverCard';
 import { triggerUndo, triggerRedo, commitTypingSession } from './editorEvents/editorHistory';
 import { IC } from '../../constants';
 import { renderMermaidDiagramsInContainer } from '../../utils/mermaidRenderer';
+import { renderHtmlPreviewsInContainer } from '../../utils/htmlPreviewRenderer';
 
 export function syncFocusedBlockContent(ctx: AppContext) {
   const activeEl = document.activeElement as HTMLElement;
@@ -122,6 +123,7 @@ export function renderEditor(ctx: AppContext) {
   }
   setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.state.notes }));
   renderMermaidDiagramsInContainer(ctx.elements.edBody, ctx.api.theme);
+  renderHtmlPreviewsInContainer(ctx.elements.edBody, ctx.api.theme);
   ctx.renderMeta();
   renderSubItems(ctx, n);
   
@@ -259,6 +261,12 @@ export function initEditorEvents(ctx: AppContext) {
     if (n) ctx.openFly(ctx.elements.metaTags, tagItems(ctx, n));
   });
 
+  let previousTitle = '';
+  ctx.elements.edTitle.addEventListener('focus', () => {
+    const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+    previousTitle = n ? n.title : (ctx.elements.edTitle.textContent || '');
+  });
+
   ctx.elements.edTitle.addEventListener('input', () => {
     const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
     if (n) {
@@ -281,6 +289,15 @@ export function initEditorEvents(ctx: AppContext) {
       });
       saveAndSyncContent();
       ctx.markSaving();
+    }
+  });
+
+  ctx.elements.edTitle.addEventListener('blur', () => {
+    const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+    if (n && previousTitle && previousTitle.trim() !== n.title.trim()) {
+      renameNoteWikilinks(ctx.st.notes, previousTitle, n.title);
+      previousTitle = n.title;
+      saveAndSync();
     }
   });
 

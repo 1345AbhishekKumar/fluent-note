@@ -1,17 +1,21 @@
 import type { AppContext } from '../../../context';
 import type { Block, Note } from '../../../../types';
 import { findBlockById } from '../../../../utils';
+import { saveAndSyncContent } from '../../../../store';
 import { rerenderNote, focusNextBlockOrNew } from './editorPopupUtils';
 
 export function openMediaFilePrompt(ctx: AppContext, cmdType: string, block: Block, n: Note) {
-  if (typeof window !== 'undefined' && window.api && window.api.selectFile) {
-    window.api.selectFile(cmdType).then((res) => {
+  const api = (typeof window !== 'undefined') ? (window.api || window.electronAPI) : undefined;
+  if (api && api.selectFile) {
+    api.selectFile(cmdType).then((res) => {
       if (res && res.url) {
         block.type = cmdType as any;
         block.url = res.url;
         block.content = res.fileName;
         block.fileName = res.fileName;
         rerenderNote(ctx, n);
+        saveAndSyncContent();
+        ctx.markSaving();
         const match = findBlockById(n.blocks, block.id);
         if (match) {
           focusNextBlockOrNew(ctx, n, match.index, match.parentList);
@@ -34,15 +38,17 @@ export function openMediaFilePrompt(ctx: AppContext, cmdType: string, block: Blo
     if (!file) return;
 
     const filePath = (file as any).path;
-    if (filePath && typeof window !== 'undefined' && window.electronAPI && window.electronAPI.copyAssetToVault) {
+    if (filePath && api && api.copyAssetToVault) {
       try {
-        const res = await window.electronAPI.copyAssetToVault(filePath);
+        const res = await api.copyAssetToVault(filePath);
         if (res && res.url) {
           block.type = cmdType as any;
           block.url = res.url;
           block.content = file.name;
           block.fileName = file.name;
           rerenderNote(ctx, n);
+          saveAndSyncContent();
+          ctx.markSaving();
           const match = findBlockById(n.blocks, block.id);
           if (match) {
             focusNextBlockOrNew(ctx, n, match.index, match.parentList);
@@ -54,16 +60,23 @@ export function openMediaFilePrompt(ctx: AppContext, cmdType: string, block: Blo
       }
     }
 
-    const blobUrl = URL.createObjectURL(file);
-    block.type = cmdType as any;
-    block.url = blobUrl;
-    block.content = file.name;
-    block.fileName = file.name;
-    rerenderNote(ctx, n);
-    const match = findBlockById(n.blocks, block.id);
-    if (match) {
-      focusNextBlockOrNew(ctx, n, match.index, match.parentList);
-    }
+    // Fallback: Read as base64 data URL so content is persisted rather than temporary volatile blob URL
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      block.type = cmdType as any;
+      block.url = dataUrl;
+      block.content = file.name;
+      block.fileName = file.name;
+      rerenderNote(ctx, n);
+      saveAndSyncContent();
+      ctx.markSaving();
+      const match = findBlockById(n.blocks, block.id);
+      if (match) {
+        focusNextBlockOrNew(ctx, n, match.index, match.parentList);
+      }
+    };
+    reader.readAsDataURL(file);
   };
   input.click();
 }
@@ -74,6 +87,8 @@ export function openTexPrompt(ctx: AppContext, cmdType: string, block: Block, n:
   block.type = cmdType as any;
   block.content = tex;
   rerenderNote(ctx, n);
+  saveAndSyncContent();
+  ctx.markSaving();
   const match = findBlockById(n.blocks, block.id);
   if (match) {
     focusNextBlockOrNew(ctx, n, match.index, match.parentList);

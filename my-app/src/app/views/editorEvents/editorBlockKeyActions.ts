@@ -1,6 +1,6 @@
 import type { AppContext } from '../../context';
 import type { Block, BlockType, Note } from '../../../types';
-import { findBlockById, flattenVisibleBlocks, getBlockLevel, isCaretAtStart, isCaretAtEnd, moveCaret, genId, isParentEligibleBlock, cleanBadgeHtml, getGraphemeClusterDeletionBounds } from '../../../utils';
+import { findBlockById, flattenVisibleBlocks, getBlockLevel, isCaretAtStart, isCaretAtEnd, isCaretOnFirstLine, isCaretOnLastLine, moveCaret, genId, isParentEligibleBlock, cleanBadgeHtml, getGraphemeClusterDeletionBounds } from '../../../utils';
 import { saveAndSyncContent } from '../../../store';
 import { rerenderNote } from './pickers/editorPopups';
 
@@ -99,7 +99,7 @@ export function handleBlockEnterKey(
     return;
   }
 
-  if (currentType === 'code' || currentType === 'mermaid') {
+  if (currentType === 'code' || currentType === 'mermaid' || currentType === 'html') {
     insertTextAtCaret(ctx, target, '\n');
     currentBlock.content = target.textContent || '';
     saveAndSyncContent();
@@ -374,7 +374,12 @@ export function handleBlockDeleteKey(
 }
 
 
-export function handleBlockArrowUp(ctx: AppContext, e: KeyboardEvent, n: Note, blockId: string) {
+export function handleBlockArrowUp(ctx: AppContext, e: KeyboardEvent, n: Note, blockId: string, target?: HTMLElement) {
+  const currentField = target || (ctx.elements.edBody.querySelector(`[data-id="${blockId}"] .block-text-field`) as HTMLElement);
+  if (currentField && !isCaretOnFirstLine(currentField)) {
+    return;
+  }
+
   const flat = flattenVisibleBlocks(n.blocks);
   const flatIndex = flat.findIndex(b => b.id === blockId);
   for (let i = flatIndex - 1; i >= 0; i--) {
@@ -390,7 +395,12 @@ export function handleBlockArrowUp(ctx: AppContext, e: KeyboardEvent, n: Note, b
   }
 }
 
-export function handleBlockArrowDown(ctx: AppContext, e: KeyboardEvent, n: Note, blockId: string) {
+export function handleBlockArrowDown(ctx: AppContext, e: KeyboardEvent, n: Note, blockId: string, target?: HTMLElement) {
+  const currentField = target || (ctx.elements.edBody.querySelector(`[data-id="${blockId}"] .block-text-field`) as HTMLElement);
+  if (currentField && !isCaretOnLastLine(currentField)) {
+    return;
+  }
+
   const flat = flattenVisibleBlocks(n.blocks);
   const flatIndex = flat.findIndex(b => b.id === blockId);
   for (let i = flatIndex + 1; i < flat.length; i++) {
@@ -416,7 +426,7 @@ export function handleBlockTabKey(
   e.preventDefault();
   const target = e.target as HTMLElement;
 
-  if (match.block.type === 'code' || match.block.type === 'mermaid') {
+  if (match.block.type === 'code' || match.block.type === 'mermaid' || match.block.type === 'html') {
     insertTextAtCaret(ctx, target, '  ');
     match.block.content = target.textContent || '';
     saveAndSyncContent();

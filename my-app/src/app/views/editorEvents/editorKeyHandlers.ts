@@ -18,8 +18,24 @@ import { handleMultiBlockTextDeletion } from './editorMultiBlockSelection';
 
 import { pushToUndo, pushToUndoDebounced, triggerUndo, triggerRedo } from './editorHistory';
 import { renderMermaidDiagramsInContainer } from '../../../utils/mermaidRenderer';
+import { updateHtmlPreviewIframe } from '../../../utils/htmlPreviewRenderer';
 
 let mermaidDebounceTimeout: any = null;
+let htmlDebounceTimeout: any = null;
+
+function getTextBeforeCaret(el: HTMLElement): string {
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0) {
+    const range = sel.getRangeAt(0);
+    if (el.contains(range.startContainer)) {
+      const preCaretRange = range.cloneRange();
+      preCaretRange.selectNodeContents(el);
+      preCaretRange.setEnd(range.startContainer, range.startOffset);
+      return preCaretRange.toString();
+    }
+  }
+  return el.textContent || '';
+}
 
 export function initEditorKeyHandlers(ctx: AppContext) {
   ctx.elements.edTitle.addEventListener('keydown', e => {
@@ -50,6 +66,43 @@ export function initEditorKeyHandlers(ctx: AppContext) {
             mermaidDebounceTimeout = setTimeout(() => {
               renderMermaidDiagramsInContainer(ctx.elements.edBody, ctx.api.theme);
             }, 400);
+            saveAndSyncContent();
+            ctx.markSaving();
+          }
+        }
+      }
+      return;
+    }
+
+    if (target.classList.contains('html-code-field')) {
+      const blockEl = target.closest('.block-wrapper') as HTMLElement;
+      if (blockEl) {
+        const blockId = blockEl.dataset.id!;
+        const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+        if (n) {
+          const match = findBlockById(n.blocks, blockId);
+          if (match) {
+            let rawText = '';
+            const html = target.innerHTML || '';
+            if (html.includes('<br>') || html.includes('<div>')) {
+              const tmp = document.createElement('div');
+              tmp.innerHTML = html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/div>/gi, '\n').replace(/<div>/gi, '');
+              rawText = tmp.textContent || '';
+            } else {
+              rawText = target.innerText || target.textContent || '';
+            }
+            match.block.content = rawText;
+
+            if (htmlDebounceTimeout) {
+              clearTimeout(htmlDebounceTimeout);
+            }
+            htmlDebounceTimeout = setTimeout(() => {
+              const iframe = blockEl.querySelector('.html-preview-iframe') as HTMLIFrameElement;
+              if (iframe) {
+                updateHtmlPreviewIframe(iframe, rawText, ctx.api.theme);
+              }
+            }, 350);
+
             saveAndSyncContent();
             ctx.markSaving();
           }
@@ -111,45 +164,43 @@ export function initEditorKeyHandlers(ctx: AppContext) {
         return;
       }
 
-      const activeSlashBlockId = getActiveSlashBlockId();
-      const slashIdx = text.lastIndexOf('/');
-      if (slashIdx !== -1) {
-        const charBefore = slashIdx > 0 ? text[slashIdx - 1] : '';
-        const isValidTrigger = slashIdx === 0 || /\s/.test(charBefore);
+      const textBeforeCaret = getTextBeforeCaret(target);
 
-        if (isValidTrigger) {
-          const query = text.slice(slashIdx + 1);
-          showSlashMenu(ctx, blockEl, target, query);
-        } else if (activeSlashBlockId === blockId) {
-          closeSlashMenu(ctx);
-        }
+      const activeSlashBlockId = getActiveSlashBlockId();
+      const slashMatch = textBeforeCaret.match(/(?:^|\s)\/([^\s\/]*)$/);
+      if (slashMatch) {
+        const query = slashMatch[1];
+        showSlashMenu(ctx, blockEl, target, query);
       } else if (activeSlashBlockId === blockId) {
         closeSlashMenu(ctx);
       }
 
       const activePickerEl = getActivePickerEl();
-      const checkAutocompleteTrigger = (symbol: string) => {
-        const symbolIdx = text.lastIndexOf(symbol);
-        if (symbolIdx !== -1) {
-          const charBefore = symbolIdx > 0 ? text[symbolIdx - 1] : '';
-          const isValidTrigger = symbolIdx === 0 || /\s/.test(charBefore);
-          if (isValidTrigger) {
-            const query = text.slice(symbolIdx + symbol.length);
-            showAutocompletePicker(ctx, match.block, target, symbol, query);
-            return true;
+      let bestTrigger: { symbol: string; query: string; index: number } | null = null;
+
+      const triggerPatterns: { symbol: string; regex: RegExp }[] = [
+        { symbol: '[[', regex: /(?:^|\s)(\[\[)([^\]]*)$/ },
+        { symbol: '@', regex: /(?:^|\s)(@)([^\s@]*)$/ },
+        { symbol: '+', regex: /(?:^|\s)(\+)([^\s+]*)$/ }
+      ];
+
+      for (const { symbol, regex } of triggerPatterns) {
+        const matchToken = textBeforeCaret.match(regex);
+        if (matchToken && matchToken.index !== undefined) {
+          const symIndex = matchToken.index + (matchToken[0].startsWith(symbol) ? 0 : matchToken[0].indexOf(symbol));
+          if (!bestTrigger || symIndex > bestTrigger.index) {
+            bestTrigger = {
+              symbol,
+              query: matchToken[2],
+              index: symIndex
+            };
           }
         }
-        return false;
-      };
-
-      let triggered = false;
-      for (const sym of ['@', '[[', '+']) {
-        if (checkAutocompleteTrigger(sym)) {
-          triggered = true;
-          break;
-        }
       }
-      if (!triggered && activePickerEl) {
+
+      if (bestTrigger) {
+        showAutocompletePicker(ctx, match.block, target, bestTrigger.symbol, bestTrigger.query);
+      } else if (activePickerEl) {
         closeAutocompletePicker();
       }
 
@@ -307,12 +358,12 @@ export function initEditorKeyHandlers(ctx: AppContext) {
     }
     
     if (e.key === 'ArrowUp') {
-      handleBlockArrowUp(ctx, e, n, blockId);
+      handleBlockArrowUp(ctx, e, n, blockId, target);
       return;
     }
     
     if (e.key === 'ArrowDown') {
-      handleBlockArrowDown(ctx, e, n, blockId);
+      handleBlockArrowDown(ctx, e, n, blockId, target);
       return;
     }
     
@@ -327,24 +378,31 @@ export function initEditorKeyHandlers(ctx: AppContext) {
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const ctrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
 
-    if (ctrlOrCmd && e.key.toLowerCase() === 'z') {
+    const isUndo = ctrlOrCmd && e.key.toLowerCase() === 'z' && !e.shiftKey;
+    const isRedo = (ctrlOrCmd && e.key.toLowerCase() === 'y') || (ctrlOrCmd && e.shiftKey && e.key.toLowerCase() === 'z');
+
+    if (isUndo || isRedo) {
+      const activeEl = document.activeElement as HTMLElement | null;
+      if (
+        activeEl &&
+        (
+          activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          activeEl.classList?.contains('table-cell-field') ||
+          Boolean(activeEl.closest?.('.table-cell-field, input, textarea'))
+        )
+      ) {
+        return;
+      }
+
       const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
       if (n) {
         e.preventDefault();
-        if (e.shiftKey) {
+        if (isRedo) {
           triggerRedo(ctx, n);
         } else {
           triggerUndo(ctx, n);
         }
-        return;
-      }
-    }
-
-    if (ctrlOrCmd && e.key.toLowerCase() === 'y') {
-      const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
-      if (n) {
-        e.preventDefault();
-        triggerRedo(ctx, n);
         return;
       }
     }

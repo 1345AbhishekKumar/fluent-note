@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { createApp } from '../renderer';
-import type { Note } from '../renderer';
+import { createApp } from '../app/createApp';
+import type { Note } from '../types';
 import { renderSubItems } from '../app/views/editor';
 import { renderBlockTree } from '../utils';
 import type { Block } from '../types';

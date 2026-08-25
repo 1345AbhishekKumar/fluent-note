@@ -94,17 +94,117 @@ export function navigateNote(ctx: AppContext, direction: 'prev' | 'next') {
   }
 }
 
+export function sanitizeHistory(ctx: AppContext, deletedNoteIds: string[] | Set<string>) {
+  const deletedSet = deletedNoteIds instanceof Set ? deletedNoteIds : new Set(deletedNoteIds);
+  const { st } = ctx;
+  if (!st || !st.historyStack || st.historyStack.length === 0) {
+    if (st) {
+      st.historyStack = [];
+      st.historyIndex = -1;
+    }
+    return;
+  }
+
+  const currentId = (st.historyIndex !== undefined && st.historyIndex >= 0 && st.historyIndex < st.historyStack.length)
+    ? st.historyStack[st.historyIndex]
+    : null;
+
+  st.historyStack = st.historyStack.filter(id => !deletedSet.has(id));
+
+  if (st.historyStack.length === 0) {
+    st.historyIndex = -1;
+  } else if (currentId && !deletedSet.has(currentId)) {
+    const newIdx = st.historyStack.lastIndexOf(currentId);
+    st.historyIndex = newIdx !== -1 ? newIdx : st.historyStack.length - 1;
+  } else {
+    const prevIdx = st.historyIndex ?? 0;
+    st.historyIndex = Math.min(Math.max(0, prevIdx), st.historyStack.length - 1);
+  }
+}
+
+export function goBack(ctx: AppContext) {
+  const { st } = ctx;
+  if (st.historyStack && st.historyIndex !== undefined && st.historyIndex > 0) {
+    st.historyIndex--;
+    const noteId = st.historyStack[st.historyIndex];
+    selectNote(ctx, noteId, false, true);
+  }
+}
+
+export function goForward(ctx: AppContext) {
+  const { st } = ctx;
+  if (st.historyStack && st.historyIndex !== undefined && st.historyIndex >= 0 && st.historyIndex < st.historyStack.length - 1) {
+    st.historyIndex++;
+    const noteId = st.historyStack[st.historyIndex];
+    selectNote(ctx, noteId, false, true);
+  }
+}
+
+export function collectDescendantNoteAndFolderIds(notes: Note[], folders: Folder[], rootParentId: string): { noteIds: Set<string>, folderIds: Set<string> } {
+  const noteIds = new Set<string>();
+  const folderIds = new Set<string>();
+  const queue = [rootParentId];
+
+  while (queue.length > 0) {
+    const currentParentId = queue.shift()!;
+    const childNotes = notes.filter(n => n.parentId === currentParentId);
+    for (const cn of childNotes) {
+      if (!noteIds.has(cn.id)) {
+        noteIds.add(cn.id);
+        queue.push(cn.id);
+      }
+    }
+    const childFolders = folders.filter(f => f.parentId === currentParentId);
+    for (const cf of childFolders) {
+      if (!folderIds.has(cf.id)) {
+        folderIds.add(cf.id);
+        queue.push(cf.id);
+      }
+    }
+  }
+
+  return { noteIds, folderIds };
+}
+
 export function deleteNote(ctx: AppContext, n: Note) {
-  const { toast } = ctx;
+  const { toast, st } = ctx;
   const idx = sharedNotes.indexOf(n);
   if (idx !== -1) {
-    sharedNotes.splice(idx, 1);
+    // Cascading deletion for child notes and subfolders
+    const { noteIds: childNoteIds, folderIds: childFolderIds } = collectDescendantNoteAndFolderIds(sharedNotes, st.folders, n.id);
+    const allDeletedNoteIds = new Set<string>([n.id, ...childNoteIds]);
+
+    const removedNotes = sharedNotes.filter(item => allDeletedNoteIds.has(item.id));
+    const removedFolders = st.folders.filter(item => childFolderIds.has(item.id));
+
+    // Remove from sharedNotes
+    allDeletedNoteIds.forEach(id => {
+      const nIdx = sharedNotes.findIndex(x => x.id === id);
+      if (nIdx !== -1) sharedNotes.splice(nIdx, 1);
+    });
+
+    // Remove from st.folders
+    childFolderIds.forEach(id => {
+      const fIdx = st.folders.findIndex(x => x.id === id);
+      if (fIdx !== -1) st.folders.splice(fIdx, 1);
+    });
+
     APPS.forEach(app => {
-      if (app.getSelectedNoteId() === n.id) app.selectFirstNote();
+      if (app.st) {
+        sanitizeHistory({ st: app.st } as AppContext, allDeletedNoteIds);
+      }
+      if (app.getSelectedNoteId() && allDeletedNoteIds.has(app.getSelectedNoteId()!)) {
+        app.selectFirstNote();
+      }
     });
     saveAndSync();
     toast('Note deleted', 'Undo', () => {
-      sharedNotes.splice(idx, 0, n);
+      removedNotes.forEach(rn => {
+        if (!sharedNotes.includes(rn)) sharedNotes.push(rn);
+      });
+      removedFolders.forEach(rf => {
+        if (!st.folders.includes(rf)) st.folders.push(rf);
+      });
       APPS.forEach(app => {
         if (app.getSelectedNoteId() === null) app.selectNote(n.id);
       });

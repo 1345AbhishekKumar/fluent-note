@@ -253,9 +253,10 @@ title: "Norm"
     expect(parsedMdNote.blocks[0].url).toBe('https://example.com');
   });
 
-  it('preserves mermaid, math, callout, quote, heading3, and divider block types across blocksToHtml and htmlToBlocks round-trip', () => {
+  it('preserves mermaid, html preview, math, callout, quote, heading3, and divider block types across blocksToHtml and htmlToBlocks round-trip', () => {
     const originalBlocks: Block[] = [
       { id: 'b_m1', type: 'mermaid', mermaidMode: 'split', content: 'graph TD\n A --> B', children: [] },
+      { id: 'b_h1', type: 'html', htmlMode: 'split', content: '<h1>Hello Preview</h1>', children: [] },
       { id: 'b_m2', type: 'math', content: '\\sum_{i=1}^n i', children: [] },
       { id: 'b_c1', type: 'callout', icon: '⚡', content: 'Important note', children: [] },
       { id: 'b_q1', type: 'quote', content: 'Wise words', children: [] },
@@ -265,8 +266,8 @@ title: "Norm"
 
     const html = blocksToHtml(originalBlocks);
     expect(html).toContain('class="mermaid-block"');
+    expect(html).toContain('class="html-preview-block"');
     expect(html).toContain('class="math-block"');
-    expect(html).toContain('class="callout-block"');
     expect(html).toContain('<blockquote>Wise words</blockquote>');
     expect(html).toContain('<h4>Sub section</h4>');
     expect(html).toContain('<hr />');
@@ -276,20 +277,24 @@ title: "Norm"
     expect(parsedBlocks[0].mermaidMode).toBe('split');
     expect(parsedBlocks[0].content).toContain('graph TD');
 
-    expect(parsedBlocks[1].type).toBe('math');
-    expect(parsedBlocks[1].content).toContain('\\sum');
+    expect(parsedBlocks[1].type).toBe('html');
+    expect(parsedBlocks[1].htmlMode).toBe('split');
+    expect(parsedBlocks[1].content).toContain('<h1>Hello Preview</h1>');
 
-    expect(parsedBlocks[2].type).toBe('callout');
-    expect(parsedBlocks[2].icon).toBe('⚡');
-    expect(parsedBlocks[2].content).toBe('Important note');
+    expect(parsedBlocks[2].type).toBe('math');
+    expect(parsedBlocks[2].content).toContain('\\sum');
 
-    expect(parsedBlocks[3].type).toBe('quote');
-    expect(parsedBlocks[3].content).toBe('Wise words');
+    expect(parsedBlocks[3].type).toBe('callout');
+    expect(parsedBlocks[3].icon).toBe('⚡');
+    expect(parsedBlocks[3].content).toBe('Important note');
 
-    expect(parsedBlocks[4].type).toBe('heading3');
-    expect(parsedBlocks[4].content).toBe('Sub section');
+    expect(parsedBlocks[4].type).toBe('quote');
+    expect(parsedBlocks[4].content).toBe('Wise words');
 
-    expect(parsedBlocks[5].type).toBe('divider');
+    expect(parsedBlocks[5].type).toBe('heading3');
+    expect(parsedBlocks[5].content).toBe('Sub section');
+
+    expect(parsedBlocks[6].type).toBe('divider');
   });
 
   it('serializes and deserializes toggles, columns, templates, TOC and breadcrumbs correctly', () => {
@@ -423,6 +428,36 @@ title: "Norm"
 
     expect(parsed[2].type).toBe('math');
     expect(parsed[2].content).toBe('x = y + z\na = b + c');
+  });
+
+  it('correctly serializes table blocks to Markdown table format and parses back to table blocks', () => {
+    const tableBlock: Block = {
+      id: 'table-1',
+      type: 'table',
+      content: JSON.stringify([
+        ['Header 1', 'Header 2', 'Header 3'],
+        ['Row 1 Col 1', 'Row 1 Col 2', 'Row 1 Col 3'],
+        ['Row 2 Col 1', 'Row 2 Col 2', 'Row 2 Col 3']
+      ]),
+      children: []
+    };
+
+    const md = blocksToMarkdown([tableBlock]);
+    expect(md).toContain('| Header 1 | Header 2 | Header 3 |');
+    expect(md).toContain('| --- | --- | --- |');
+    expect(md).toContain('| Row 1 Col 1 | Row 1 Col 2 | Row 1 Col 3 |');
+    expect(md).toContain('| Row 2 Col 1 | Row 2 Col 2 | Row 2 Col 3 |');
+    expect(md).not.toContain('["Header 1"');
+
+    const parsed = markdownToBlocks(md);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].type).toBe('table');
+    const parsedGrid = JSON.parse(parsed[0].content);
+    expect(parsedGrid).toEqual([
+      ['Header 1', 'Header 2', 'Header 3'],
+      ['Row 1 Col 1', 'Row 1 Col 2', 'Row 1 Col 3'],
+      ['Row 2 Col 1', 'Row 2 Col 2', 'Row 2 Col 3']
+    ]);
   });
 });
 

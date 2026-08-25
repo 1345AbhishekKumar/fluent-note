@@ -5,7 +5,7 @@ import { renderLinksInContent } from './blockRenderer/inlineParsers';
 import { 
   getDragHandleHtml, renderCodeBlockHtml, renderMediaBlockHtml, renderMathBlockHtml, 
   renderTocBlockHtml, renderBreadcrumbBlockHtml, renderSubpageBlockHtml, renderSubfolderBlockHtml,
-  renderMermaidBlockHtml, renderTableBlockHtml
+  renderMermaidBlockHtml, renderTableBlockHtml, renderHtmlBlockHtml
 } from './blockRenderer/renderBlockGenerators';
 
 export { htmlToBlocks, blocksToHtml, cleanBadgeHtml, renderLinksInContent };
@@ -16,10 +16,12 @@ export function getPlaceholderForType(type: BlockType): string {
     todo: 'To-do', bullet: 'Bullet item', numbered: 'Numbered item',
     quote: 'Quote…', toggle: 'Toggle heading…', toggle_h1: 'Toggle Heading 1…',
     toggle_h2: 'Toggle Heading 2…', toggle_h3: 'Toggle Heading 3…', code: '// code…',
-    mermaid: 'Enter Mermaid syntax…'
+    mermaid: 'Enter Mermaid syntax…', html: '<!-- Enter HTML/CSS/JS here -->'
   };
   return placeholderMap[type] ?? 'Start writing…';
 }
+
+const MAX_RENDER_DEPTH = 50;
 
 export function renderBlockTree(
   blocks: Block[], 
@@ -27,7 +29,7 @@ export function renderBlockTree(
   rootBlocks?: Block[], 
   contextInfo?: { note: Note; allNotes: Note[] }
 ): string {
-  if (!blocks || blocks.length === 0) return '';
+  if (!blocks || blocks.length === 0 || level > MAX_RENDER_DEPTH) return '';
   return blocks.map((block, blockIndex) => {
     const type = block.type;
     const commentHtml = block.comment 
@@ -85,6 +87,10 @@ export function renderBlockTree(
 
     if (type === 'mermaid') {
       return renderMermaidBlockHtml(block, levelStyle, dragHandle);
+    }
+
+    if (type === 'html') {
+      return renderHtmlBlockHtml(block, levelStyle, dragHandle);
     }
 
     if (type === 'code') {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { findNotebookForParent } from '../renderer';
-import type { Note, Folder } from '../renderer';
+import { findNotebookForParent } from '../utils';
+import type { Note, Folder } from '../types';
 
 describe('Fluent Notes - Store & Parsers', () => {
   describe('Nested Folder Structure', () => {

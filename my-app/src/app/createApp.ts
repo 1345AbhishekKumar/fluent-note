@@ -12,7 +12,7 @@ import { renderEditor, initEditorEvents } from './views/editor';
 import { renderReviewInbox } from './views/review';
 import { showPrompt } from './components/prompt';
 import { renderAppLayout } from './appLayout';
-import { selectNote, navigateNote, deleteNote, newNote, newSubNote, newSubFolder } from './appActions';
+import { selectNote, navigateNote, deleteNote, newNote, newSubNote, newSubFolder, goBack, goForward } from './appActions';
 import { initVaultSwitcher } from './appVaultSwitcher';
 import { initResponsive } from './appResponsive';
 import { initResize } from './appResize';
@@ -145,6 +145,8 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
     }
   }
 
+  const cleanups: (() => void)[] = [];
+
   const api: AppInstance = {
     root,
     theme,
@@ -184,6 +186,12 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
     navigateNote(direction) {
       navigateNote(ctx, direction);
     },
+    goBack() {
+      goBack(ctx);
+    },
+    goForward() {
+      goForward(ctx);
+    },
     closeVaultSwitcher() {
       const overlay = root.querySelector('#vaultOverlay') as HTMLElement;
       if (overlay) {
@@ -195,6 +203,15 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
         const nameInput = overlay.querySelector('#vaultNameInput') as HTMLInputElement;
         if (nameInput) nameInput.value = '';
       }
+    },
+    destroy() {
+      clearTimeout(toastTimer);
+      clearTimeout(saveTimer);
+      hideFlyout();
+      cleanups.forEach(fn => fn());
+      const idx = APPS.indexOf(api);
+      if (idx !== -1) APPS.splice(idx, 1);
+      root.remove();
     }
   };
 
@@ -221,6 +238,8 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
       newSubNote: (parentId) => newSubNote(ctx, parentId),
       newSubFolder: (parentId) => newSubFolder(ctx, parentId),
       deleteNote: (n) => deleteNote(ctx, n),
+      goBack: () => goBack(ctx),
+      goForward: () => goForward(ctx),
       closeOverlayIf,
       syncToolbar,
       showPrompt: (title, placeholder, defaultValue, cb) => showPrompt(ctx, title, placeholder, defaultValue, cb),
@@ -249,6 +268,8 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
     newSubNote: (parentId) => newSubNote(ctx, parentId),
     newSubFolder: (parentId) => newSubFolder(ctx, parentId),
     deleteNote: (n) => deleteNote(ctx, n),
+    goBack: () => goBack(ctx),
+    goForward: () => goForward(ctx),
     showPrompt: (title, placeholder, defaultValue, cb) => showPrompt(ctx, title, placeholder, defaultValue, cb),
     closeOverlayIf,
     syncToolbar,
@@ -265,24 +286,40 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
 
   /* theme + split */
   api.setTheme(theme);
-  elements.themeBtn.addEventListener('click', () => api.setTheme(api.theme === 'dark' ? 'light' : 'dark'));
+  const onThemeClick = () => api.setTheme(api.theme === 'dark' ? 'light' : 'dark');
+  elements.themeBtn.addEventListener('click', onThemeClick);
+  cleanups.push(() => elements.themeBtn.removeEventListener('click', onThemeClick));
   
-  elements.splitBtn.addEventListener('click', () => {
+  const onSplitClick = () => {
     const on = document.body.classList.toggle('split');
     APPS.forEach(a => {
       const btn = a.root.querySelector('.split-btn');
       if (btn) btn.classList.toggle('on', on);
     });
-  });
+  };
+  elements.splitBtn.addEventListener('click', onSplitClick);
+  cleanups.push(() => elements.splitBtn.removeEventListener('click', onSplitClick));
 
   /* Window control listeners */
   const winMin = q<HTMLButtonElement>('.win-min');
   const winMax = q<HTMLButtonElement>('.win-max');
   const winClose = q<HTMLButtonElement>('.win-close');
 
-  if (winMin) winMin.addEventListener('click', () => window.electronAPI?.minimizeWindow?.());
-  if (winMax) winMax.addEventListener('click', () => window.electronAPI?.maximizeWindow?.());
-  if (winClose) winClose.addEventListener('click', () => window.electronAPI?.closeWindow?.());
+  if (winMin) {
+    const onMin = () => window.electronAPI?.minimizeWindow?.();
+    winMin.addEventListener('click', onMin);
+    cleanups.push(() => winMin.removeEventListener('click', onMin));
+  }
+  if (winMax) {
+    const onMax = () => window.electronAPI?.maximizeWindow?.();
+    winMax.addEventListener('click', onMax);
+    cleanups.push(() => winMax.removeEventListener('click', onMax));
+  }
+  if (winClose) {
+    const onClose = () => window.electronAPI?.closeWindow?.();
+    winClose.addEventListener('click', onClose);
+    cleanups.push(() => winClose.removeEventListener('click', onClose));
+  }
 
   initVaultSwitcher(ctx, root);
 
@@ -316,8 +353,6 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
     renderEditor(ctx);
   }
 
-
-
   function closeOverlayIf() {
     if (st.overlay) {
       st.overlay = false;
@@ -325,7 +360,7 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
     }
   }
 
-  initResponsive(ctx, root);
+  cleanups.push(initResponsive(ctx, root));
 
   function syncToolbar() {
     const active = document.activeElement;
@@ -376,15 +411,17 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
   initSidebarEvents(ctx);
   initListEvents(ctx);
   initEditorEvents(ctx);
-  initResize(ctx);
+  cleanups.push(initResize(ctx));
 
   // Listen for Ctrl+Shift+, shortcut dispatched from sidebar.ts
-  document.addEventListener('fluent:open-vault-switcher', () => {
+  const onVaultOpen = () => {
     openVaultSwitcher(ctx);
-  });
+  };
+  document.addEventListener('fluent:open-vault-switcher', onVaultOpen);
+  cleanups.push(() => document.removeEventListener('fluent:open-vault-switcher', onVaultOpen));
 
   // Escape to close overlays
-  document.addEventListener('keydown', (e) => {
+  const onEscapeKey = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       const vaultOverlay = document.getElementById('vaultOverlay');
       if (vaultOverlay && vaultOverlay.style.display === 'flex') {
@@ -395,7 +432,9 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
         settingsOverlay.style.display = 'none';
       }
     }
-  });
+  };
+  document.addEventListener('keydown', onEscapeKey);
+  cleanups.push(() => document.removeEventListener('keydown', onEscapeKey));
 
   // Initial load
   const initialSelId = sharedNotes.length ? sharedNotes[0].id : null;

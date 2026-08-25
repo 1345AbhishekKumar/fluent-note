@@ -166,11 +166,13 @@ export function startP2PShare(
   const modal = document.createElement('div');
   modal.className = 'p2p-modal-overlay fixed inset-0 bg-black/0 flex items-center justify-center z-[99999] backdrop-blur-none opacity-0 pointer-events-none transition-[opacity,background-color,backdrop-filter] duration-quick ease-smooth-out [&.show]:opacity-100 [&.show]:pointer-events-auto [&.show]:bg-black/40 [&.show]:backdrop-blur-sm';
   
+  const hasSplitPeer = APPS.some(app => app !== ctx.api);
+
   modal.innerHTML = `
-    <div class="p2p-card bg-card border border-card-brd rounded-lg w-[400px] max-w-[90vw] p-5 shadow-2xl flex flex-col gap-3 scale-[0.96] translate-y-2 opacity-0 transition-[transform,opacity] duration-quick ease-smooth-out [.show_&]:scale-100 [.show_&]:translate-y-0 [.show_&]:opacity-100">
-      <div class="p2p-title font-semibold text-base text-text1">Share Sub-graph Closure</div>
+    <div class="p2p-card bg-card border border-card-brd rounded-lg w-[420px] max-w-[90vw] p-5 shadow-2xl flex flex-col gap-3 scale-[0.96] translate-y-2 opacity-0 transition-[transform,opacity] duration-quick ease-smooth-out [.show_&]:scale-100 [.show_&]:translate-y-0 [.show_&]:opacity-100">
+      <div class="p2p-title font-semibold text-base text-text1">Export Sub-graph Payload</div>
       <div class="p2p-closure-info text-xs leading-relaxed text-text2">
-        <strong>Sharing:</strong> ${esc(sharingName)}<br>
+        <strong>Exporting:</strong> ${esc(sharingName)}<br>
         <strong>Sub-graph closure:</strong> ${closureCount} note(s) in selection.<br>
         ${closureSet.truncatedIds.size > 0 
           ? `<span class="text-[#ff5f56] font-semibold">⚠️ ${closureSet.truncatedIds.size} external references will be truncated.</span>` 
@@ -180,20 +182,16 @@ export function startP2PShare(
       ${renderBoundaryGraph(closureSet.sharedIds, closureSet.truncatedIds, ctx.st.notes)}
       
       <div>
-        <label class="text-[11px] font-semibold block mb-1 text-text2">Simulated \`.researcher-share\` Payload:</label>
+        <label class="text-[11px] font-semibold block mb-1 text-text2">Base64 \`.researcher-share\` Payload:</label>
         <textarea readonly class="p2p-payload-box w-full h-[60px] font-mono text-[10px] bg-bg2 text-text1 border border-divider rounded p-[6px] resize-none break-all outline-none">${encryptedPayload}</textarea>
-      </div>
-      
-      <div class="p2p-progress-track w-full h-1 bg-divider rounded-sm hidden overflow-hidden">
-        <div class="p2p-progress-bar w-0 h-full bg-accent transition-[width] duration-1500 ease-linear"></div>
       </div>
       
       <div class="flex gap-2">
         <button class="p2p-copy-btn flex-1 p-2 rounded bg-accent text-white border-none font-semibold cursor-pointer hover:bg-accent-fill-h active:scale-[0.97] transition-[background-color,transform] duration-quick">Copy Payload</button>
-        <button class="p2p-sim-btn flex-1 p-2 rounded bg-bg2 text-text1 border border-divider font-semibold cursor-pointer hover:bg-nav-h active:scale-[0.97] transition-[background-color,transform] duration-quick">P2P Transfer</button>
+        ${hasSplitPeer ? `<button class="p2p-sim-btn flex-1 p-2 rounded bg-bg2 text-text1 border border-divider font-semibold cursor-pointer hover:bg-nav-h active:scale-[0.97] transition-[background-color,transform] duration-quick">Send to Peer View</button>` : ''}
       </div>
       
-      <div class="p2p-status text-[11px] text-text2 text-center min-h-[16px]">Ready to copy or transfer.</div>
+      <div class="p2p-status text-[11px] text-text2 text-center min-h-[16px]">Ready. Copy payload or import into another vault.</div>
       
       <button class="p2p-close-btn w-full p-2 rounded bg-bg2 border border-divider text-text1 font-semibold cursor-pointer hover:bg-nav-h active:scale-[0.97] transition-[background-color,transform] duration-quick">Close</button>
     </div>
@@ -203,43 +201,46 @@ export function startP2PShare(
   requestAnimationFrame(() => modal.classList.add('show'));
 
   const copyBtn = modal.querySelector('.p2p-copy-btn') as HTMLElement;
-  const simBtn = modal.querySelector('.p2p-sim-btn') as HTMLElement;
+  const simBtn = modal.querySelector('.p2p-sim-btn') as HTMLElement | null;
   const closeBtn = modal.querySelector('.p2p-close-btn') as HTMLElement;
   const status = modal.querySelector('.p2p-status') as HTMLElement;
-  const progressTrack = modal.querySelector('.p2p-progress-track') as HTMLElement;
-  const progressBar = modal.querySelector('.p2p-progress-bar') as HTMLElement;
 
-  copyBtn.addEventListener('click', () => {
+  copyBtn.addEventListener('click', async () => {
     const textarea = modal.querySelector('.p2p-payload-box') as HTMLTextAreaElement;
     textarea.select();
     try {
-      document.execCommand('copy');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(encryptedPayload);
+      } else {
+        document.execCommand('copy');
+      }
       status.textContent = 'Payload copied to clipboard!';
-      ctx.toast('Simulated \`.researcher-share\` payload copied!');
+      ctx.toast('Sub-graph payload copied to clipboard!');
     } catch (e) {
       status.textContent = 'Failed to copy payload.';
     }
   });
 
-  simBtn.addEventListener('click', () => {
-    progressTrack.style.display = 'block';
-    simBtn.style.pointerEvents = 'none';
-    simBtn.style.opacity = '0.5';
-    status.textContent = 'Connecting to peer...';
-    
-    setTimeout(() => {
-      if (progressBar) progressBar.style.width = '100%';
-      status.textContent = 'Transferring sub-graph closure...';
-    }, 100);
-
-    setTimeout(() => {
-      status.textContent = 'Transfer completed successfully!';
+  if (simBtn) {
+    simBtn.addEventListener('click', () => {
       const peer = APPS.find(app => app !== ctx.api);
       if (peer) {
+        // Merge notes directly to peer
+        for (const note of sharedNotesList) {
+          const existingIdx = peer.st.notes.findIndex((x: any) => x.id === note.id);
+          if (existingIdx !== -1) {
+            peer.st.notes[existingIdx] = note;
+          } else {
+            peer.st.notes.push(note);
+          }
+        }
+        peer.renderSidebar();
+        peer.renderList();
         peer.showReceivedToast(closureCount, sharingName);
+        status.textContent = 'Sub-graph payload sent directly to peer view!';
       }
-    }, 1600);
-  });
+    });
+  }
 
   let closed = false;
   const close = () => {
@@ -260,10 +261,10 @@ export function openImportDialog(ctx: AppContext) {
   modal.className = 'p2p-modal-overlay fixed inset-0 bg-black/0 flex items-center justify-center z-[99999] backdrop-blur-none opacity-0 pointer-events-none transition-[opacity,background-color,backdrop-filter] duration-quick ease-smooth-out [&.show]:opacity-100 [&.show]:pointer-events-auto [&.show]:bg-black/40 [&.show]:backdrop-blur-sm';
 
   modal.innerHTML = `
-    <div class="p2p-card bg-card border border-card-brd rounded-lg w-[400px] max-w-[90vw] p-5 shadow-2xl flex flex-col gap-3 scale-[0.96] translate-y-2 opacity-0 transition-[transform,opacity] duration-quick ease-smooth-out [.show_&]:scale-100 [.show_&]:translate-y-0 [.show_&]:opacity-100">
-      <div class="p2p-title font-semibold text-base text-text1">Import Sub-graph Share</div>
+    <div class="p2p-card bg-card border border-card-brd rounded-lg w-[420px] max-w-[90vw] p-5 shadow-2xl flex flex-col gap-3 scale-[0.96] translate-y-2 opacity-0 transition-[transform,opacity] duration-quick ease-smooth-out [.show_&]:scale-100 [.show_&]:translate-y-0 [.show_&]:opacity-100">
+      <div class="p2p-title font-semibold text-base text-text1">Import Sub-graph Payload</div>
       <div>
-        <label class="text-[11px] font-semibold block mb-1 text-text2">Paste \`.researcher-share\` Payload:</label>
+        <label class="text-[11px] font-semibold block mb-1 text-text2">Paste Base64 \`.researcher-share\` Payload:</label>
         <textarea class="p2p-import-box w-full h-[100px] font-mono text-[10px] bg-bg2 text-text1 border border-divider rounded p-[6px] resize-none break-all outline-none" placeholder="RESEARCHER_SHARE_..."></textarea>
       </div>
       

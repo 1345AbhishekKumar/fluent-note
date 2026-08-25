@@ -31,6 +31,12 @@ export function initVaultSwitcher(ctx: AppContext, root: HTMLElement) {
           try {
             await window.electronAPI!.openVaultByPath(vaultPath);
             await reloadFromVault(ctx);
+            ctx.st.historyStack = [];
+            ctx.st.historyIndex = -1;
+            ctx.st.tag = null;
+            ctx.st.folder = null;
+            ctx.st.sel = null;
+            ctx.st.expandedFolders = new Set(['design']);
             ctx.api.selectFirstNote();
             lensVaultDropdown.style.display = 'none';
             const lensLbl = q<HTMLElement>('.lens-lbl');

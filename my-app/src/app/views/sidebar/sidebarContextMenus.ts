@@ -1,8 +1,9 @@
 import type { AppContext } from '../../context';
 import { TAGS, IC } from '../../../constants';
-import { sharedNotebooks as NBS, saveAndSync } from '../../../store';
+import { sharedNotebooks as NBS, saveAndSync, APPS } from '../../../store';
 import { noteItems } from '../../components/flyout';
 import { deleteFolderRecursive, deleteFoldersForNotebook } from './sidebarTree';
+import { sanitizeHistory } from '../../appActions';
 
 export function initSidebarContextMenus(ctx: AppContext) {
   ctx.elements.sidebar.addEventListener('contextmenu', e => {
@@ -52,10 +53,15 @@ export function initSidebarContextMenus(ctx: AppContext) {
           danger: true,
           action: () => {
             if (confirm(`Are you sure you want to delete this notebook and all its notes and folders?`)) {
-              // Delete notes inside this notebook
-              ctx.st.notes = ctx.st.notes.filter(n => n.nb !== itemId);
+              // Collect and delete notes inside this notebook
+              const notesToDelete = ctx.st.notes.filter(n => n.nb === itemId);
+              const deletedNoteIds = new Set(notesToDelete.map(n => n.id));
+              
               // Delete folders inside this notebook
               deleteFoldersForNotebook(ctx, itemId);
+              
+              ctx.st.notes = ctx.st.notes.filter(n => n.nb !== itemId);
+              
               // Remove notebook from store
               const idx = NBS.findIndex(x => x.id === itemId);
               if (idx !== -1) {
@@ -65,6 +71,15 @@ export function initSidebarContextMenus(ctx: AppContext) {
               if (ctx.st.nb === itemId) {
                 ctx.st.nb = 'all';
               }
+              
+              APPS.forEach(app => {
+                if (app.st) {
+                  sanitizeHistory({ st: app.st } as AppContext, deletedNoteIds);
+                }
+                if (app.getSelectedNoteId() && deletedNoteIds.has(app.getSelectedNoteId()!)) {
+                  app.selectFirstNote();
+                }
+              });
               saveAndSync();
             }
           }

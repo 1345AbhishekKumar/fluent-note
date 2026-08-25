@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { isCaretAtStart, isCaretAtEnd } from '../utils/domHelpers';
+import { isCaretAtStart, isCaretAtEnd, isCaretOnFirstLine, isCaretOnLastLine } from '../utils/domHelpers';
 import { handleBlockBackspaceKey, handleBlockDeleteKey } from '../app/views/editorEvents/editorBlockKeyActions';
 import type { AppContext } from '../app/context';
 import type { Note } from '../types';
@@ -176,4 +176,36 @@ describe('Editor Key Actions', () => {
 
     document.body.removeChild(edBody);
   });
+
+  it('correctly detects caret on first line and last line in multiline elements', () => {
+    const el = document.createElement('div');
+    el.contentEditable = 'true';
+    el.innerHTML = 'First line\nSecond line';
+    document.body.appendChild(el);
+
+    const textNode = el.firstChild!; // "First line\nSecond line"
+    const sel = window.getSelection();
+    const range = document.createRange();
+
+    // Caret on line 1 (offset 3)
+    range.setStart(textNode, 3);
+    range.collapse(true);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+
+    expect(isCaretOnFirstLine(el)).toBe(true);
+    expect(isCaretOnLastLine(el)).toBe(false);
+
+    // Caret on line 2 (offset 15)
+    range.setStart(textNode, 15);
+    range.collapse(true);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+
+    expect(isCaretOnFirstLine(el)).toBe(false);
+    expect(isCaretOnLastLine(el)).toBe(true);
+
+    document.body.removeChild(el);
+  });
 });
+

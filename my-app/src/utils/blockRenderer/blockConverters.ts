@@ -1,6 +1,66 @@
 import type { Block } from '../../types';
 import { genId, esc } from '../stringHelpers';
 
+export function convertNodeToMarkdown(node: Node): string {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return node.nodeValue || '';
+  }
+  if (node.nodeType !== Node.ELEMENT_NODE) {
+    return '';
+  }
+
+  const el = node as HTMLElement;
+  const tag = el.tagName.toLowerCase();
+
+  if (el.classList.contains('wiki-link')) {
+    return el.textContent || '';
+  }
+  if (el.classList.contains('date-badge')) {
+    const date = el.getAttribute('data-date') || '';
+    return `📅 ${date}`;
+  }
+  if (el.classList.contains('math-badge')) {
+    const tex = el.getAttribute('data-tex') || '';
+    return `$$${tex}$$`;
+  }
+  if (el.classList.contains('search-highlight')) {
+    return el.textContent || '';
+  }
+
+  let childrenText = '';
+  for (let i = 0; i < el.childNodes.length; i++) {
+    childrenText += convertNodeToMarkdown(el.childNodes[i]);
+  }
+
+  if (tag === 'b' || tag === 'strong') {
+    return `**${childrenText}**`;
+  }
+  if (tag === 'i' || tag === 'em') {
+    return `*${childrenText}*`;
+  }
+  if (tag === 'code') {
+    return `\`${childrenText}\``;
+  }
+  if (tag === 'del' || tag === 's' || tag === 'strike') {
+    return `~~${childrenText}~~`;
+  }
+  if (tag === 'u') {
+    return `<u>${childrenText}</u>`;
+  }
+  if (tag === 'a') {
+    const href = el.getAttribute('href');
+    if (href && childrenText) {
+      return `[${childrenText}](${href})`;
+    }
+    return childrenText;
+  }
+  if (tag === 'br') {
+    return '<br>';
+  }
+
+  return childrenText;
+}
+
 export function cleanBadgeHtml(el: HTMLElement): string {
   const temp = document.createElement('div');
   temp.innerHTML = el.innerHTML;
@@ -22,7 +82,7 @@ export function cleanBadgeHtml(el: HTMLElement): string {
     child.replaceWith(document.createTextNode(txt));
   });
   
-  return temp.innerHTML;
+  return convertNodeToMarkdown(temp);
 }
 
 export function isSpecialBlockOrBlockTag(el: Element): boolean {
@@ -32,7 +92,7 @@ export function isSpecialBlockOrBlockTag(el: Element): boolean {
   
   if (tag === 'img' || tag === 'video' || tag === 'audio' || tag === 'iframe') return true;
   if (tag === 'a' && (el.classList.contains('bookmark-link') || el.classList.contains('file-link'))) return true;
-  if (el.classList.contains('callout-block') || el.classList.contains('mermaid-block') || el.classList.contains('math-block') || el.classList.contains('block-wrapper') || el.classList.contains('toggle-block') || el.classList.contains('column-list-block') || el.classList.contains('column-block') || el.classList.contains('template-block') || el.classList.contains('toc-block') || el.classList.contains('breadcrumb-block')) return true;
+  if (el.classList.contains('callout-block') || el.classList.contains('mermaid-block') || el.classList.contains('html-preview-block') || el.classList.contains('html-block') || el.classList.contains('math-block') || el.classList.contains('block-wrapper') || el.classList.contains('toggle-block') || el.classList.contains('column-list-block') || el.classList.contains('column-block') || el.classList.contains('template-block') || el.classList.contains('toc-block') || el.classList.contains('breadcrumb-block')) return true;
   
   return false;
 }
@@ -193,7 +253,7 @@ export function htmlToBlocks(html: string): Block[] {
           content: '',
           children: []
         });
-      } else if (tag === 'pre' || el.classList.contains('mermaid-block') || el.classList.contains('math-block')) {
+      } else if (tag === 'pre' || el.classList.contains('mermaid-block') || el.classList.contains('html-preview-block') || el.classList.contains('html-block') || el.classList.contains('math-block')) {
         const codeEl = el.querySelector('code');
         const contentText = codeEl ? (codeEl.textContent || '') : (el.textContent || '');
         if (el.classList.contains('mermaid-block') || (codeEl && codeEl.classList.contains('language-mermaid'))) {
@@ -201,6 +261,14 @@ export function htmlToBlocks(html: string): Block[] {
             id: genId(),
             type: 'mermaid',
             mermaidMode: (el.getAttribute('data-mermaid-mode') as any) || 'split',
+            content: contentText,
+            children: []
+          });
+        } else if (el.classList.contains('html-preview-block') || el.classList.contains('html-block') || (codeEl && (codeEl.classList.contains('language-html-preview') || codeEl.classList.contains('language-htmlpreview')))) {
+          blocks.push({
+            id: genId(),
+            type: 'html',
+            htmlMode: (el.getAttribute('data-html-mode') as any) || 'split',
             content: contentText,
             children: []
           });
@@ -341,20 +409,22 @@ export function blocksToHtml(blocks: Block[]): string {
       html += `<div class="callout-block" data-icon="${esc(block.icon || '💡')}"><p>${esc(block.content)}</p></div>`;
     } else if (block.type === 'mermaid') {
       html += `<pre class="mermaid-block" data-mermaid-mode="${block.mermaidMode || 'split'}"><code class="language-mermaid">${esc(block.content || '')}</code></pre>`;
+    } else if (block.type === 'html') {
+      html += `<pre class="html-preview-block" data-html-mode="${block.htmlMode || 'split'}"><code class="language-html-preview">${esc(block.content || '')}</code></pre>`;
     } else if (block.type === 'math' || block.type === 'equation') {
       html += `<pre class="math-block"><code class="language-math">${esc(block.content || '')}</code></pre>`;
     } else if (block.type === 'image') {
-      html += `<p><img src="${block.url || ''}" alt="${esc(block.content || 'image')}" /></p>`;
+      html += `<p><img src="${esc(block.url || '')}" alt="${esc(block.content || 'image')}" /></p>`;
     } else if (block.type === 'video') {
-      html += `<p><video src="${block.url || ''}" controls></video></p>`;
+      html += `<p><video src="${esc(block.url || '')}" controls></video></p>`;
     } else if (block.type === 'audio') {
-      html += `<p><audio src="${block.url || ''}" controls></audio></p>`;
+      html += `<p><audio src="${esc(block.url || '')}" controls></audio></p>`;
     } else if (block.type === 'pdf') {
-      html += `<p><iframe src="${block.url || ''}" class="block-media-pdf"></iframe></p>`;
+      html += `<p><iframe src="${esc(block.url || '')}" class="block-media-pdf"></iframe></p>`;
     } else if (block.type === 'bookmark') {
-      html += `<p><a class="bookmark-link" href="${block.url || ''}" data-title="${esc(block.bookmarkTitle || '')}" data-desc="${esc(block.bookmarkDesc || '')}" data-image="${esc(block.bookmarkImage || '')}" data-icon="${esc(block.bookmarkIcon || '')}">${esc(block.content || block.url || 'Bookmark')}</a></p>`;
+      html += `<p><a class="bookmark-link" href="${esc(block.url || '')}" data-title="${esc(block.bookmarkTitle || '')}" data-desc="${esc(block.bookmarkDesc || '')}" data-image="${esc(block.bookmarkImage || '')}" data-icon="${esc(block.bookmarkIcon || '')}">${esc(block.content || block.url || 'Bookmark')}</a></p>`;
     } else if (block.type === 'file') {
-      html += `<p><a class="file-link" href="${block.url || ''}" download="${esc(block.fileName || '')}">${esc(block.content || 'File')}</a></p>`;
+      html += `<p><a class="file-link" href="${esc(block.url || '')}" download="${esc(block.fileName || '')}">${esc(block.content || 'File')}</a></p>`;
     } else if (block.type === 'code') {
       html += `<pre><code class="language-${block.language || 'plaintext'}">${esc(block.content || '')}</code></pre>`;
     } else if (block.type === 'toggle' || block.type === 'toggle_h1' || block.type === 'toggle_h2' || block.type === 'toggle_h3') {
@@ -388,7 +458,7 @@ export function blocksToHtml(blocks: Block[]): string {
     } else if (block.type === 'breadcrumb') {
       html += `<div class="breadcrumb-block"></div>`;
     } else if (block.type === 'subfolder') {
-      html += `<div class="subfolder-block" data-id="${block.url || ''}"><p>${esc(block.content || 'Subfolder')}</p></div>`;
+      html += `<div class="subfolder-block" data-id="${esc(block.url || '')}"><p>${esc(block.content || 'Subfolder')}</p></div>`;
     } else if (block.type === 'table') {
       let grid: string[][] = [];
       try {
@@ -400,7 +470,7 @@ export function blocksToHtml(blocks: Block[]): string {
       for (const row of grid) {
         html += `<tr>`;
         for (const cell of row) {
-          html += `<td>${cell}</td>`;
+          html += `<td>${esc(cell)}</td>`;
         }
         html += `</tr>`;
       }

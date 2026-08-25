@@ -5,6 +5,7 @@ import { saveClips, saveAndSyncContent } from '../../store';
 import { renderReviewInbox } from './review';
 import { pushToUndo } from './editorEvents/editorHistory';
 import { renderMermaidDiagramsInContainer } from '../../utils/mermaidRenderer';
+import { renderHtmlPreviewsInContainer } from '../../utils/htmlPreviewRenderer';
 import { duplicateBlockWithNewIds } from './editorEvents/editorHelpers';
 
 function isDescendantBlock(block: Block, targetId: string): boolean {
@@ -282,6 +283,7 @@ export function initEditorDragDrop(ctx: AppContext) {
       
       setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.st.notes }));
       renderMermaidDiagramsInContainer(ctx.elements.edBody, ctx.api.theme);
+      renderHtmlPreviewsInContainer(ctx.elements.edBody, ctx.api.theme);
       saveAndSyncContent();
       ctx.markSaving();
     }

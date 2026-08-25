@@ -83,6 +83,8 @@ export interface AppActions {
   newSubNote: (parentId: string) => void;
   newSubFolder: (parentId: string) => void;
   deleteNote: (n: Note) => void;
+  goBack: () => void;
+  goForward: () => void;
   closeOverlayIf: () => void;
   syncToolbar: () => void;
   showPrompt: (title: string, placeholder: string, defaultValue: string, callback: (val: string | null) => void) => void;
@@ -125,6 +127,8 @@ export interface AppContext {
   newSubNote: (parentId: string) => void;
   newSubFolder: (parentId: string) => void;
   deleteNote: (n: Note) => void;
+  goBack: () => void;
+  goForward: () => void;
   closeOverlayIf: () => void;
   syncToolbar: () => void;
   showPrompt: (title: string, placeholder: string, defaultValue: string, callback: (val: string | null) => void) => void;

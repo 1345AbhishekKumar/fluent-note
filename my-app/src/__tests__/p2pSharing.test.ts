@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateSubGraphClosure } from '../renderer';
+import { calculateSubGraphClosure } from '../utils';
 
 describe('Fluent Notes - Store & Parsers', () => {
   describe('P2P Notebook & Tag Category Share', () => {

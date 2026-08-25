@@ -1,4 +1,6 @@
 import type { AppContext } from '../../context';
+import type { Block } from '../../../types';
+import { findBlockById, genId, moveCaret } from '../../../utils';
 import { handleEditorPaste } from './editorPasteHandlers';
 import { 
   handleCodeBlockControlsClick, handleCodeFieldFocusIn, handleCodeFieldFocusOut 
@@ -7,6 +9,7 @@ import {
   handleCheckboxChange, handleDocumentMouseDown, handleEditorBodyClick, handleBlockSelectionClick, focusOrCreateBottomBlock
 } from './editorClickDelegation';
 import { handleDragHandleClick } from './editorDragFlyout';
+import { rerenderNote } from './pickers/editorPopups';
 
 export function initEditorClickHandlers(ctx: AppContext) {
   ctx.elements.edBody.addEventListener('paste', e => handleEditorPaste(ctx, e));
@@ -15,7 +18,58 @@ export function initEditorClickHandlers(ctx: AppContext) {
 
   document.addEventListener('mousedown', e => handleDocumentMouseDown(ctx, e));
 
+  let lastFlyoutTime = 0;
+
+  const handleBlockActionClick = (e: MouseEvent): boolean => {
+    const target = e.target as HTMLElement;
+
+    // 1. Plus Add Block button
+    const addBtn = target.closest('.block-add-btn') as HTMLElement;
+    if (addBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const blockEl = addBtn.closest('.block-wrapper') as HTMLElement;
+      if (!blockEl) return true;
+      const bId = blockEl.dataset.id!;
+      const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+      if (!n) return true;
+      const match = findBlockById(n.blocks, bId);
+      if (match) {
+        const { parentList, index } = match;
+        const newBlockId = genId();
+        const newBlock: Block = { id: newBlockId, type: 'paragraph', content: '', children: [] };
+        parentList.splice(index + 1, 0, newBlock);
+        rerenderNote(ctx, n);
+        setTimeout(() => {
+          const newField = ctx.elements.edBody.querySelector(`[data-id="${newBlockId}"] .block-text-field`) as HTMLElement;
+          if (newField) moveCaret(newField);
+        }, 15);
+      }
+      return true;
+    }
+
+    // 2. Drag / Menu Handle (6 dots)
+    const dragHandle = (target.closest('.block-drag-handle') || 
+      (target.classList.contains('block-actions-container') && !target.closest('.block-add-btn')
+        ? target.querySelector('.block-drag-handle')
+        : null)) as HTMLElement;
+
+    if (dragHandle) {
+      e.preventDefault();
+      e.stopPropagation();
+      const now = Date.now();
+      if (now - lastFlyoutTime > 300) {
+        lastFlyoutTime = now;
+        handleDragHandleClick(ctx, e, dragHandle);
+      }
+      return true;
+    }
+
+    return false;
+  };
+
   ctx.elements.edBody.addEventListener('click', e => {
+    if (handleBlockActionClick(e)) return;
     handleEditorBodyClick(ctx, e);
     handleBlockSelectionClick(ctx, e);
     handleCodeBlockControlsClick(ctx, e, e.target as HTMLElement);
@@ -25,13 +79,20 @@ export function initEditorClickHandlers(ctx: AppContext) {
     const target = e.target as HTMLElement;
     const dragHandle = target.closest('.block-drag-handle') as HTMLElement;
     if (dragHandle) {
-      handleDragHandleClick(ctx, e, dragHandle);
+      e.preventDefault();
+      e.stopPropagation();
+      const now = Date.now();
+      if (now - lastFlyoutTime > 300) {
+        lastFlyoutTime = now;
+        handleDragHandleClick(ctx, e, dragHandle);
+      }
     }
   });
 
   const handleEmptyClick = (e: Event) => {
     const target = e.target as HTMLElement;
     if (!target.closest('.block-wrapper') && 
+        !target.closest('.block-actions-container') &&
         !target.closest('.ed-title') && 
         !target.closest('.ed-meta') && 
         !target.closest('.academic-metadata') && 

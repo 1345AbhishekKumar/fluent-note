@@ -82,15 +82,15 @@
   position: absolute;
   left: 1px;
   top: 50%;
-  transform: translateY(-50%);
   width: 3px;
-  height: 0;
+  height: 16px;
   border-radius: 3px;
   background: var(--accent);
-  transition: height var(--duration-fast) var(--ease-smooth-out);
+  transform: translateY(-50%) scaleY(0);
+  transition: transform var(--duration-fast) var(--ease-smooth-out);
 }
 .nav-item.sel .ni-bar {
-  height: 16px;
+  transform: translateY(-50%) scaleY(1);
 }
 .tree-chevron {
   display: inline-flex;

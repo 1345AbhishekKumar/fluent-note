@@ -2,6 +2,7 @@ import type { AppContext } from '../../../context';
 import type { Block, BlockType, Note } from '../../../../types';
 import { findBlockById, moveCaret } from '../../../../utils';
 import { duplicateBlockWithNewIds } from '../editorHelpers';
+import { saveAndSync } from '../../../../store';
 import { 
   rerenderNote, focusNextBlockOrNew, openMediaFilePrompt, openUrlPopupEditor,
   openEmojiPicker, openDatePicker, openMentionPicker, openMathPopupEditor 
@@ -58,6 +59,7 @@ export const allSlashItems: SlashItem[] = [
   { type: 'breadcrumb', label: 'Breadcrumb', desc: 'Page location trail',     icon: '<svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>',   aliases: ['bread','breadcrumb','trail'] },
   { type: 'math',       label: 'Math',       desc: 'Block TeX equation',      icon: '<svg viewBox="0 0 24 24"><path d="M4 4h6l4 16 4-16h2"/></svg>',   aliases: ['math','latex','tex'] },
   { type: 'mermaid',    label: 'Mermaid Diagram', desc: 'Flowchart & UML diagram', icon: '<svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><line x1="10.5" y1="7" x2="6.5" y2="16"/><line x1="13.5" y1="7" x2="17.5" y2="16"/></svg>',  aliases: ['mermaid','diagram','flowchart','graph','uml'] },
+  { type: 'html',       label: 'HTML Preview',    desc: 'Interactive HTML/CSS/JS sandbox', icon: '<svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/><line x1="14" y1="4" x2="10" y2="20"/></svg>',  aliases: ['html','htmlpreview','preview','web','sandbox'] },
   { group: 'Colors' },
   { type: 'color_blue', label: 'Blue text', icon: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="#0067c0"/></svg>', aliases: ['color blue','blue','text blue'] },
   { type: 'color_red', label: 'Red text', icon: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="#e05555"/></svg>', aliases: ['color red','red','text red'] },
@@ -164,9 +166,14 @@ export function showSlashMenu(ctx: AppContext, blockEl: HTMLElement, textField: 
   activeSlashBlockId = blockEl.dataset.id!;
 
   menu.querySelectorAll('.slash-item').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       const index = parseInt((btn as HTMLElement).dataset.index!);
       executeSlashCommand(ctx, index);
+    });
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
     });
   });
 }
@@ -184,7 +191,7 @@ export function updateSlashMenuSelection(menu: HTMLElement) {
     btn.classList.toggle('selected', i === selectedSlashItemIndex);
   });
   const sel = menu.querySelector('.slash-item.selected') as HTMLElement;
-  if (sel) sel.scrollIntoView({ block: 'nearest' });
+  if (sel && typeof sel.scrollIntoView === 'function') sel.scrollIntoView({ block: 'nearest' });
 }
 
 export function executeSlashCommand(ctx: AppContext, realIndex: number) {
@@ -205,9 +212,16 @@ export function executeSlashCommand(ctx: AppContext, realIndex: number) {
   closeSlashMenu(ctx);
   if (!match) return;
 
-  let content = match.block.content.trim();
-  const slashPos = content.lastIndexOf('/');
-  if (slashPos !== -1) content = content.substring(0, slashPos).trim();
+  let content = match.block.content;
+  const slashMatch = content.match(/(?:^|\s)\/[^\s]*$/);
+  if (slashMatch && slashMatch.index !== undefined) {
+    const slashIdx = slashMatch.index + (slashMatch[0].startsWith('/') ? 0 : slashMatch[0].indexOf('/'));
+    content = content.substring(0, slashIdx).trim();
+  } else {
+    const slashPos = content.lastIndexOf('/');
+    if (slashPos !== -1) content = content.substring(0, slashPos).trim();
+    else content = content.trim();
+  }
   match.block.content = content;
 
   const cmdType = chosenItem.type!;
@@ -216,30 +230,38 @@ export function executeSlashCommand(ctx: AppContext, realIndex: number) {
   switch (cmdType) {
     case 'subpage': {
       const newId = 'n-' + Math.random().toString(36).slice(2, 7);
+      const subpageTitle = content || 'Untitled';
       const newNote: Note = {
         id: newId,
         nb: n.nb,
         tags: [],
         pinned: false,
         date: 'Just now',
-        title: 'Untitled',
-        body: '<h2>Untitled</h2><p></p>',
+        title: subpageTitle,
+        body: `<h2>${subpageTitle}</h2><p></p>`,
         blocks: [{ id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'paragraph', content: '', children: [] }],
         ord: 0,
         parentId: n.id
       };
       ctx.st.notes.unshift(newNote);
       match.block.type = 'subpage';
-      match.block.content = 'Untitled';
+      match.block.content = subpageTitle;
       match.block.url = newId;
+      saveAndSync();
       rerenderNote(ctx, n);
       ctx.selectNote(newId, true);
       return;
     }
-    case 'subfolder':
+    case 'subfolder': {
+      match.parentList.splice(match.index, 1);
+      if (n.blocks.length === 0) {
+        n.blocks.push({ id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'paragraph', content: '', children: [] });
+      }
+      saveAndSync();
       rerenderNote(ctx, n);
       ctx.newSubFolder(n.id);
       return;
+    }
 
     case 'paragraph':
     case 'heading1': case 'heading2': case 'heading3':
@@ -287,6 +309,14 @@ export function executeSlashCommand(ctx: AppContext, realIndex: number) {
       match.block.mermaidMode = 'split';
       if (!match.block.content || match.block.content.trim() === '') {
         match.block.content = `graph TD\n  A[Start] --> B{Is it working?}\n  B -->|Yes| C[Awesome!]\n  B -->|No| D[Debug]`;
+      }
+      break;
+
+    case 'html':
+      match.block.type = 'html';
+      match.block.htmlMode = 'split';
+      if (!match.block.content || match.block.content.trim() === '') {
+        match.block.content = `<div style="text-align: center; padding: 20px; font-family: sans-serif;">\n  <h2 style="color: #3b82f6;">Hello HTML Preview! 🚀</h2>\n  <p>Edit HTML, CSS, and JS to see live changes.</p>\n  <button onclick="alert('Interactive JavaScript works!')" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer;">Click Me</button>\n</div>`;
       }
       break;
 
@@ -394,8 +424,11 @@ export function executeSlashCommand(ctx: AppContext, realIndex: number) {
       if (targets.length === 0) { ctx.toast('No other notes to move to', '', () => {}); return; }
       const picker = document.createElement('div');
       picker.className = 'slash-menu mention-picker';
-      picker.innerHTML = targets.slice(0, 12).map((t, i) =>
-        `<button class="slash-item" data-index="${i}"><span class="slash-item-icon">📄</span><span class="slash-item-label">${t.title || 'Untitled'}</span></button>`
+      let selectedIndex = 0;
+      const visibleTargets = targets.slice(0, 12);
+
+      picker.innerHTML = visibleTargets.map((t, i) =>
+        `<button class="slash-item ${i === 0 ? 'selected' : ''}" data-index="${i}"><span class="slash-item-icon">📄</span><span class="slash-item-label">${t.title || 'Untitled'}</span></button>`
       ).join('');
       const blockEl = ctx.elements.edBody.querySelector(`[data-id="${blockId}"]`) as HTMLElement;
       const rect = blockEl?.getBoundingClientRect();
@@ -405,22 +438,68 @@ export function executeSlashCommand(ctx: AppContext, realIndex: number) {
         picker.style.top = (rect.bottom - innerRect.top + 4) + 'px';
       }
       ctx.elements.edInner.appendChild(picker);
+
+      const updateSelection = () => {
+        picker.querySelectorAll('.slash-item').forEach((btn, idx) => {
+          btn.classList.toggle('selected', idx === selectedIndex);
+        });
+        const sel = picker.querySelector('.slash-item.selected') as HTMLElement;
+        if (sel && typeof sel.scrollIntoView === 'function') sel.scrollIntoView({ block: 'nearest' });
+      };
+
+      const doMove = (targetIdx: number) => {
+        const target = visibleTargets[targetIdx];
+        if (!target) return;
+        const blockCopy = duplicateBlockWithNewIds(match.block);
+        target.blocks.push(blockCopy);
+        match.parentList.splice(match.index, 1);
+        if (n.blocks.length === 0) n.blocks.push({ id: 'b-' + Math.random().toString(36).slice(2, 7), type: 'paragraph', content: '', children: [] });
+        saveAndSync();
+        rerenderNote(ctx, n);
+        cleanup();
+        ctx.toast(`Block moved to "${target.title || 'Untitled'}"`, '', () => {});
+      };
+
+      const handleKeydown = (e: KeyboardEvent) => {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          selectedIndex = (selectedIndex + 1) % visibleTargets.length;
+          updateSelection();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          selectedIndex = (selectedIndex - 1 + visibleTargets.length) % visibleTargets.length;
+          updateSelection();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          doMove(selectedIndex);
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          cleanup();
+        }
+      };
+
+      const close = (e: MouseEvent) => {
+        if (!picker.contains(e.target as Node)) {
+          cleanup();
+        }
+      };
+
+      const cleanup = () => {
+        picker.remove();
+        document.removeEventListener('keydown', handleKeydown, true);
+        document.removeEventListener('click', close);
+      };
+
       picker.querySelectorAll('.slash-item').forEach((btn, i) => {
-        btn.addEventListener('click', () => {
-          const target = targets[i];
-          const blockCopy = duplicateBlockWithNewIds(match.block);
-          target.blocks.push(blockCopy);
-          match.parentList.splice(match.index, 1);
-          if (n.blocks.length === 0) n.blocks.push({ id: 'b' + Math.random().toString(36).slice(2, 7), type: 'paragraph', content: '', children: [] });
-          rerenderNote(ctx, n);
-          picker.remove();
-          ctx.toast(`Block moved to "${target.title || 'Untitled'}"`, '', () => {});
+        btn.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          doMove(i);
         });
       });
+
+      document.addEventListener('keydown', handleKeydown, true);
       setTimeout(() => {
-        const close = (e: MouseEvent) => {
-          if (!picker.contains(e.target as Node)) { picker.remove(); document.removeEventListener('click', close); }
-        };
         document.addEventListener('click', close);
       }, 0);
       return;

@@ -92,9 +92,7 @@
 
 .vm-vault-item--active {
   background: var(--nav-h);
-  border-left: 3px solid var(--accent);
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
+  box-shadow: inset 3px 0 0 var(--accent);
   cursor: default;
 }
 .vm-vault-item--active .vm-vault-item-name {

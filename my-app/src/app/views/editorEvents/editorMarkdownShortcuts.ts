@@ -46,6 +46,18 @@ export function tryMarkdownShortcut(
           b.content = `graph TD\n  A[Start] --> B{Is it working?}\n  B -->|Yes| C[Awesome!]\n  B -->|No| D[Debug]`;
         }
       }},
+      { prefix: '```html-preview ', type: 'html', strip: 16, extra: (b) => {
+        b.htmlMode = 'split';
+        if (!b.content || b.content.trim() === '') {
+          b.content = `<div style="padding: 16px; font-family: sans-serif;">\n  <h2>Hello HTML Preview! 🚀</h2>\n  <p>Live editable HTML</p>\n</div>`;
+        }
+      }},
+      { prefix: '/html ', type: 'html', strip: 6, extra: (b) => {
+        b.htmlMode = 'split';
+        if (!b.content || b.content.trim() === '') {
+          b.content = `<div style="padding: 16px; font-family: sans-serif;">\n  <h2>Hello HTML Preview! 🚀</h2>\n  <p>Live editable HTML</p>\n</div>`;
+        }
+      }},
       { prefix: '``` ', type: 'code',      strip: 4, extra: (b) => { b.language = 'plaintext'; } },
     ];
 
