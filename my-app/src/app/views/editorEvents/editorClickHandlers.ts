@@ -1,6 +1,6 @@
 import type { AppContext } from '../../context';
 import type { Block } from '../../../types';
-import { findBlockById, genId, moveCaret } from '../../../utils';
+import { findBlockById, genId, moveCaret, flattenVisibleBlocks } from '../../../utils';
 import { handleEditorPaste } from './editorPasteHandlers';
 import { 
   handleCodeBlockControlsClick, handleCodeFieldFocusIn, handleCodeFieldFocusOut 
@@ -9,7 +9,7 @@ import {
   handleCheckboxChange, handleDocumentMouseDown, handleEditorBodyClick, handleBlockSelectionClick, focusOrCreateBottomBlock
 } from './editorClickDelegation';
 import { handleDragHandleClick } from './editorDragFlyout';
-import { rerenderNote } from './pickers/editorPopups';
+import { rerenderNote, rerenderSelectionStyles } from './pickers/editorPopups';
 
 export function initEditorClickHandlers(ctx: AppContext) {
   ctx.elements.edBody.addEventListener('paste', e => handleEditorPaste(ctx, e));
@@ -17,6 +17,70 @@ export function initEditorClickHandlers(ctx: AppContext) {
   ctx.elements.edBody.addEventListener('change', e => handleCheckboxChange(ctx, e));
 
   document.addEventListener('mousedown', e => handleDocumentMouseDown(ctx, e));
+
+  let isMouseDownInEditor = false;
+  let dragStartBlockId: string | null = null;
+  let isMultiBlockDragSelecting = false;
+
+  ctx.elements.edBody.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('button, input, textarea, a, .block-drag-handle, .block-add-btn, .table-cell-field, .mermaid-code-field, .html-code-field, .flyout')) {
+      return;
+    }
+    const wrapper = target.closest('.block-wrapper') as HTMLElement | null;
+    if (wrapper && wrapper.dataset.id) {
+      isMouseDownInEditor = true;
+      dragStartBlockId = wrapper.dataset.id;
+      isMultiBlockDragSelecting = false;
+    }
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!isMouseDownInEditor || !dragStartBlockId) return;
+    if (e.buttons !== 1) {
+      isMouseDownInEditor = false;
+      dragStartBlockId = null;
+      isMultiBlockDragSelecting = false;
+      return;
+    }
+    const target = e.target as HTMLElement;
+    const currentWrapper = target.closest?.('.block-wrapper') as HTMLElement | null;
+    if (!currentWrapper || !currentWrapper.dataset.id) return;
+    const currentBlockId = currentWrapper.dataset.id;
+
+    if (currentBlockId !== dragStartBlockId) {
+      if (!isMultiBlockDragSelecting) {
+        isMultiBlockDragSelecting = true;
+        (document.activeElement as HTMLElement)?.blur();
+        window.getSelection()?.removeAllRanges();
+      }
+
+      const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+      if (n) {
+        const flat = flattenVisibleBlocks(n.blocks);
+        const startIdx = flat.findIndex(b => b.id === dragStartBlockId);
+        const curIdx = flat.findIndex(b => b.id === currentBlockId);
+        if (startIdx !== -1 && curIdx !== -1) {
+          const min = Math.min(startIdx, curIdx);
+          const max = Math.max(startIdx, curIdx);
+          const rangeIds = flat.slice(min, max + 1).map(b => b.id);
+          ctx.st.selectedBlockIds = new Set(rangeIds);
+          rerenderSelectionStyles(ctx);
+          window.getSelection()?.removeAllRanges();
+        }
+      }
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isMultiBlockDragSelecting) {
+      window.getSelection()?.removeAllRanges();
+      isMultiBlockDragSelecting = false;
+    }
+    isMouseDownInEditor = false;
+    dragStartBlockId = null;
+  });
 
   let lastFlyoutTime = 0;
 

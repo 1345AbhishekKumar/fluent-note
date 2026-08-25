@@ -1,6 +1,6 @@
 import type { AppContext } from '../../context';
 import type { Block, BlockType, Note } from '../../../types';
-import { findBlockById, flattenVisibleBlocks, moveCaret, resolveNoteId, genId, esc } from '../../../utils';
+import { findBlockById, flattenVisibleBlocks, moveCaret, resolveNoteId, genId, esc, blocksToMarkdown } from '../../../utils';
 import { saveAndSyncContent, saveAndSync } from '../../../store';
 import { rerenderNote, rerenderSelectionStyles } from './pickers/editorPopups';
 import { isToggleType } from './editorBlockKeyActions';
@@ -25,11 +25,18 @@ export function handleFieldShortcuts(
   }
 
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
-    e.preventDefault();
-    ctx.st.selectedBlockIds = new Set([blockId]);
-    target.blur();
-    rerenderSelectionStyles(ctx);
-    return true;
+    const sel = window.getSelection();
+    const selText = sel ? sel.toString() : '';
+    const fieldText = target.textContent || '';
+    if (sel && selText.length >= fieldText.length && fieldText.length > 0) {
+      e.preventDefault();
+      const flat = flattenVisibleBlocks(n.blocks);
+      ctx.st.selectedBlockIds = new Set(flat.map(b => b.id));
+      target.blur();
+      sel.removeAllRanges();
+      rerenderSelectionStyles(ctx);
+      return true;
+    }
   }
 
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -240,6 +247,64 @@ export function handleDocumentBlockSelectionKeydown(ctx: AppContext, e: Keyboard
       rerenderSelectionStyles(ctx);
       const blockEl = ctx.elements.edBody.querySelector(`[data-id="${targetId}"]`) as HTMLElement;
       if (blockEl) blockEl.scrollIntoView({ block: 'nearest' });
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+      e.preventDefault();
+      const flat = flattenVisibleBlocks(n.blocks);
+      ctx.st.selectedBlockIds = new Set(flat.map(b => b.id));
+      rerenderSelectionStyles(ctx);
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+      const selectedBlocks: Block[] = [];
+      const flat = flattenVisibleBlocks(n.blocks);
+      const sortedSelected = selected.sort((a, b) => flat.findIndex(x => x.id === a) - flat.findIndex(x => x.id === b));
+      for (const bId of sortedSelected) {
+        const match = findBlockById(n.blocks, bId);
+        if (match) {
+          selectedBlocks.push(match.block);
+        }
+      }
+      if (selectedBlocks.length > 0) {
+        const md = blocksToMarkdown(selectedBlocks);
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(md);
+        }
+      }
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') {
+      e.preventDefault();
+      const selectedBlocks: Block[] = [];
+      const flat = flattenVisibleBlocks(n.blocks);
+      const sortedSelected = selected.sort((a, b) => flat.findIndex(x => x.id === a) - flat.findIndex(x => x.id === b));
+      for (const bId of sortedSelected) {
+        const match = findBlockById(n.blocks, bId);
+        if (match) {
+          selectedBlocks.push(match.block);
+        }
+      }
+      if (selectedBlocks.length > 0) {
+        const md = blocksToMarkdown(selectedBlocks);
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(md);
+        }
+      }
+      pushToUndo(ctx, n);
+      for (const bId of selected) {
+        const match = findBlockById(n.blocks, bId);
+        if (match) {
+          const idx = match.parentList.indexOf(match.block);
+          if (idx !== -1) match.parentList.splice(idx, 1);
+        }
+      }
+      selectedIds.clear();
+      rerenderNote(ctx, n);
+      rerenderSelectionStyles(ctx);
       return;
     }
 
