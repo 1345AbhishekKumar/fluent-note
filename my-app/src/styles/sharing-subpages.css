@@ -321,12 +321,13 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   padding: 12px 14px;
   cursor: pointer;
+  transform-origin: var(--transform-origin, top left);
   animation: popoverFadeIn var(--duration-quick) var(--ease-out);
 }
 
 @keyframes popoverFadeIn {
-  from { opacity: 0; transform: translateY(var(--distance-micro)); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(var(--distance-micro)) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .hover-popover-header {
