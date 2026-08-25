@@ -92,6 +92,14 @@
 .nav-item.sel .ni-bar {
   transform: translateY(-50%) scaleY(1);
 }
+.sb-txt {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
 .tree-chevron {
   display: inline-flex;
   align-items: center;
@@ -102,6 +110,7 @@
   border-radius: 4px;
   cursor: pointer;
   transform: rotate(-90deg);
+  flex-shrink: 0;
   transition: transform var(--duration-quick) var(--ease-smooth-out), background var(--duration-quick) var(--ease-smooth-out);
 }
 .tree-chevron.open {
@@ -123,10 +132,24 @@
   display: inline-block;
   width: 18px;
   margin-right: -4px;
+  flex-shrink: 0;
 }
 .tree-row {
   height: 32px !important;
-  gap: 8px !important;
+  gap: 6px !important;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+.tree-row .ic {
+  flex-shrink: 0;
+}
+.tree-row .sb-txt {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .tree-row:hover .tree-add-btn {
   opacity: 0.6 !important;
@@ -146,9 +169,10 @@
   outline-offset: -1px;
 }
 .tree-children {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 .cnt {
   margin-left: auto;

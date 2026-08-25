@@ -19,12 +19,26 @@
   justify-content: center;
 }
 .win.l .nav-item, .win.sb-user .nav-item {
-  justify-content: center;
-  padding: 0;
-  gap: 0;
+  justify-content: center !important;
+  padding: 0 !important;
+  gap: 0 !important;
+}
+.win.l .tree-row, .win.sb-user .tree-row {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  justify-content: center !important;
+  gap: 0 !important;
+}
+.win.l .tree-chevron, .win.sb-user .tree-chevron,
+.win.l .tree-chevron-spacer, .win.sb-user .tree-chevron-spacer,
+.win.l .tree-add-btn, .win.sb-user .tree-add-btn {
+  display: none !important;
+}
+.win.l .tree-children, .win.sb-user .tree-children {
+  display: none !important;
 }
 .win.l .sb-scroll, .win.sb-user .sb-scroll {
-  padding: 10px 10px 8px;
+  padding: 10px 8px 8px;
 }
 .win.m .listpane {
   width: 268px;
