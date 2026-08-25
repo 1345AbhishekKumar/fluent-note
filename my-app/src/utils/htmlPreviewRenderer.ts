@@ -74,22 +74,31 @@ export function updateHtmlPreviewIframe(iframe: HTMLIFrameElement, rawContent: s
   iframe.srcdoc = doc;
 }
 
-export function renderHtmlPreviewsInContainer(container: HTMLElement, theme: 'light' | 'dark' = 'dark') {
+export function renderHtmlPreviewsInContainer(
+  container: HTMLElement,
+  theme: 'light' | 'dark' = 'dark',
+  getContentById?: (id: string) => string | undefined
+) {
   const htmlBlocks = container.querySelectorAll('.block-html-wrapper');
   htmlBlocks.forEach((wrapper) => {
-    const codeField = wrapper.querySelector('.html-code-field') as HTMLElement;
+    const blockId = (wrapper as HTMLElement).dataset.id;
     const iframe = wrapper.querySelector('.html-preview-iframe') as HTMLIFrameElement;
     if (!iframe) return;
 
     let rawText = '';
-    if (codeField) {
-      const html = codeField.innerHTML || '';
-      if (html.includes('<br>') || html.includes('<div>')) {
-        const tmp = document.createElement('div');
-        tmp.innerHTML = html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/div>/gi, '\n').replace(/<div>/gi, '');
-        rawText = tmp.textContent || '';
-      } else {
-        rawText = codeField.innerText || codeField.textContent || '';
+    if (getContentById && blockId) {
+      rawText = getContentById(blockId) || '';
+    } else {
+      const codeField = wrapper.querySelector('.html-code-field') as HTMLElement;
+      if (codeField) {
+        const html = codeField.innerHTML || '';
+        if (html.includes('<br>') || html.includes('<div>')) {
+          const tmp = document.createElement('div');
+          tmp.innerHTML = html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/div>/gi, '\n').replace(/<div>/gi, '');
+          rawText = tmp.textContent || '';
+        } else {
+          rawText = codeField.innerText || codeField.textContent || '';
+        }
       }
     }
 

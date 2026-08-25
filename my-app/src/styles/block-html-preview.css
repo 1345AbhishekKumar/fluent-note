@@ -313,3 +313,47 @@
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* HTML Sidebar Code Editor */
+.html-sidebar-body {
+  display: flex;
+  flex: 1;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  background: var(--bg1, #09090b);
+}
+
+.html-sidebar-textarea {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 14px 16px;
+  background: transparent;
+  color: var(--text1, #f4f4f5);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre;
+  overflow: auto;
+  tab-size: 2;
+}
+
+.html-sidebar-textarea::placeholder {
+  color: var(--text3, #71717a);
+}
+
+.html-edit-btn {
+  background: rgba(59, 130, 246, 0.1) !important;
+  color: #60a5fa !important;
+  border-color: rgba(59, 130, 246, 0.25) !important;
+}
+
+.html-edit-btn:hover {
+  background: rgba(59, 130, 246, 0.2) !important;
+  color: #93c5fd !important;
+  border-color: rgba(59, 130, 246, 0.4) !important;
+}

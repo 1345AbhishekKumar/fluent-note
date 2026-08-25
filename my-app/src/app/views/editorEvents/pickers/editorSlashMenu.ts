@@ -7,6 +7,7 @@ import {
   rerenderNote, focusNextBlockOrNew, openMediaFilePrompt, openUrlPopupEditor,
   openEmojiPicker, openDatePicker, openMentionPicker, openMathPopupEditor 
 } from './editorPopups';
+import { openHtmlSidebarEditor } from '../../htmlSidebarEditor';
 
 export interface SlashItem {
   group?: string;
@@ -318,7 +319,9 @@ export function executeSlashCommand(ctx: AppContext, realIndex: number) {
       if (!match.block.content || match.block.content.trim() === '') {
         match.block.content = `<div style="text-align: center; padding: 20px; font-family: sans-serif;">\n  <h2 style="color: #3b82f6;">Hello HTML Preview! 🚀</h2>\n  <p>Edit HTML, CSS, and JS to see live changes.</p>\n  <button onclick="alert('Interactive JavaScript works!')" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer;">Click Me</button>\n</div>`;
       }
-      break;
+      rerenderNote(ctx, n);
+      openHtmlSidebarEditor(ctx, match.block.id);
+      return;
 
     case 'image': case 'video': case 'audio': case 'file': {
       const isUrl = /^(https?:\/\/[^\s]+)$/i.test(content);

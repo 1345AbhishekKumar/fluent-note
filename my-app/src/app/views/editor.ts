@@ -123,7 +123,7 @@ export function renderEditor(ctx: AppContext) {
   }
   setEdBodyHtml(ctx.elements.edBody, renderBlockTree(n.blocks, 0, undefined, { note: n, allNotes: ctx.state.notes }));
   renderMermaidDiagramsInContainer(ctx.elements.edBody, ctx.api.theme);
-  renderHtmlPreviewsInContainer(ctx.elements.edBody, ctx.api.theme);
+  renderHtmlPreviewsInContainer(ctx.elements.edBody, ctx.api.theme, (id) => findBlockById(n.blocks, id)?.block.content);
   ctx.renderMeta();
   renderSubItems(ctx, n);
   

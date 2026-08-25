@@ -449,27 +449,16 @@ export function renderHtmlBlockHtml(
   levelStyle: string,
   dragHandle: string
 ): string {
-  const mode = block.htmlMode || 'split';
-  const isCodeVisible = mode === 'code' || mode === 'split';
-  const isPreviewVisible = mode === 'preview' || mode === 'split';
-
-  const escContent = esc(block.content || '');
-
-  const codeDisplay = isCodeVisible ? '' : 'style="display:none;"';
-  const previewDisplay = isPreviewVisible ? '' : 'style="display:none;"';
-  const splitClass = mode === 'split' ? 'is-split' : '';
-
-  return `<div class="block-wrapper block-html-wrapper ${splitClass}" data-id="${block.id}" data-type="html" ${levelStyle}>
+  return `<div class="block-wrapper block-html-wrapper" data-id="${block.id}" data-type="html" ${levelStyle}>
     ${dragHandle}
     <div class="html-block-card">
       <div class="html-header">
         <div class="html-title"><span class="html-icon">🌐</span> HTML Preview</div>
-        <div class="html-mode-toggle" data-id="${block.id}">
-          <button class="html-mode-btn ${mode === 'code' ? 'active' : ''}" data-mode="code" data-id="${block.id}">Code</button>
-          <button class="html-mode-btn ${mode === 'preview' ? 'active' : ''}" data-mode="preview" data-id="${block.id}">Preview</button>
-          <button class="html-mode-btn ${mode === 'split' ? 'active' : ''}" data-mode="split" data-id="${block.id}">Split</button>
-        </div>
         <div class="html-actions">
+          <button class="html-edit-btn" data-id="${block.id}" title="Edit HTML Code in Sidebar">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            <span>Edit Code</span>
+          </button>
           <button class="html-refresh-btn" data-id="${block.id}" title="Refresh Preview">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
             <span>Refresh</span>
@@ -485,8 +474,7 @@ export function renderHtmlBlockHtml(
         </div>
       </div>
       <div class="html-body">
-        <div class="block-text-field block-code-field html-code-field" ${codeDisplay} contenteditable="true" spellcheck="false" data-ph="<!-- Enter HTML/CSS/JS here -->">${escContent}</div>
-        <div class="html-preview-container" ${previewDisplay} data-id="${block.id}">
+        <div class="html-preview-container" data-id="${block.id}">
           <iframe class="html-preview-iframe" data-id="${block.id}" sandbox="allow-scripts allow-forms allow-modals" loading="lazy"></iframe>
         </div>
       </div>
