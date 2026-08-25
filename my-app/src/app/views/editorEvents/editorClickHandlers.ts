@@ -21,6 +21,7 @@ export function initEditorClickHandlers(ctx: AppContext) {
   let isMouseDownInEditor = false;
   let dragStartBlockId: string | null = null;
   let isMultiBlockDragSelecting = false;
+  let dragSelectionJustEnded = false;
 
   ctx.elements.edBody.addEventListener('mousedown', e => {
     if (e.button !== 0) return;
@@ -33,6 +34,7 @@ export function initEditorClickHandlers(ctx: AppContext) {
       isMouseDownInEditor = true;
       dragStartBlockId = wrapper.dataset.id;
       isMultiBlockDragSelecting = false;
+      dragSelectionJustEnded = false;
     }
   });
 
@@ -42,6 +44,7 @@ export function initEditorClickHandlers(ctx: AppContext) {
       isMouseDownInEditor = false;
       dragStartBlockId = null;
       isMultiBlockDragSelecting = false;
+      (ctx.st as any)._isDragSelecting = false;
       return;
     }
     const target = e.target as HTMLElement;
@@ -52,6 +55,7 @@ export function initEditorClickHandlers(ctx: AppContext) {
     if (currentBlockId !== dragStartBlockId) {
       if (!isMultiBlockDragSelecting) {
         isMultiBlockDragSelecting = true;
+        (ctx.st as any)._isDragSelecting = true;
         (document.activeElement as HTMLElement)?.blur();
         window.getSelection()?.removeAllRanges();
       }
@@ -67,6 +71,7 @@ export function initEditorClickHandlers(ctx: AppContext) {
           const rangeIds = flat.slice(min, max + 1).map(b => b.id);
           ctx.st.selectedBlockIds = new Set(rangeIds);
           rerenderSelectionStyles(ctx);
+          (document.activeElement as HTMLElement)?.blur();
           window.getSelection()?.removeAllRanges();
         }
       }
@@ -75,12 +80,29 @@ export function initEditorClickHandlers(ctx: AppContext) {
 
   document.addEventListener('mouseup', () => {
     if (isMultiBlockDragSelecting) {
+      dragSelectionJustEnded = true;
+      (document.activeElement as HTMLElement)?.blur();
       window.getSelection()?.removeAllRanges();
+      setTimeout(() => {
+        dragSelectionJustEnded = false;
+        (ctx.st as any)._isDragSelecting = false;
+      }, 100);
       isMultiBlockDragSelecting = false;
     }
     isMouseDownInEditor = false;
     dragStartBlockId = null;
   });
+
+  ctx.elements.edBody.addEventListener('click', e => {
+    if (dragSelectionJustEnded) {
+      e.preventDefault();
+      e.stopPropagation();
+      dragSelectionJustEnded = false;
+      (document.activeElement as HTMLElement)?.blur();
+      window.getSelection()?.removeAllRanges();
+      return;
+    }
+  }, true);
 
   let lastFlyoutTime = 0;
 

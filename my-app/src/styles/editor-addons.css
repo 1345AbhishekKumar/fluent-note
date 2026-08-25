@@ -1,9 +1,32 @@
 /* ── KEYBOARD SHORTCUTS AND BLOCK SELECTION MODE STYLES ───────────────── */
 
 .block-wrapper.selected {
-  background-color: var(--accent-soft, rgba(0, 103, 192, 0.08)) !important;
-  border-radius: 4px;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
   position: relative;
+  user-select: none;
+}
+
+.block-wrapper.selected .block-content-container,
+.block-wrapper.selected .block-code-field,
+.block-wrapper.selected .table-cell-field,
+.block-wrapper.selected .block-quote,
+.block-wrapper.selected .block-callout-box {
+  background-color: rgba(0, 103, 192, 0.22) !important;
+  border-radius: 0;
+}
+
+.win[data-theme="dark"] .block-wrapper.selected .block-content-container,
+.win[data-theme="dark"] .block-wrapper.selected .block-code-field,
+.win[data-theme="dark"] .block-wrapper.selected .table-cell-field,
+.win[data-theme="dark"] .block-wrapper.selected .block-quote,
+.win[data-theme="dark"] .block-wrapper.selected .block-callout-box {
+  background-color: rgba(96, 205, 255, 0.25) !important;
+}
+
+.block-wrapper.selected * {
+  user-select: none !important;
 }
 
 /* Fullscreen media lightbox */

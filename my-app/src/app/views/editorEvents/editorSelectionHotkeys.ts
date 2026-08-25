@@ -250,6 +250,40 @@ export function handleDocumentBlockSelectionKeydown(ctx: AppContext, e: Keyboard
       return;
     }
 
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
+      e.preventDefault();
+      pushToUndo(ctx, n);
+      const flat = flattenVisibleBlocks(n.blocks);
+      const sortedSelected = selected.sort((a, b) => flat.findIndex(x => x.id === a) - flat.findIndex(x => x.id === b));
+      const firstId = sortedSelected[0];
+      const remainingIds = sortedSelected.slice(1);
+
+      const firstMatch = findBlockById(n.blocks, firstId);
+      if (firstMatch) {
+        firstMatch.block.content = e.key;
+        firstMatch.block.type = 'paragraph';
+      }
+
+      for (const bId of remainingIds) {
+        const match = findBlockById(n.blocks, bId);
+        if (match) {
+          const idx = match.parentList.indexOf(match.block);
+          if (idx !== -1) match.parentList.splice(idx, 1);
+        }
+      }
+
+      selectedIds.clear();
+      rerenderNote(ctx, n);
+      rerenderSelectionStyles(ctx);
+
+      const firstField = ctx.elements.edBody.querySelector(`[data-id="${firstId}"] .block-text-field`) as HTMLElement;
+      if (firstField) {
+        firstField.focus();
+        moveCaret(firstField, false);
+      }
+      return;
+    }
+
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
       e.preventDefault();
       const flat = flattenVisibleBlocks(n.blocks);

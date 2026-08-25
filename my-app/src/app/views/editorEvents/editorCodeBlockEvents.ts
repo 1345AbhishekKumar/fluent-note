@@ -47,6 +47,11 @@ export function handleCodeBlockControlsClick(ctx: AppContext, e: MouseEvent, tar
 export function handleCodeFieldFocusIn(ctx: AppContext, e: FocusEvent) {
   const target = e.target as HTMLElement;
   
+  if ((ctx.st as any)._isDragSelecting) {
+    target.blur();
+    return;
+  }
+
   if (target.classList.contains('block-text-field') || target.classList.contains('block-code-field')) {
     if (ctx.st.selectedBlockIds && ctx.st.selectedBlockIds.size > 0) {
       ctx.st.selectedBlockIds.clear();
