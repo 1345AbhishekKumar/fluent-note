@@ -174,7 +174,9 @@ body:not(.split) .half.b {
   --focus: #0067c0;
   --sh-card: 0 1px 2px rgba(0, 0, 0, .06);
   --border: rgba(0, 0, 0, 0.08);
+  --border2: rgba(0, 0, 0, 0.15);
   --bg2: rgba(0, 0, 0, 0.03);
+  --bg3: rgba(0, 0, 0, 0.06);
 }
 .win[data-theme="dark"] {
   --mica: rgba(32, 32, 32, .80);
@@ -207,7 +209,9 @@ body:not(.split) .half.b {
   --focus: #60cdff;
   --sh-card: 0 1px 2px rgba(0, 0, 0, .3);
   --border: rgba(255, 255, 255, 0.085);
+  --border2: rgba(255, 255, 255, 0.16);
   --bg2: rgba(255, 255, 255, 0.045);
+  --bg3: rgba(255, 255, 255, 0.08);
 }
 
 /* reveal hover */
