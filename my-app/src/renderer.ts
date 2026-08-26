@@ -1,12 +1,14 @@
 import './index.css';
 import { createApp } from './app/createApp';
 import { APPS } from './store';
+import { initToaster, setToasterTheme, showToast } from './app/toaster';
 
 export * from './types';
 export * from './constants';
 export * from './utils';
 export * from './store';
 export * from './app/createApp';
+export * from './app/toaster';
 
 export function removeSearchHighlights(container?: Element | Document | null) {
   const root = container || document;
@@ -22,6 +24,8 @@ export function removeSearchHighlights(container?: Element | Document | null) {
 
 /* ================= BOOT ================= */
 document.addEventListener('DOMContentLoaded', () => {
+  initToaster('light');
+
   const halfA = document.getElementById('halfA');
   const halfB = document.getElementById('halfB');
   if (!halfA || !halfB) return;
@@ -31,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   appA.onTheme = (t) => {
     document.body.dataset.wall = t;
+    setToasterTheme(t as 'light' | 'dark' | 'system');
   };
 
   document.addEventListener('selectionchange', () => {
@@ -258,13 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (noteId) {
         const link = `fluent-notes://note/${noteId}`;
         navigator.clipboard.writeText(link).then(() => {
-          const toastEl = app.root.querySelector('.toast') as HTMLElement;
-          const tMsg = app.root.querySelector('.t-msg') as HTMLElement;
-          if (toastEl && tMsg) {
-            tMsg.textContent = 'Note link copied to clipboard!';
-            toastEl.classList.add('show');
-            setTimeout(() => toastEl.classList.remove('show'), 3000);
-          }
+          showToast('Note link copied to clipboard!');
         });
       }
       return;

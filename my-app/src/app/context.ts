@@ -1,4 +1,5 @@
 import type { AppInstance, Note, TransientClip, FlyoutItem, Folder } from '../types';
+import type { ToastFn } from './toaster';
 
 export interface AppState {
   notes: Note[];
@@ -62,14 +63,14 @@ export interface AppElements {
   saveEl: HTMLElement;
   saveT: HTMLElement;
   fly: HTMLElement;
-  toastEl: HTMLElement;
-  tMsg: HTMLElement;
-  tAct: HTMLButtonElement;
+  toastEl?: HTMLElement;
+  tMsg?: HTMLElement;
+  tAct?: HTMLButtonElement;
   scrim: HTMLElement;
 }
 
 export interface AppActions {
-  toast: (msg: string, actLabel?: string, fn?: () => void) => void;
+  toast: ToastFn;
   markSaving: () => void;
   selectNote: (id: string | null, focusTitle?: boolean, skipHistory?: boolean) => void;
   renderSidebar: () => void;
@@ -113,7 +114,7 @@ export interface AppContext {
   elements: AppElements;
   
   // Legacy actions mapped directly for compatibility
-  toast: (msg: string, actLabel?: string, fn?: () => void) => void;
+  toast: ToastFn;
   markSaving: () => void;
   selectNote: (id: string | null, focusTitle?: boolean, skipHistory?: boolean) => void;
   renderSidebar: () => void;

@@ -16,6 +16,7 @@ import { selectNote, navigateNote, deleteNote, newNote, newSubNote, newSubFolder
 import { initVaultSwitcher } from './appVaultSwitcher';
 import { initResponsive } from './appResponsive';
 import { initResize } from './appResize';
+import { showToast } from './toaster';
 
 const REDUCED = (typeof matchMedia !== 'undefined') ? matchMedia('(prefers-reduced-motion: reduce)').matches : false;
 
@@ -91,26 +92,13 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
     saveEl: q<HTMLElement>('.save'),
     saveT: q<HTMLElement>('.save-t'),
     fly: q<HTMLElement>('.flyout'),
-    toastEl: q<HTMLElement>('.toast'),
-    tMsg: q<HTMLElement>('.t-msg'),
-    tAct: q<HTMLButtonElement>('.t-act'),
+    toastEl: q<HTMLElement>('.toast') || undefined,
+    tMsg: q<HTMLElement>('.t-msg') || undefined,
+    tAct: q<HTMLButtonElement>('.t-act') || undefined,
     scrim: q<HTMLElement>('.scrim')
   };
 
-  let toastTimer: any = null;
-  let toastFn: (() => void) | null = null;
-  function toast(msg: string, actLabel?: string, fn?: () => void) {
-    elements.tMsg.textContent = msg;
-    elements.tAct.textContent = actLabel || '';
-    toastFn = fn || null;
-    elements.toastEl.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => elements.toastEl.classList.remove('show'), 3600);
-  }
-  elements.tAct.addEventListener('click', () => {
-    if (toastFn) toastFn();
-    elements.toastEl.classList.remove('show');
-  });
+  const toast = showToast;
 
   let saveTimer: any = null;
   function markSaving() {
@@ -205,7 +193,6 @@ export function createApp(host: HTMLElement, theme: 'light' | 'dark'): AppInstan
       }
     },
     destroy() {
-      clearTimeout(toastTimer);
       clearTimeout(saveTimer);
       hideFlyout();
       cleanups.forEach(fn => fn());

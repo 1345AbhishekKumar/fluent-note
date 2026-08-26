@@ -227,7 +227,7 @@ export function renderSettingsOverlay(IC: any): string {
 }
 
 export function renderToast(): string {
-  return `<div class="toast"><span class="t-msg"></span><button class="t-act"></button></div>`;
+  return '';
 }
 
 export function renderAppLayout(theme: string, IC: any, TAGS: any, winControlsHtml: string): string {
