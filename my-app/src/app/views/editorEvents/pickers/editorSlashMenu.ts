@@ -7,6 +7,7 @@ import {
   rerenderNote, focusNextBlockOrNew, openMediaFilePrompt, openUrlPopupEditor,
   openEmojiPicker, openDatePicker, openMentionPicker, openMathPopupEditor 
 } from './editorPopups';
+import { showAutocompletePicker } from './editorAutocompletePicker';
 import { openHtmlSidebarEditor } from '../../htmlSidebarEditor';
 
 export interface SlashItem {
@@ -46,7 +47,11 @@ export const allSlashItems: SlashItem[] = [
   { type: 'bookmark',   label: 'Bookmark',   desc: 'Web bookmark card',       icon: '<svg viewBox="0 0 24 24"><path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>',  aliases: ['book','bookmark','link','url'] },
   { type: 'code',       label: 'Code',       desc: 'Syntax-highlighted code', icon: '<svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',  aliases: ['code','snippet','pre'] },
   { type: 'file',       label: 'File',       desc: 'Upload any file',         icon: '<svg viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>',  aliases: ['file','upload','attach'] },
-  { group: 'Inline' },
+  { group: 'Inline & Links' },
+  { type: 'link_page',    label: 'Link to page',    desc: 'Link to an existing note',      icon: '<svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>', aliases: ['link','page link','wikilink'] },
+  { type: 'link_heading', label: 'Link to section', desc: 'Link to a specific heading',    icon: '<svg viewBox="0 0 24 24"><path d="M4 12h8M4 6v12M12 6v12M17 12l2-2v8"/></svg>', aliases: ['heading link','section link','anchor'] },
+  { type: 'link_block',   label: 'Link to block',   desc: 'Link to a paragraph or block',  icon: '<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>', aliases: ['block link','block ref'] },
+  { type: 'embed_page',   label: 'Embed page',      desc: 'Embed live preview card of page', icon: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>', aliases: ['embed','transclude'] },
   { type: 'mention',    label: 'Mention',    desc: 'Mention a page or person',icon: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>',   aliases: ['mention','at','person'] },
   { type: 'date',       label: 'Date',       desc: 'Insert date/reminder',    icon: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',  aliases: ['date','reminder','time','calendar'] },
   { type: 'equation',   label: 'Equation',   desc: 'Inline TeX formula',      icon: '<svg viewBox="0 0 24 24"><path d="M4 4h6l4 16 4-16h2"/></svg>',   aliases: ['equation','eq','formula'] },
@@ -526,6 +531,31 @@ export function executeSlashCommand(ctx: AppContext, realIndex: number) {
       match.block.type = 'template';
       match.block.content = 'Template button';
       break;
+
+    case 'link_page': {
+      rerenderNote(ctx, n);
+      const field = ctx.elements.edBody.querySelector(`[data-id="${blockId}"] .block-text-field`) as HTMLElement;
+      if (field) showAutocompletePicker(ctx, match.block, field, '[[', '');
+      return;
+    }
+    case 'link_heading': {
+      rerenderNote(ctx, n);
+      const field = ctx.elements.edBody.querySelector(`[data-id="${blockId}"] .block-text-field`) as HTMLElement;
+      if (field) showAutocompletePicker(ctx, match.block, field, '[[', '#');
+      return;
+    }
+    case 'link_block': {
+      rerenderNote(ctx, n);
+      const field = ctx.elements.edBody.querySelector(`[data-id="${blockId}"] .block-text-field`) as HTMLElement;
+      if (field) showAutocompletePicker(ctx, match.block, field, '[[', '#^');
+      return;
+    }
+    case 'embed_page': {
+      rerenderNote(ctx, n);
+      const field = ctx.elements.edBody.querySelector(`[data-id="${blockId}"] .block-text-field`) as HTMLElement;
+      if (field) showAutocompletePicker(ctx, match.block, field, '![[', '');
+      return;
+    }
 
     case 'color_blue':    match.block.textColor = '#2b579a'; ctx.st.lastUsedColor = '#2b579a'; break;
     case 'color_red':     match.block.textColor = '#b91d47'; ctx.st.lastUsedColor = '#b91d47'; break;

@@ -179,6 +179,7 @@ export function initEditorKeyHandlers(ctx: AppContext) {
       let bestTrigger: { symbol: string; query: string; index: number } | null = null;
 
       const triggerPatterns: { symbol: string; regex: RegExp }[] = [
+        { symbol: '![[', regex: /(?:^|\s)(!\[\[)([^\]]*)$/ },
         { symbol: '[[', regex: /(?:^|\s)(\[\[)([^\]]*)$/ },
         { symbol: '@', regex: /(?:^|\s)(@)([^\s@]*)$/ },
         { symbol: '+', regex: /(?:^|\s)(\+)([^\s+]*)$/ }

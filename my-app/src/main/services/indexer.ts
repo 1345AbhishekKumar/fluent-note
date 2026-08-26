@@ -22,10 +22,14 @@ class InMemoryVaultIndex {
     if (!blocks || !Array.isArray(blocks)) return;
     for (const block of blocks) {
       if (block.content) {
-        const matches = block.content.matchAll(/\[\[(.*?)\]\]/g);
+        const matches = block.content.matchAll(/(!?)\[\[(.*?)\]\]/g);
         for (const match of matches) {
-          if (match[1] && match[1].trim()) {
-            targetSet.add(match[1].trim().toLowerCase());
+          const raw = match[2] || '';
+          const [targetWithAnchor] = raw.split('|');
+          const [pathPart] = targetWithAnchor.split('#');
+          const cleanTarget = pathPart.replace(/\.md$/i, '').trim().toLowerCase();
+          if (cleanTarget) {
+            targetSet.add(cleanTarget);
           }
         }
       }
@@ -49,10 +53,14 @@ class InMemoryVaultIndex {
         this.extractWikilinks(note.blocks, links);
       } else {
         const bodyText = note.body || '';
-        const matches = bodyText.matchAll(/\[\[(.*?)\]\]/g);
+        const matches = bodyText.matchAll(/(!?)\[\[(.*?)\]\]/g);
         for (const match of matches) {
-          if (match[1] && match[1].trim()) {
-            links.add(match[1].trim().toLowerCase());
+          const raw = match[2] || '';
+          const [targetWithAnchor] = raw.split('|');
+          const [pathPart] = targetWithAnchor.split('#');
+          const cleanTarget = pathPart.replace(/\.md$/i, '').trim().toLowerCase();
+          if (cleanTarget) {
+            links.add(cleanTarget);
           }
         }
       }

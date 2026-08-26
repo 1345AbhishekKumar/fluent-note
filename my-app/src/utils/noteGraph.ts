@@ -1,17 +1,35 @@
-// Note linking, graph traversal & hierarchy utilities extracted from utils/index.ts
+// Note linking, graph traversal & hierarchy utilities
 import type { Note, Folder } from '../types';
 import { sharedNotebooks as NBS } from '../store/notebookStore';
 import { getBlocksText } from './blockTree';
+import { parseLinkString } from './linkParser';
 
-export function extractLinks(text: string, allNotes?: Note[]): { wiki: string[], at: string[] } {
+export function extractLinks(text: string, allNotes?: Note[]): { wiki: string[]; at: string[] } {
   const wiki: string[] = [];
   const at: string[] = [];
-  
-  const wikiRegex = /\[\[(.*?)\]\]/g;
+
+  // Match wikilinks & transclusions
+  const wikiRegex = /(!?)\[\[(.*?)\]\]/g;
   let match;
   while ((match = wikiRegex.exec(text)) !== null) {
-    if (match[1]) {
-      wiki.push(match[1].trim());
+    const raw = match[0];
+    const parsed = parseLinkString(raw);
+    if (parsed && parsed.targetPath) {
+      if (!wiki.includes(parsed.targetPath)) {
+        wiki.push(parsed.targetPath);
+      }
+    }
+  }
+
+  // Match markdown links
+  const mdLinkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
+  while ((match = mdLinkRegex.exec(text)) !== null) {
+    const raw = match[0];
+    const parsed = parseLinkString(raw);
+    if (parsed && parsed.targetPath && !parsed.targetPath.startsWith('http')) {
+      if (!wiki.includes(parsed.targetPath)) {
+        wiki.push(parsed.targetPath);
+      }
     }
   }
 
@@ -31,7 +49,7 @@ export function extractLinks(text: string, allNotes?: Note[]): { wiki: string[],
       }
     }
   }
-  
+
   // Generic @ mention with stopword boundary matching inlineParsers
   const genericAtRegex = /@([a-zA-Z0-9_\-]+(?:\s+(?!(?:and|or|for|with|is|are|was|were|the|a|an|in|at|on|of|to|from|by|about|as)\b)[a-zA-Z0-9_\-]+)*)/gi;
   while ((match = genericAtRegex.exec(text)) !== null) {
@@ -42,14 +60,15 @@ export function extractLinks(text: string, allNotes?: Note[]): { wiki: string[],
       }
     }
   }
-  
+
   return { wiki, at };
 }
 
 export function resolveNoteId(ref: string, allNotes: Note[]): string | null {
-  const lowerRef = ref.toLowerCase().trim();
+  if (!ref) return null;
+  const lowerRef = ref.toLowerCase().trim().replace(/\.md$/i, '');
   for (const note of allNotes) {
-    if (note.title.toLowerCase().trim() === lowerRef) {
+    if (note.title.toLowerCase().trim() === lowerRef || note.id.toLowerCase() === lowerRef) {
       return note.id;
     }
   }
@@ -67,7 +86,7 @@ export function getReferencedNoteIds(note: Note, allNotes: Note[]): Set<string> 
   const referencedIds = new Set<string>();
   const text = getBlocksText(note.blocks || []);
   const { wiki, at } = extractLinks(text, allNotes);
-  
+
   for (const ref of [...wiki, ...at]) {
     const id = resolveNoteId(ref, allNotes);
     if (id) {
@@ -80,27 +99,46 @@ export function getReferencedNoteIds(note: Note, allNotes: Note[]): Set<string> 
       }
     }
   }
-  
+
   return referencedIds;
 }
 
 export function renameNoteWikilinks(notes: Note[], oldTitle: string, newTitle: string): number {
-  if (!oldTitle || !newTitle || oldTitle.trim() === newTitle.trim()) return 0;
+  if (!oldTitle || !newTitle || oldTitle.trim().toLowerCase() === newTitle.trim().toLowerCase()) return 0;
   const trimmedOld = oldTitle.trim();
   const trimmedNew = newTitle.trim();
-  
+
   const escapedOld = trimmedOld.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const wikiRegex = new RegExp(`\\[\\[${escapedOld}\\]\\]`, 'gi');
-  
+  // Matches [[OldTitle]], [[OldTitle#Heading]], [[OldTitle|Alias]], ![[OldTitle...]]
+  const wikiRegex = new RegExp(`(!?\\[\\[)${escapedOld}((?=[#|\\]])|(?=\\.md[#|\\]]))`, 'gi');
+  // Matches [Text](OldTitle.md...)
+  const mdRegex = new RegExp(`(!?\\[[^\\]]*\\]\\()${encodeURI(escapedOld)}(\\.md)?(?=[#\\)])`, 'gi');
+
   let updateCount = 0;
+
+  function replaceInText(text: string): { newText: string; count: number } {
+    let count = 0;
+    let newText = text.replace(wikiRegex, (match, prefix) => {
+      count++;
+      return `${prefix}${trimmedNew}`;
+    });
+    newText = newText.replace(mdRegex, (match, prefix) => {
+      count++;
+      return `${prefix}${encodeURI(trimmedNew)}.md`;
+    });
+    return { newText, count };
+  }
 
   function updateBlocks(blocks: any[]): boolean {
     let modified = false;
     for (const b of blocks) {
-      if (b.content && wikiRegex.test(b.content)) {
-        b.content = b.content.replace(wikiRegex, `[[${trimmedNew}]]`);
-        modified = true;
-        updateCount++;
+      if (b.content) {
+        const { newText, count } = replaceInText(b.content);
+        if (count > 0) {
+          b.content = newText;
+          updateCount += count;
+          modified = true;
+        }
       }
       if (b.children && b.children.length > 0) {
         if (updateBlocks(b.children)) modified = true;
@@ -110,9 +148,12 @@ export function renameNoteWikilinks(notes: Note[], oldTitle: string, newTitle: s
   }
 
   for (const n of notes) {
-    if (n.body && wikiRegex.test(n.body)) {
-      n.body = n.body.replace(wikiRegex, `[[${trimmedNew}]]`);
-      updateCount++;
+    if (n.body) {
+      const { newText, count } = replaceInText(n.body);
+      if (count > 0) {
+        n.body = newText;
+        updateCount += count;
+      }
     }
     if (n.blocks && n.blocks.length > 0) {
       updateBlocks(n.blocks);
@@ -129,7 +170,7 @@ export function calculateSubGraphClosure(
 ): { sharedIds: Set<string>; truncatedIds: Set<string> } {
   const sharedIds = new Set<string>();
   const truncatedIds = new Set<string>();
-  
+
   const allowedNoteIds = new Set<string>();
   for (const n of notes) {
     if (boundary.notebook && n.nb === boundary.notebook) {
@@ -138,25 +179,25 @@ export function calculateSubGraphClosure(
       allowedNoteIds.add(n.id);
     }
   }
-  
+
   const startIds = typeof startNotes === 'string' ? [startNotes] : startNotes;
   for (const sId of startIds) {
     allowedNoteIds.add(sId);
   }
-  
+
   const visited = new Set<string>();
   const queue = [...startIds];
-  
+
   while (queue.length > 0) {
     const currentId = queue.shift()!;
     if (visited.has(currentId)) continue;
     visited.add(currentId);
-    
+
     sharedIds.add(currentId);
-    
+
     const currentNote = notes.find(n => n.id === currentId);
     if (!currentNote) continue;
-    
+
     const refIds = getReferencedNoteIds(currentNote, notes);
     for (const refId of refIds) {
       if (allowedNoteIds.has(refId)) {
@@ -168,7 +209,7 @@ export function calculateSubGraphClosure(
       }
     }
   }
-  
+
   return { sharedIds, truncatedIds };
 }
 

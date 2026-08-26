@@ -12,8 +12,8 @@ export function convertNodeToMarkdown(node: Node): string {
   const el = node as HTMLElement;
   const tag = el.tagName.toLowerCase();
 
-  if (el.classList.contains('wiki-link')) {
-    return el.textContent || '';
+  if (el.classList.contains('wiki-link') || el.classList.contains('embedded-transclusion')) {
+    return el.getAttribute('data-raw') || el.textContent || '';
   }
   if (el.classList.contains('date-badge')) {
     const date = el.getAttribute('data-date') || '';
@@ -65,9 +65,9 @@ export function cleanBadgeHtml(el: HTMLElement): string {
   const temp = document.createElement('div');
   temp.innerHTML = el.innerHTML;
   
-  temp.querySelectorAll('.wiki-link').forEach((child: any) => {
-    const txt = child.textContent || '';
-    child.replaceWith(document.createTextNode(txt));
+  temp.querySelectorAll('.wiki-link, .embedded-transclusion').forEach((child: any) => {
+    const raw = child.getAttribute('data-raw') || child.textContent || '';
+    child.replaceWith(document.createTextNode(raw));
   });
   temp.querySelectorAll('.date-badge').forEach((child: any) => {
     const date = child.getAttribute('data-date') || '';

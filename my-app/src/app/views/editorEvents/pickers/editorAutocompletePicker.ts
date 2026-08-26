@@ -1,7 +1,8 @@
 import type { AppContext } from '../../../context';
 import type { Block, Note } from '../../../../types';
-import { findBlockById, genId, cleanBadgeHtml } from '../../../../utils';
+import { findBlockById, genId, cleanBadgeHtml, resolveNoteId } from '../../../../utils';
 import { saveAndSyncContent, saveAndSync } from '../../../../store';
+import { formatWikilink, generateBlockIdentifier, extractBlockIdTag } from '../../../../utils/linkParser';
 
 let activePickerEl: HTMLElement | null = null;
 let activePickerBlockId: string | null = null;
@@ -73,6 +74,38 @@ function insertTextAtCaret(ctx: AppContext, el: HTMLElement, val: string) {
   }
 }
 
+function getNoteHeadings(note: Note): { level: number; text: string }[] {
+  const headings: { level: number; text: string }[] = [];
+  function walk(blocks: Block[]) {
+    for (const b of blocks) {
+      if (b.type === 'heading1' || b.type === 'heading2' || b.type === 'heading3') {
+        const lvl = b.type === 'heading1' ? 1 : b.type === 'heading2' ? 2 : 3;
+        const text = (b.content || '').replace(/<[^>]+>/g, '').trim();
+        if (text) headings.push({ level: lvl, text });
+      }
+      if (b.children && b.children.length > 0) walk(b.children);
+    }
+  }
+  if (note.blocks && note.blocks.length > 0) walk(note.blocks);
+  return headings;
+}
+
+function getNoteBlocks(note: Note): { block: Block; text: string; id: string }[] {
+  const items: { block: Block; text: string; id: string }[] = [];
+  function walk(blocks: Block[]) {
+    for (const b of blocks) {
+      const rawText = (b.content || '').replace(/<[^>]+>/g, '').trim();
+      if (rawText && b.type !== 'divider' && b.type !== 'toc' && b.type !== 'breadcrumb') {
+        const { text, blockId } = extractBlockIdTag(rawText);
+        items.push({ block: b, text: text || rawText, id: blockId || b.id });
+      }
+      if (b.children && b.children.length > 0) walk(b.children);
+    }
+  }
+  if (note.blocks && note.blocks.length > 0) walk(note.blocks);
+  return items;
+}
+
 export function showAutocompletePicker(ctx: AppContext, block: Block, textField: HTMLElement, symbol: string, query = '') {
   closeAutocompletePicker();
   selectedPickerIndex = 0;
@@ -81,11 +114,12 @@ export function showAutocompletePicker(ctx: AppContext, block: Block, textField:
   activeTextField = textField;
   activePickerQuery = query;
 
+  const isEmbed = symbol === '![[';
   const picker = document.createElement('div');
-  picker.className = 'slash-menu autocomplete-picker absolute z-[1000] bg-card dark:bg-[#202020] border border-border rounded-xl shadow-xl max-h-[280px] min-w-[250px] overflow-y-auto py-1.5 flex flex-col';
+  picker.className = 'slash-menu autocomplete-picker absolute z-[1000] bg-card dark:bg-[#202020] border border-border rounded-xl shadow-xl max-h-[300px] min-w-[280px] overflow-y-auto py-1.5 flex flex-col';
 
   let items: { label: string; desc?: string; icon: string; action: () => void }[] = [];
-  
+
   if (symbol === '@') {
     const members = [
       { name: 'John Doe', role: 'Collaborator' },
@@ -155,78 +189,232 @@ export function showAutocompletePicker(ctx: AppContext, block: Block, textField:
         }
       });
     }
-  } else if (symbol === '[[' || symbol === '+') {
-    ctx.st.notes.forEach(x => {
-      if (x.id !== ctx.st.sel && (x.title || '').toLowerCase().includes(query.toLowerCase())) {
+  } else if (symbol === '[[' || symbol === '![[' || symbol === '+') {
+    const currentNote = ctx.st.notes.find(x => x.id === ctx.st.sel);
+
+    // 1. Alias Mode: "Note#Heading|alias"
+    if (query.includes('|')) {
+      const [targetPart, aliasPart] = query.split('|');
+      const aliasClean = aliasPart.trim();
+      items.push({
+        label: aliasClean ? `Set alias: "${aliasClean}"` : 'Type custom display text...',
+        desc: `Links to ${targetPart || 'Note'}`,
+        icon: '🏷',
+        action: () => {
+          const linkStr = formatWikilink(targetPart, undefined, undefined, aliasClean || undefined, isEmbed);
+          insertTextAtCaret(ctx, textField, linkStr);
+          saveAndSyncContent();
+        }
+      });
+    }
+    // 2. Vault-Wide Heading Search: "##heading"
+    else if (query.startsWith('##')) {
+      const headingQuery = query.slice(2).trim().toLowerCase();
+      for (const note of ctx.st.notes) {
+        const headings = getNoteHeadings(note);
+        for (const h of headings) {
+          if (!headingQuery || h.text.toLowerCase().includes(headingQuery)) {
+            items.push({
+              label: h.text,
+              desc: `${note.title || 'Untitled'} (H${h.level})`,
+              icon: '⚓',
+              action: () => {
+                const targetTitle = note.id === ctx.st.sel ? '' : (note.title || 'Untitled');
+                const linkStr = formatWikilink(targetTitle, h.text, undefined, undefined, isEmbed);
+                insertTextAtCaret(ctx, textField, linkStr);
+                saveAndSyncContent();
+              }
+            });
+            if (items.length >= 25) break;
+          }
+        }
+        if (items.length >= 25) break;
+      }
+    }
+    // 3. Vault-Wide Block Search: "^^block"
+    else if (query.startsWith('^^')) {
+      const blockQuery = query.slice(2).trim().toLowerCase();
+      for (const note of ctx.st.notes) {
+        const blocks = getNoteBlocks(note);
+        for (const item of blocks) {
+          if (!blockQuery || item.text.toLowerCase().includes(blockQuery)) {
+            items.push({
+              label: item.text.length > 50 ? item.text.substring(0, 48) + '...' : item.text,
+              desc: `${note.title || 'Untitled'} (Block)`,
+              icon: '⚑',
+              action: () => {
+                let targetId = item.id;
+                if (!item.block.content.includes(` ^`)) {
+                  const newId = generateBlockIdentifier();
+                  item.block.content += ` ^${newId}`;
+                  targetId = newId;
+                }
+                const targetTitle = note.id === ctx.st.sel ? '' : (note.title || 'Untitled');
+                const linkStr = formatWikilink(targetTitle, undefined, targetId, undefined, isEmbed);
+                insertTextAtCaret(ctx, textField, linkStr);
+                saveAndSyncContent();
+              }
+            });
+            if (items.length >= 25) break;
+          }
+        }
+        if (items.length >= 25) break;
+      }
+    }
+    // 4. Note-Specific Block Search: "Note#^block" or "#^block"
+    else if (query.includes('#^')) {
+      const [notePart, blockPart] = query.split('#^');
+      const targetNote = notePart.trim()
+        ? ctx.st.notes.find(n => (n.title || '').toLowerCase().trim() === notePart.toLowerCase().trim() || n.id === resolveNoteId(notePart, ctx.st.notes))
+        : currentNote;
+
+      if (targetNote) {
+        const blocks = getNoteBlocks(targetNote);
+        const bQuery = blockPart.trim().toLowerCase();
+        for (const item of blocks) {
+          if (!bQuery || item.text.toLowerCase().includes(bQuery)) {
+            items.push({
+              label: item.text.length > 50 ? item.text.substring(0, 48) + '...' : item.text,
+              desc: `${targetNote.title || 'Untitled'} (Block ref)`,
+              icon: '⚑',
+              action: () => {
+                let targetId = item.id;
+                if (!item.block.content.includes(` ^`)) {
+                  const newId = generateBlockIdentifier();
+                  item.block.content += ` ^${newId}`;
+                  targetId = newId;
+                }
+                const targetTitle = targetNote.id === ctx.st.sel ? '' : (targetNote.title || 'Untitled');
+                const linkStr = formatWikilink(targetTitle, undefined, targetId, undefined, isEmbed);
+                insertTextAtCaret(ctx, textField, linkStr);
+                saveAndSyncContent();
+              }
+            });
+            if (items.length >= 25) break;
+          }
+        }
+      }
+    }
+    // 5. Note-Specific Heading Search: "Note#heading" or "#heading"
+    else if (query.includes('#')) {
+      const [notePart, headingPart] = query.split('#');
+      const targetNote = notePart.trim()
+        ? ctx.st.notes.find(n => (n.title || '').toLowerCase().trim() === notePart.toLowerCase().trim() || n.id === resolveNoteId(notePart, ctx.st.notes))
+        : currentNote;
+
+      if (targetNote) {
+        const headings = getNoteHeadings(targetNote);
+        const hQuery = headingPart.trim().toLowerCase();
+        for (const h of headings) {
+          if (!hQuery || h.text.toLowerCase().includes(hQuery)) {
+            items.push({
+              label: h.text,
+              desc: `${targetNote.title || 'Untitled'} (H${h.level})`,
+              icon: '⚓',
+              action: () => {
+                const targetTitle = targetNote.id === ctx.st.sel ? '' : (targetNote.title || 'Untitled');
+                const linkStr = formatWikilink(targetTitle, h.text, undefined, undefined, isEmbed);
+                insertTextAtCaret(ctx, textField, linkStr);
+                saveAndSyncContent();
+              }
+            });
+          }
+        }
+      }
+    }
+    // 6. Default Note Search
+    else {
+      // Suggest headings and blocks inside current note if query is empty
+      if (!query && currentNote) {
         items.push({
-          label: x.title || 'Untitled',
-          desc: 'Link to note',
-          icon: '📄',
+          label: '# Heading in this note...',
+          desc: 'Link to a section in current page',
+          icon: '⚓',
           action: () => {
-            insertTextAtCaret(ctx, textField, `[[${x.title || 'Untitled'}]]`);
-            saveAndSyncContent();
+            showAutocompletePicker(ctx, block, textField, symbol, '#');
+          }
+        });
+        items.push({
+          label: '#^ Block in this note...',
+          desc: 'Link to a paragraph or block in current page',
+          icon: '⚑',
+          action: () => {
+            showAutocompletePicker(ctx, block, textField, symbol, '#^');
           }
         });
       }
-    });
 
-    if ('add new sub-page'.includes(query.toLowerCase()) || 'subpage'.includes(query.toLowerCase())) {
-      items.push({
-        label: 'Add new sub-page',
-        desc: 'Create and nest a sub-page here',
-        icon: '➕',
-        action: () => {
-          const title = query || 'New Subpage';
-          const parentN = ctx.st.notes.find(x => x.id === ctx.st.sel);
-          if (parentN) {
+      ctx.st.notes.forEach(x => {
+        if ((x.title || '').toLowerCase().includes(query.toLowerCase())) {
+          items.push({
+            label: x.title || 'Untitled',
+            desc: x.id === ctx.st.sel ? 'Current note' : 'Link to note',
+            icon: '📄',
+            action: () => {
+              const linkStr = formatWikilink(x.title || 'Untitled', undefined, undefined, undefined, isEmbed);
+              insertTextAtCaret(ctx, textField, linkStr);
+              saveAndSyncContent();
+            }
+          });
+        }
+      });
+
+      if (query && !items.some(i => i.label.toLowerCase() === query.toLowerCase())) {
+        items.push({
+          label: `Create new note: "${query}"`,
+          desc: 'Creates a new page in current folder',
+          icon: '✨',
+          action: () => {
+            const parentN = ctx.st.notes.find(x => x.id === ctx.st.sel);
             const newN: Note = {
               id: 'n' + Math.random().toString(36).slice(2, 7),
-              title: title,
+              title: query,
               body: '',
               blocks: [{ id: genId(), type: 'paragraph', content: '', children: [] }],
-              nb: parentN.nb,
+              nb: parentN ? parentN.nb : 'design',
               tags: [],
               pinned: false,
               date: 'Just now',
               ord: --ctx.st.ordMin,
-              parentId: parentN.id
+              parentId: parentN ? parentN.parentId : undefined
             };
             ctx.st.notes.unshift(newN);
             saveAndSync();
-            insertTextAtCaret(ctx, textField, `[[${title}]]`);
+            const linkStr = formatWikilink(query, undefined, undefined, undefined, isEmbed);
+            insertTextAtCaret(ctx, textField, linkStr);
           }
-        }
-      });
-    }
+        });
+      }
 
-    if ('add new page in...'.includes(query.toLowerCase()) || 'page elsewhere'.includes(query.toLowerCase())) {
-      items.push({
-        label: 'Add new page in...',
-        desc: 'Create new page in another folder',
-        icon: '↗',
-        action: () => {
-          const title = query || 'New Page';
-          ctx.showPrompt('Enter parent folder/note ID or notebook name:', 'design', 'design', parentId => {
-            if (parentId) {
+      if ('add new sub-page'.includes(query.toLowerCase()) || 'subpage'.includes(query.toLowerCase())) {
+        items.push({
+          label: 'Add new sub-page',
+          desc: 'Create and nest a sub-page here',
+          icon: '➕',
+          action: () => {
+            const title = query || 'New Subpage';
+            const parentN = ctx.st.notes.find(x => x.id === ctx.st.sel);
+            if (parentN) {
               const newN: Note = {
                 id: 'n' + Math.random().toString(36).slice(2, 7),
                 title: title,
                 body: '',
                 blocks: [{ id: genId(), type: 'paragraph', content: '', children: [] }],
-                nb: 'design',
+                nb: parentN.nb,
                 tags: [],
                 pinned: false,
                 date: 'Just now',
                 ord: --ctx.st.ordMin,
-                parentId: parentId
+                parentId: parentN.id
               };
               ctx.st.notes.unshift(newN);
               saveAndSync();
-              insertTextAtCaret(ctx, textField, `[[${title}]]`);
+              const linkStr = formatWikilink(title, undefined, undefined, undefined, isEmbed);
+              insertTextAtCaret(ctx, textField, linkStr);
             }
-          });
-        }
-      });
+          }
+        });
+      }
     }
   }
 
@@ -253,7 +441,7 @@ export function showAutocompletePicker(ctx: AppContext, block: Block, textField:
   ctx.elements.edInner.appendChild(picker);
   activePickerEl = picker;
 
-  const pickerHeight = picker.offsetHeight || 280;
+  const pickerHeight = picker.offsetHeight || 300;
   const viewportHeight = window.innerHeight;
   const spaceBelow = viewportHeight - rect.bottom;
   const spaceAbove = rect.top;
@@ -292,11 +480,11 @@ export function executePickerCommand(ctx: AppContext, index: number) {
     const blockId = activePickerBlockId;
     const symbol = activePickerSymbol || '';
     const query = activePickerQuery || '';
-    
+
     if (textField && textField.classList.contains('block-text-field')) {
       textField.focus();
       deleteTriggerAndQueryAtCaret(textField, symbol, query);
-      
+
       if (blockId) {
         const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
         if (n) {
@@ -307,9 +495,9 @@ export function executePickerCommand(ctx: AppContext, index: number) {
         }
       }
     }
-    
+
     item.action();
-    
+
     if (blockId) {
       const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
       if (n) {

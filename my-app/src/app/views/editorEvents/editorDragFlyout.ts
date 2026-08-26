@@ -22,6 +22,33 @@ export function handleDragHandleClick(ctx: AppContext, e: MouseEvent, dragHandle
     rerenderSelectionStyles(ctx);
     
     const menuItems: FlyoutItem[] = [
+      { label: 'Copy link to block', icon: '🔗', action: () => {
+        let blockIdTag = '';
+        const rawContent = match.block.content || '';
+        const matchTag = /\s+\^([a-zA-Z0-9_\-]+)\s*$/.exec(rawContent);
+        if (matchTag) {
+          blockIdTag = matchTag[1];
+        } else {
+          blockIdTag = Math.random().toString(36).substring(2, 8);
+          match.block.content = `${rawContent} ^${blockIdTag}`;
+          rerenderNote(ctx, n);
+        }
+        const noteTitle = n.title || 'Untitled';
+        const wikilink = `[[${noteTitle}#^${blockIdTag}]]`;
+        navigator.clipboard.writeText(wikilink).then(() => {
+          ctx.toast(`Copied block link to clipboard!`, '', () => {});
+        });
+      }},
+      ...(match.block.type.startsWith('heading') ? [{
+        label: 'Copy link to section', icon: '⚓', action: () => {
+          const cleanHeading = (match.block.content || '').replace(/<[^>]+>/g, '').trim();
+          const noteTitle = n.title || 'Untitled';
+          const wikilink = `[[${noteTitle}#${cleanHeading}]]`;
+          navigator.clipboard.writeText(wikilink).then(() => {
+            ctx.toast(`Copied section link to clipboard!`, '', () => {});
+          });
+        }
+      }] : []),
       { label: 'Duplicate', icon: '⧉', action: () => {
         pushToUndo(ctx, n);
         const clone = duplicateBlockWithNewIds(match.block);

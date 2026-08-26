@@ -1,4 +1,5 @@
 import { esc } from '../stringHelpers';
+import { parseLinkString } from '../linkParser';
 
 export function sanitizeSafeTag(tagStr: string): string {
   if (/^<\/[a-zA-Z0-9]+>$/.test(tagStr)) return tagStr;
@@ -51,21 +52,33 @@ export function escapeHtmlKeepingSafeTags(str: string): string {
 
 export function renderLinksInContent(content: string, _allNotes?: any[]): string {
   let html = escapeHtmlKeepingSafeTags(content);
-  html = html.replace(/\[\[(.*?)\]\]/g, (match, title) => {
-    return `<span class="wiki-link" data-ref="${title}" contenteditable="false" style="color: var(--accent); text-decoration: underline; cursor: pointer;">[[${title}]]</span>\u200B`;
-  });
-  
-  if (_allNotes && _allNotes.length > 0) {
-    const sorted = [..._allNotes]
-      .filter(n => n.title && n.title.trim().length > 0)
-      .sort((a, b) => b.title.trim().length - a.title.trim().length);
-    for (const note of sorted) {
-      const title = note.title.trim();
-      const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(`@${escaped}(?=[\\.,\\?!;:()[\\]\\n\\r"\\s]|$)`, 'gi');
-      html = html.replace(regex, `<span class="wiki-link" data-ref="${esc(title)}" contenteditable="false" style="color: var(--accent); text-decoration: underline; cursor: pointer;">@${esc(title)}</span>\u200B`);
+
+  // Match wikilinks and transclusions: ![[...]] and [[...]]
+  html = html.replace(/(!?)\[\[(.*?)\]\]/g, (match) => {
+    const parsed = parseLinkString(match);
+    if (!parsed) {
+      return `<span class="wiki-link" data-raw="${esc(match)}" contenteditable="false" style="color: var(--accent); text-decoration: underline; cursor: pointer;">${esc(match)}</span>\u200B`;
     }
-  }
+
+    const targetLower = parsed.targetPath.toLowerCase().trim();
+    let isGhost = false;
+    if (parsed.targetPath) {
+      if (_allNotes && _allNotes.length > 0) {
+        const found = _allNotes.some(n => (n.title || '').toLowerCase().trim() === targetLower || (n.id || '').toLowerCase() === targetLower);
+        if (!found) isGhost = true;
+      }
+    }
+
+    if (parsed.isEmbed) {
+      return `<span class="embedded-transclusion" data-target="${esc(parsed.targetPath)}" data-heading="${esc(parsed.heading || '')}" data-block="${esc(parsed.blockId || '')}" data-raw="${esc(match)}" contenteditable="false" style="background: var(--bg3, rgba(0, 120, 212, 0.08)); color: var(--accent); padding: 2px 6px; border-radius: 4px; font-size: 12.5px; border: 1px solid var(--border); display: inline-flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;">🖼 ${esc(parsed.displayText)}</span>\u200B`;
+    }
+
+    if (isGhost) {
+      return `<span class="wiki-link ghost-link" data-ref="${esc(parsed.targetPath)}" data-target="${esc(parsed.targetPath)}" data-heading="${esc(parsed.heading || '')}" data-block="${esc(parsed.blockId || '')}" data-alias="${esc(parsed.displayText)}" data-raw="${esc(match)}" data-ghost="true" contenteditable="false" style="color: var(--text3, #888); text-decoration: underline dashed; cursor: pointer;" title="Uncreated note: click to create">${esc(parsed.displayText)}</span>\u200B`;
+    }
+
+    return `<span class="wiki-link" data-ref="${esc(parsed.targetPath)}" data-target="${esc(parsed.targetPath)}" data-heading="${esc(parsed.heading || '')}" data-block="${esc(parsed.blockId || '')}" data-alias="${esc(parsed.displayText)}" data-raw="${esc(match)}" contenteditable="false" style="color: var(--accent); text-decoration: underline; cursor: pointer;">${esc(parsed.displayText)}</span>\u200B`;
+  });
 
   html = html.replace(/@([a-zA-Z0-9_\-]+(?:\s+[a-zA-Z0-9_\-]+)*?)(?=[,\.\?\!\;:()\[\]\n\r"]|\s+@|$)/gi, (match, title) => {
     return `<span class="wiki-link" data-ref="${title}" contenteditable="false" style="color: var(--accent); text-decoration: underline; cursor: pointer;">@${title}</span>\u200B`;

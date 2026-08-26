@@ -287,29 +287,81 @@ export function handleEditorBodyClick(ctx: AppContext, e: MouseEvent) {
     return;
   }
 
-  const link = target.closest('.wiki-link') as HTMLElement;
+  const link = target.closest('.wiki-link, .embedded-transclusion') as HTMLElement;
   if (link) {
-    const ref = link.dataset.ref!;
-    const nId = resolveNoteId(ref, ctx.st.notes);
+    e.preventDefault();
+    e.stopPropagation();
+    const targetPath = (link.dataset.target || link.dataset.ref || '').trim();
+    const heading = (link.dataset.heading || '').trim();
+    const blockId = (link.dataset.block || '').trim();
+
+    const nId = targetPath ? resolveNoteId(targetPath, ctx.st.notes) : ctx.st.sel;
+
+    const scrollToAnchor = () => {
+      let targetEl: HTMLElement | null = null;
+      if (blockId) {
+        const blocks = ctx.elements.edBody.querySelectorAll('.block-wrapper');
+        for (const b of blocks) {
+          const id = (b as HTMLElement).dataset.id;
+          const text = b.textContent || '';
+          if (id === blockId || text.includes(`^${blockId}`)) {
+            targetEl = b as HTMLElement;
+            break;
+          }
+        }
+      } else if (heading) {
+        const headingEls = ctx.elements.edBody.querySelectorAll('h1, h2, h3, h4, .block-heading, .block-text-field');
+        const cleanHeading = heading.toLowerCase();
+        for (const h of headingEls) {
+          const txt = (h.textContent || '').replace(/<[^>]+>/g, '').trim().toLowerCase();
+          if (txt === cleanHeading || txt.startsWith(cleanHeading)) {
+            targetEl = (h.closest('.block-wrapper') as HTMLElement) || (h as HTMLElement);
+            break;
+          }
+        }
+      }
+
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const originalBg = targetEl.style.backgroundColor;
+        const originalOutline = targetEl.style.outline;
+        targetEl.style.transition = 'background-color 0.4s ease, outline 0.4s ease';
+        targetEl.style.backgroundColor = 'rgba(0, 120, 212, 0.18)';
+        targetEl.style.outline = '2px solid var(--accent, #0078d4)';
+        targetEl.style.borderRadius = '6px';
+        setTimeout(() => {
+          if (targetEl) {
+            targetEl.style.backgroundColor = originalBg;
+            targetEl.style.outline = originalOutline;
+          }
+        }, 1600);
+      }
+    };
+
     if (nId) {
-      ctx.selectNote(nId);
-    } else {
-      ctx.toast(`Note "${ref}" not found. Create it?`, 'Create', () => {
-        const newN: Note = {
-          id: 'n' + Math.random().toString(36).slice(2, 7),
-          title: ref,
-          body: '',
-          blocks: [{ id: genId(), type: 'paragraph', content: '', children: [] }],
-          nb: ctx.st.nb !== 'all' ? ctx.st.nb : 'design',
-          tags: ctx.st.tag ? [ctx.st.tag] : [],
-          pinned: false,
-          date: 'Just now',
-          ord: --ctx.st.ordMin
-        };
-        ctx.st.notes.unshift(newN);
-        saveAndSync();
-        ctx.selectNote(newN.id);
-      });
+      if (ctx.st.sel !== nId) {
+        ctx.selectNote(nId);
+        setTimeout(scrollToAnchor, 100);
+      } else {
+        scrollToAnchor();
+      }
+    } else if (targetPath) {
+      // Instant creation for ghost link
+      const newN: Note = {
+        id: 'n' + Math.random().toString(36).slice(2, 7),
+        title: targetPath,
+        body: '',
+        blocks: [{ id: genId(), type: 'paragraph', content: '', children: [] }],
+        nb: ctx.st.nb !== 'all' ? ctx.st.nb : 'design',
+        tags: ctx.st.tag ? [ctx.st.tag] : [],
+        pinned: false,
+        date: 'Just now',
+        ord: --ctx.st.ordMin
+      };
+      ctx.st.notes.unshift(newN);
+      saveAndSync();
+      ctx.selectNote(newN.id);
+      ctx.toast(`Created page "${targetPath}"`, '', () => {});
     }
     return;
   }

@@ -121,6 +121,41 @@ export function handleEditorPaste(ctx: AppContext, e: ClipboardEvent) {
 
   const pastedText = clipboardData.getData('text');
   const isUrl = /^(https?:\/\/[^\s]+)$/i.test(pastedText.trim());
+  const isWikilink = /^(!?)\[\[([^\]]+)\]\]$/.test(pastedText.trim());
+
+  if (isWikilink) {
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed) {
+      e.preventDefault();
+      const range = selection.getRangeAt(0);
+      const selectedHtml = range.toString();
+      const match = /^(!?)\[\[([^\]|]+)(?:\|([^\]]+))?\]\]$/.exec(pastedText.trim());
+      if (match) {
+        const prefix = match[1] || '';
+        const targetWithAnchor = match[2];
+        const newWikilink = `${prefix}[[${targetWithAnchor}|${selectedHtml}]]`;
+        insertHtmlAtCaret(newWikilink);
+        
+        const target = e.target as HTMLElement;
+        const blockEl = target.closest('.block-wrapper') as HTMLElement;
+        if (blockEl) {
+          const blockId = blockEl.dataset.id!;
+          const n = ctx.st.notes.find(x => x.id === ctx.st.sel);
+          if (n) {
+            const matchBlock = findBlockById(n.blocks, blockId);
+            if (matchBlock) {
+              const textEl = blockEl.querySelector('.block-text-field') as HTMLElement;
+              matchBlock.block.content = cleanBadgeHtml(textEl);
+              saveAndSyncContent();
+              ctx.markSaving();
+            }
+          }
+        }
+        return;
+      }
+    }
+  }
+
   if (isUrl) {
     const selection = window.getSelection();
     if (selection && !selection.isCollapsed) {
