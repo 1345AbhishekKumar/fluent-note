@@ -81,7 +81,7 @@
   max-width: 900px;
   margin: 0 auto;
   padding: 48px 64px 96px;
-  transition: opacity var(--duration-quick) var(--ease-in-out), transform var(--duration-quick) var(--ease-in-out);
+  transition: opacity var(--duration-quick) var(--ease-smooth-out), transform var(--duration-quick) var(--ease-smooth-out);
   position: relative;
 }
 .ed-inner.swap {

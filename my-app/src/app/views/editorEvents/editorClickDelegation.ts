@@ -325,7 +325,7 @@ export function handleEditorBodyClick(ctx: AppContext, e: MouseEvent) {
         targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         const originalBg = targetEl.style.backgroundColor;
         const originalOutline = targetEl.style.outline;
-        targetEl.style.transition = 'background-color 0.4s ease, outline 0.4s ease';
+        targetEl.style.transition = 'background-color 200ms cubic-bezier(0.22, 1, 0.36, 1), outline 200ms cubic-bezier(0.22, 1, 0.36, 1)';
         targetEl.style.backgroundColor = 'rgba(0, 120, 212, 0.18)';
         targetEl.style.outline = '2px solid var(--accent, #0078d4)';
         targetEl.style.borderRadius = '6px';

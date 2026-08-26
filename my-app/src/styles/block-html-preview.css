@@ -11,7 +11,7 @@
   background: var(--card, #ffffff);
   overflow: hidden;
   box-shadow: var(--sh-card, 0 1px 3px rgba(0, 0, 0, 0.08));
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color var(--duration-quick) var(--ease-smooth-out), box-shadow var(--duration-quick) var(--ease-smooth-out);
 }
 
 .html-block-card:hover {
@@ -187,7 +187,7 @@
   backdrop-filter: blur(8px);
   display: flex;
   flex-direction: column;
-  animation: fadeIn 0.15s ease-out;
+  animation: htmlModalFadeIn var(--duration-quick) var(--ease-smooth-out);
 }
 
 .html-modal-header {
@@ -305,7 +305,6 @@
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
-  transition: width 0.25s cubic-bezier(0.2, 0, 0, 1);
   display: flex;
   flex-direction: column;
 }
@@ -337,8 +336,8 @@
   display: block;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.97); }
+@keyframes htmlModalFadeIn {
+  from { opacity: 0; transform: scale(var(--scale-medium)); }
   to { opacity: 1; transform: scale(1); }
 }
 

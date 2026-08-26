@@ -278,6 +278,11 @@
       "sourceType": "local",
       "computedHash": "8695824ffe756567f6cf3b758853a094a9c974bf96226cde88b0b6c08099dabc"
     },
+    "ui-ux-auditor": {
+      "source": "./.agents/skills/ui-ux-auditor",
+      "sourceType": "local",
+      "computedHash": "91434fadb335ec786b4c400ea577826dced3db2e137a20fb359b766aa2bbde33"
+    },
     "vercel-composition-patterns": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
